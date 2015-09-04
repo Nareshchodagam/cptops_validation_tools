@@ -1,0 +1,22 @@
+{
+	"current-6": 
+		{
+			"os_version": "6.6",
+			"kernel": "2.6.32-504.12.2.el6.x86_64"
+		},
+	"candidate-6":
+		{
+			"os_version": "6.6",
+			"kernel": "2.6.32-504.23.4.el6.x86_64"
+		},
+	"gia-current-6": 
+		{
+			"os_version": "6.6",
+			"kernel": "2.6.32-504.12.2.el6.x86_64"
+		},
+	"gia-candidate-6":
+		{
+			"os_version": "6.6",
+			"kernel": "2.6.32-504.23.4.el6.x86_64"
+		}
+}
