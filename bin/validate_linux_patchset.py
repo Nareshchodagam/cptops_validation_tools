@@ -94,15 +94,23 @@ def get_json(filename):
 if __name__ == "__main__":
     usage = """
 
-    This script will validate if a host is running the correct kernel and redhat release
+    This script will validate if a host is running the correct kernel and linux release.
+    Support for RHEL, OEL and CENTOS currently.
 
-    %prog [-k kernel] [-r redhat] [-b seconds] [-u]
-
+    %prog [-c (current|candidate)] [-f path/to/json/file] [-u] [-v]
+    %prog [-k kernel] [-r redhat] [-b seconds] [-u] [-v]
+    
+    Validate the host needs patching.
+    %prog -c current -f valid_versions.json
+    
+    Validate the host has been updated
+    %prog -c current -f valid_versions.json -u
+    
     Valdiate the kernel version
-    %prog -k kernel version
+    %prog -k <kernel version>
 
     Validate the redhat release
-    %prog -r redhat release
+    %prog -r <redhat release>
 
     Validate both the kernel and redhat release
     %prog -k kernel -r release
@@ -114,7 +122,7 @@ if __name__ == "__main__":
     %prog -k 2.6.32-504.8.1.el6.x86_64 -r 6.6
 
     Usage after patching to check if the host has been updated and rebooted within the last 5 mins
-    %prog -k 2.6.32-504.8.1.el6.x86_64 -r 6.6 -b 300 -u
+    %prog -k 2.6.32-504.8.1.el6.x86_64 -r 6.6 -u
     """
     parser = OptionParser(usage)
     parser.add_option("-k", dest="kernver", action="store", help="The kernel version host should have")
