@@ -10,26 +10,48 @@ from optparse import OptionParser
 import glob
 import common
 import json
+import os.path
 
-def check_rh_release(input):
+def check_release(input):
     ver = 'unknown'
-    m = re.search(r' release (\d{1,2}\.\d{1,2}) ',input)
+    m = re.search(r' release (\d{1,2}\.\d{1,2})',input)
     if m:
         ver = m.group(1)
     return ver
 
-def check_rh_kernel(input):
+def check_kernel(input):
     details = input.split()
     kernel = details[2]
     return kernel
 
-def get_rh_release(rhver):
-    logging.debug(rhver)
-    cmd_lst = ['cat', '/etc/redhat-release']
+def get_os_type():
+    os_types = {'OEL': '/etc/oracle-release', 'RHEL': '/etc/redhat-release', 'CENTOS': '/etc/centos-release'}
+    os_type = ''
+    if os.path.isfile(os_types['OEL']):
+        os_type = 'OEL'
+    elif os.path.isfile(os_types['CENTOS']):
+        os_type = 'CENTOS'
+    elif os.path.isfile(os_types['RHEL']):
+        os_type = 'RHEL'
+    else:
+        os_type = 'UNKNOW'
+    return os_type
+
+def get_os_ver(os_type):
+    os_types = {'OEL': '/etc/oracle-release', 'RHEL': '/etc/redhat-release', 'CENTOS': '/etc/centos-release'}
+    cmd_lst = ['cat', os_types[os_type]]
     release = run_cmd(cmd_lst)
-    ver = check_rh_release(release)
-    logging.debug("Current : %s | Wanted : %s" % (ver, rhver))
-    result = False if ver != rhver else True
+    ver = check_release(release)
+    return ver
+
+def get_release(os_ver, os_type):
+    os_types = {'OEL': '/etc/oracle-release', 'RHEL': '/etc/redhat-release', 'CENTOS': '/etc/centos-release'}
+    logging.debug(os_ver)
+    cmd_lst = ['cat', os_types[os_type]]
+    release = run_cmd(cmd_lst)
+    ver = check_release(release)
+    logging.debug("Current : %s | Wanted : %s" % (ver, os_ver))
+    result = False if ver != os_ver else True
     return result
 
 def run_cmd(cmdlist):
@@ -42,7 +64,7 @@ def get_kernel_ver(kernver):
     logging.debug(kernver)
     cmd_lst = ['uname', '-a']
     uname = run_cmd(cmd_lst)
-    ver = check_rh_kernel(uname)
+    ver = check_kernel(uname)
     logging.debug("Current : %s | Wanted : %s" % (ver, kernver))
     result = False if ver != kernver else True
     return result
@@ -109,18 +131,23 @@ if __name__ == "__main__":
         versions_file = options.verfile
     else:
         versions_file = 'valid_versions.json'
+    
     version_data = get_json(versions_file)
+    os_type = get_os_type()
+    os_ver = get_os_ver(os_type)
+    os_major,os_minor = os_ver.split('.')
+    logging.debug('OS: %s, Major: %s, Minor: %s' % (os_type,os_major,os_minor))
     if options.check and options.updated:
-        kern_result = get_kernel_ver(version_data[options.check]['kernel'])
+        kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
         print('Checking kernel version:')
         exit_code(kern_result)
-        rel_result = get_rh_release(version_data[options.check]['os_version'])
+        rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         print('Checking RH release version:')
         exit_code(rel_result)
         print('System running correct patch level')
     elif options.check and not options.updated:
-        kern_result = get_kernel_ver(version_data[options.check]['kernel'])
-        rel_result = get_rh_release(version_data[options.check]['os_version'])
+        kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
+        rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         if kern_result == True and rel_result == True:
             print('System running correct patch level no need to update')
             sys.exit(1)
@@ -130,7 +157,7 @@ if __name__ == "__main__":
         result = get_kernel_ver(options.kernver)
         exit_code(result)
     elif options.releasever:
-        result = get_rh_release(options.releasever)
+        result = get_release(options.releasever)
         exit_code(result)
     else:
         print(usage)
