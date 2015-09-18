@@ -1,22 +1,58 @@
 {
-	"current-6": 
+	"RHEL":
 		{
-			"os_version": "6.6",
-			"kernel": "2.6.32-504.12.2.el6.x86_64"
+			"6":
+				{
+					"current": 
+						{
+							"os_version": "6.6",
+							"kernel": "2.6.32-504.12.2.el6.x86_64",
+							"sfdc-release": "2015.05"
+						},
+					"candidate":
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.el6.x86_64",
+							"sfdc-release": "2015.09"
+						},
+					"gia-current": 
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.el6.x86_64",
+							"sfdc-release": "2015.09"
+						},
+					"gia-candidate":
+						{
+							"os_version": "6.6",
+							"kernel": "2.6.32-504.23.4.el6.x86_64",
+							"sfdc-release": "2015.10"
+						}
+				}
 		},
-	"candidate-6":
+	"OEL":
 		{
-			"os_version": "6.6",
-			"kernel": "2.6.32-504.23.4.el6.x86_64"
-		},
-	"gia-current-6": 
-		{
-			"os_version": "6.6",
-			"kernel": "2.6.32-504.12.2.el6.x86_64"
-		},
-	"gia-candidate-6":
-		{
-			"os_version": "6.6",
-			"kernel": "2.6.32-504.23.4.el6.x86_64"
+			"6":
+				{
+					"current": 
+						{
+							"os_version": "6.6",
+							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
+						},
+					"candidate":
+						{
+							"os_version": "6.6",
+							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
+						},
+					"gia-current": 
+						{
+							"os_version": "6.6",
+							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
+						},
+					"gia-candidate":
+						{
+							"os_version": "6.6",
+							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
+						}
+				}
 		}
 }
