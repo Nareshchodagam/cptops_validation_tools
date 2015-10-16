@@ -5,7 +5,7 @@
 				{
 					"current": 
 						{
-							"os_version ": "6.7",
+							"os_version": "6.7",
 							"kernel": "2.6.32-573.3.1.el6.x86_64",
 							"sfdc-release": "2015.10"
 						},
