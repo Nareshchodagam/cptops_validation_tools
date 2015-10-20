@@ -45,7 +45,7 @@ def check_max_file_desc(paths):
                     str,max_file_desc = line.split(':')
                     output[i] = max_file_desc.strip()
         except Exception, e:
-            print('AIssue with maximum number of file descriptors: ', e)
+            print('Issue with maximum number of file descriptors: ', e)
             sys.exit(1)
     return output
 
