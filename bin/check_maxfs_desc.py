@@ -98,8 +98,10 @@ def getSquidClientPath(inst):
 
 def validValues(data):
     for k in data:
-        if data[k] < 64000:
+        logging.debug(data[k])
+        if int(data[k]) < 64000:
             print('%s is less then 64k for user %s' %(data[k], k))
+            print('Please restart Squid using sudo /etc/init.d/squid restart')
             sys.exit(1)
             
 def get_inst(hostname):
