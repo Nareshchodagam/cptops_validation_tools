@@ -17,6 +17,10 @@ list_loopback_ifs () {
   ifconfig -a | grep '^lo:[0-9]' | awk '{print $1}'
 }
 
+display_current_rules () {
+  iptables -t nat -L -n 2>&1 | grep -E -- "\s[0-9.]*\s*tcp\s*dpt:10004\s*to:127\.0\.0\.1:10005"
+}
+
 create_iptables_rule () {
   local IP="$1"
 
@@ -40,6 +44,8 @@ delete_iptables_rule () {
   then
     # The rule does not exist
     echo "The rule for ip [${IP}] can't be found. Error..." >&2
+    echo "Here are the only rules I see:" >&2
+    display_current_rules >&2
     return 1
   fi
 
@@ -48,87 +54,87 @@ delete_iptables_rule () {
   return $?
 }
 
-create_if () {
-  local IP="$1"
-  local loopback_ifs=$(list_loopback_ifs)
+#create_if () {
+#  local IP="$1"
+#  local loopback_ifs=$(list_loopback_ifs)
+#
+#  # First, if the IP address is already configured on a virtual loopback, just
+#  # exit cleanly.
+#  local my_if
+#  for my_if in ${loopback_ifs}
+#  do
+#    ifconfig "${my_if}" | grep -q "${IP//./\\.}" && return 0
+#  done
+#
+#  # Determine the number of the next virtual loopback interface
+#  local NEXT_IFNO=0
+#  for my_if in ${loopback_ifs}
+#  do
+#    local my_ifno="${my_if#*:}"
+#    # Make sure that the interface we are looking at is a virtual interface
+#    # (i.e. it ends with ":[0-9]":
+#    echo "${my_ifno}" | grep -q '^[0-9][0-9]*$' || continue
+#
+#    if [[ ${my_ifno} -ge ${NEXT_IFNO} ]]
+#    then
+#      NEXT_IFNO=$((my_ifno + 1))
+#    fi
+#  done
+#
+#  local MY_VIRT_IF="lo:${NEXT_IFNO}"
+#
+#  # This command brings up the virtual interface:
+#  ifconfig "${MY_VIRT_IF}" "${IP}" netmask 255.255.255.255
+#
+#  # This next stuff creates the startup file so it will come up at next boot
+#  local IF_FILE="/etc/sysconfig/network-scripts/ifcfg-${MY_VIRT_IF}"
+#  if [[ -e ${IF_FILE} ]]
+#  then
+#    echo "Interface config file [${IF_FILE}] already exists! ERROR" >&2
+#    return 1
+#  fi
+#  touch ${IF_FILE}
+#  chmod 644 ${IF_FILE} ##TODO(mpettit) -- Investigate this
+#  chown root:root ${IF_FILE} ##TODO(mpettit) -- Investigate this
+#  cat >${IF_FILE} <<EOF
+#DEVICE=${MY_VIRT_IF}
+#IPADDR=${IP}
+#NETMASK=255.255.255.255
+#BOOTPROTO=none
+#ONBOOT=yes
+#EOF
+#
+#  # All done!
+#  return 0
+#}
 
-  # First, if the IP address is already configured on a virtual loopback, just
-  # exit cleanly.
-  local my_if
-  for my_if in ${loopback_ifs}
-  do
-    ifconfig "${my_if}" | grep -q "${IP//./\\.}" && return 0
-  done
-
-  # Determine the number of the next virtual loopback interface
-  local NEXT_IFNO=0
-  for my_if in ${loopback_ifs}
-  do
-    local my_ifno="${my_if#*:}"
-    # Make sure that the interface we are looking at is a virtual interface
-    # (i.e. it ends with ":[0-9]":
-    echo "${my_ifno}" | grep -q '^[0-9][0-9]*$' || continue
-
-    if [[ ${my_ifno} -ge ${NEXT_IFNO} ]]
-    then
-      NEXT_IFNO=$((my_ifno + 1)) 
-    fi
-  done
-
-  local MY_VIRT_IF="lo:${NEXT_IFNO}"
-
-  # This command brings up the virtual interface:
-  ifconfig "${MY_VIRT_IF}" "${IP}" netmask 255.255.255.255
-
-  # This next stuff creates the startup file so it will come up at next boot
-  local IF_FILE="/etc/sysconfig/network-scripts/ifcfg-${MY_VIRT_IF}"
-  if [[ -e ${IF_FILE} ]]
-  then
-    echo "Interface config file [${IF_FILE}] already exists! ERROR" >&2
-    return 1
-  fi
-  touch ${IF_FILE}
-  chmod 644 ${IF_FILE} ##TODO(mpettit) -- Investigate this
-  chown root:root ${IF_FILE} ##TODO(mpettit) -- Investigate this
-  cat >${IF_FILE} <<EOF
-DEVICE=${MY_VIRT_IF}
-IPADDR=${IP}
-NETMASK=255.255.255.255
-BOOTPROTO=none
-ONBOOT=yes
-EOF
-  
-  # All done!
-  return 0
-}
-
-delete_if () {
-  local IP="$1"
-  local loopback_ifs=$(list_loopback_ifs)
-
-  # First, find the interface where the IP currently lives
-  local my_if
-  for my_if in ${loopback_ifs}
-  do
-    local my_ifno="${my_if#*:}"
-    # Make sure that the interface we are looking at is a virtual interface
-    # (i.e. it ends with ":[0-9]":
-    echo "${my_ifno}" | grep -q '^[0-9][0-9]*$' || continue
-
-    ifconfig "${my_if}" | grep -q "addr:${IP//./\\.} "
-    if [[ $? -eq 0 ]]
-    then
-      # Found the correct interface to delete
-      ifconfig "${my_if}" down
-      rm -f "/etc/sysconfig/network-scripts/ifcfg-${my_if}"
-      return 0
-    fi
-  done
-
-  # If execution falls through to here, we were not able to find the IP.
-  echo "Unable to find IP [${IP}] on any loopback interface" >&2
-  return 1
-}
+#delete_if () {
+#  local IP="$1"
+#  local loopback_ifs=$(list_loopback_ifs)
+#
+#  # First, find the interface where the IP currently lives
+#  local my_if
+#  for my_if in ${loopback_ifs}
+#  do
+#    local my_ifno="${my_if#*:}"
+#    # Make sure that the interface we are looking at is a virtual interface
+#    # (i.e. it ends with ":[0-9]":
+#    echo "${my_ifno}" | grep -q '^[0-9][0-9]*$' || continue
+#
+#    ifconfig "${my_if}" | grep -q "addr:${IP//./\\.} "
+#    if [[ $? -eq 0 ]]
+#    then
+#      # Found the correct interface to delete
+#      ifconfig "${my_if}" down
+#      rm -f "/etc/sysconfig/network-scripts/ifcfg-${my_if}"
+#      return 0
+#    fi
+#  done
+#
+#  # If execution falls through to here, we were not able to find the IP.
+#  echo "Unable to find IP [${IP}] on any loopback interface" >&2
+#  return 1
+#}
 
 help () {
   cat >&2 <<EOF
@@ -248,17 +254,14 @@ do
 done
 
 # Step 5: For each requested host, perform the requested action
-# 
-# If the action is "create", we need to create a virtual loopback interface
-# configured with the IP of the peer. If the action is "delete", delete said
-# virtual loopback interface.
+#
+# If the action is "create", we need to create a iptables rule for the IP of
+# the peer. If the action is "delete", delete the iptables rule.
 
 for IP in "${PEER_IPS[@]}"
 do
   if [[ ${ACTION} == 'create' ]]
   then
-    # Instead of using virtual loopback interfaces, let's use iptables.
-    # create_if "${IP}"
     create_iptables_rule "${IP}"
     if [[ $? -ne 0 ]]
     then
@@ -267,8 +270,6 @@ do
     fi
   elif [[ ${ACTION} == 'delete' ]]
   then
-    # Instead of using virtual loopback interfaces, let's use iptables.
-    # delete_if "${IP}"
     delete_iptables_rule "${IP}"
     if [[ $? -ne 0 ]]
     then
@@ -280,3 +281,14 @@ do
     exit 1
   fi
 done
+
+# All done. Output a summary of what was done.
+
+if [[ ${ACTION} == 'create' ]]
+then
+  echo 'All rules added. Current state:'
+  display_current_rules
+else
+  echo 'All rules removed. Current state:'
+  display_current_rules
+fi
