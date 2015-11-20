@@ -21,6 +21,14 @@ display_current_rules () {
   iptables -t nat -L -n 2>&1 | grep -E -- "\s[0-9.]*\s*tcp\s*dpt:10004\s*to:127\.0\.0\.1:10005"
 }
 
+display_current_rules_removed () {
+  iptables -t nat -L -n 2>&1 | grep -E -- "\s[0-9.]*\s*tcp\s*dpt:10004\s*to:127\.0\.0\.1:10005"
+  if [[ $? -eq 1 ]]
+  then
+  	return 0
+  fi
+}
+
 create_iptables_rule () {
   local IP="$1"
 
@@ -290,5 +298,5 @@ then
   display_current_rules
 else
   echo 'All rules removed. Current state:'
-  display_current_rules
+  display_current_rules_removed
 fi
