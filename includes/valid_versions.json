@@ -29,6 +29,36 @@
 						}
 				}
 		},
+	"CENTOS":
+		{
+			"6":
+				{
+					"current": 
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.7.1.el6.x86_64",
+							"sfdc-release": "2015.10"
+						},
+					"candidate":
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.7.1.el6.x86_64",
+							"sfdc-release": "2015.10"
+						},
+					"gia-current": 
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.7.1.el6.x86_64",
+							"sfdc-release": "2015.10"
+						},
+					"gia-candidate":
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.7.1.el6.x86_64",
+							"sfdc-release": "2015.10"
+						}
+				}
+		},
 	"OEL":
 		{
 			"6":
