@@ -8,6 +8,7 @@ import logging
 import os
 import subprocess
 from optparse import OptionParser
+import sys
 
 
 def getVendor():
@@ -30,6 +31,11 @@ def getVendor():
 
     print("Vendor identified as: " + vendor)
     return vendor
+
+def checkId():
+    if os.geteuid() != 0:
+        print("You need to have root privileges to run this script.")
+        sys.exit(1)
 
 def setBootDev(vendor,device):
     logging.debug('Setting ' + vendor + ' device to boot from ' + device)
@@ -99,6 +105,9 @@ if __name__ == "__main__":
 
     # Set boot device
     %prog -s -d [HDD|PXE]
+    
+    Set the vendor
+    %prog -f [DELL|HP]
 
     ------------------------------------------------------------------------
 
@@ -107,10 +116,11 @@ if __name__ == "__main__":
     parser = OptionParser(usage)
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="Verbosity")
     parser.add_option("-g", action="store_true", dest="getvendor", default=False, help="Get vendor")
+    parser.add_option("-f", action="store", dest="setvendor", default=False, help="Set vendor (DELL or HP)")
     parser.add_option("-s", action="store_true", dest="setdevice", default=False, help="Set boot device")
     parser.add_option("-d", dest="devicename", help="Device (HDD or PXE)")
 
-
+    checkId()
     (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -119,7 +129,10 @@ if __name__ == "__main__":
         vendor=getVendor()
 
     if options.setdevice:
-        vendor=getVendor()
+        if options.setvendor:
+            vendor = options.setvendor
+        else:
+            vendor=getVendor()
         setBootDev(vendor,options.devicename.upper())
 
 
