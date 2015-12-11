@@ -19,7 +19,7 @@ def getVendor():
     logging.debug('Checking dmidecode to identify vendor')
 
     try:
-        cmd="dmidecode | head -15 | grep Vendor | awk '{print $2}'"
+        cmd="dmidecode | grep Vendor | awk '{print $2}'"
         result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         out,err=result.communicate()
         vendor=out.upper().strip()
@@ -46,7 +46,8 @@ def setBootDev(vendor,device):
             persistence=1
         else:
             persistence=0
-               
+
+
         logging.debug('Setting persistence to : ' + str(persistence))
 
         rtrn_flag = False
