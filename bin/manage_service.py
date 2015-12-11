@@ -54,7 +54,7 @@ def getStatus(procName):
 
 def startService(procName,cmd,force):
     status=getStatus(procName)
-    if status is "RUNNING" or force is True:
+    if status == "RUNNING" or force is True:
         print('Starting service: ' + procName)
         try:
             output=commands.getoutput(cmd)
