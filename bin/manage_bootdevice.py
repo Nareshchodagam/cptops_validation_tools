@@ -10,6 +10,10 @@ import subprocess
 from optparse import OptionParser
 
 
+path = '/opt/dell/srvadmin/sbin/'
+os.environ['PATH'] += os.pathsep + path
+
+
 def getVendor():
 
     logging.debug('Checking dmidecode to identify vendor')
@@ -43,27 +47,34 @@ def setBootDev(vendor,device):
         else:
             persistence=0
 
+
         logging.debug('Setting persistence to : ' + str(persistence))
-        try:
-            cmd="racadm config -g cfgServerInfo -o cfgServerBootOnce " + str(persistence)
-            result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            out,err=result.communicate()
-            logging.debug(out.rstrip())
-        except:
-            print('Unable to set to boot persistence to ' + str(persistence))
-            exit(1)
 
-        logging.debug('Setting first boot device to: ' + device)
-        try:
-            cmd="racadm config -g cfgServerInfo -o cfgServerFirstBootDevice " + device
-            result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            out,err=result.communicate()
-            logging.debug(out.rstrip())
-            print('Successfully set first boot device to ' + device)
+        rtrn_flag = False
+        cmnds = ['/opt/dell/srvadmin/bin/idracadm7', '/opt/dell/srvadmin/bin/idracadm',
+                 '/opt/dell/srvadmin/sbin/racadm']
 
-        except:
-            print('Unable to set boot device.')
-            exit(1)
+        for command in cmnds:
+            if os.path.exists(command):
+                cmd = "{0} config -g  cfgServerInfo -o cfgServerBootOnce {1}" .format(command, str(persistence))
+                logging.debug("Executing command "+ cmd)
+                cmd1 = "{0} config -g cfgServerInfo -o cfgServerFirstBootDevice {1}" .format(command, device)
+                result = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = result.communicate()
+                logging.debug(out.rstrip())
+                if result.returncode == 0:
+                    rtrn_flag = True
+                    logging.debug("Executing command " + cmd1)
+                    result = subprocess.Popen(cmd1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    out, err = result.communicate()
+                    logging.debug(out.rstrip())
+                    return True
+                else:
+                    continue
+            else:
+                continue
+        return False
+
 
     # HP Section
     elif vendor == "HP":
@@ -78,10 +89,12 @@ def setBootDev(vendor,device):
             result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             out,err=result.communicate()
             print(out.rstrip())
+            return True
 
         except:
             print('Unable to set boot device.')
-            exit(1)
+            return False
+
     else:
         print("Unidentified vendor: " + vendor)
         exit(1)
@@ -120,6 +133,8 @@ if __name__ == "__main__":
 
     if options.setdevice:
         vendor=getVendor()
-        setBootDev(vendor,options.devicename.upper())
+        if not setBootDev(vendor,options.devicename.upper()):
+            print("Unable to set boot device")
+            exit(1)
 
 

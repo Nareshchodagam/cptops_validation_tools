@@ -45,7 +45,7 @@ def check_max_file_desc(paths):
                     str,max_file_desc = line.split(':')
                     output[i] = max_file_desc.strip()
         except Exception, e:
-            print('Unable to find squidclient file: ', e)
+            print('Issue with maximum number of file descriptors: ', e)
             sys.exit(1)
     return output
 
@@ -64,7 +64,7 @@ def checkMaxFileDescPP(paths):
                     str,max_file_desc = line.split(':')
                     output[i] = max_file_desc.strip()
         except Exception, e:
-            print('Unable to find squidclient file: ', e)
+            print('Issue with maximum number of file descriptors: ', e)
             sys.exit(1)
     return output
 
@@ -73,32 +73,35 @@ def get_squid_user_squid_cliend_path(user):
     try:
         s = subprocess.Popen(['find', path, '-name', 'squidclient'], stdout=subprocess.PIPE)
         out, err = s.communicate()
+        logging.debug(out)
         return out
     except Exception, e:
         print('Unable to find squidclient file: ', e)
 
-def get_squid_client_path(inst):
-    path = {'squid' : '/usr/bin/squidclient'}
+def getSquidClientPath(inst):
+    paths = {'squid' : '/usr/bin/squidclient'}
     if re.match(r'public', inst):
-        if not os.path.isfile(path['squid']):
-            print('squidclient not found in %s' % path)
+        if not os.path.isfile(paths['squid']):
+            print('squidclient not found in %s' % paths)
             sys.exit(1)
     else:
-        if not os.path.isfile(path['squid']):
-            path = {}
-            lst = ['proxy1', 'proxy2']
-            for i in lst:
-                spath = get_squid_user_squid_cliend_path(i)
-                if not spath == None:
-                    path[i] = spath.rstrip()
+        #if not os.path.isfile(path['squid']):
+        paths = {}
+        lst = ['proxy1', 'proxy2']
+        for i in lst:
+            spath = get_squid_user_squid_cliend_path(i)
+            if not spath == None:
+                paths[i] = spath.rstrip()
             #if os.path.isfile():
-    logging.debug(path)
-    return path
+    logging.debug(paths)
+    return paths
 
 def validValues(data):
     for k in data:
-        if data[k] < 64000:
+        logging.debug(data[k])
+        if int(data[k]) < 64000:
             print('%s is less then 64k for user %s' %(data[k], k))
+            print('Please restart Squid using sudo /etc/init.d/squid restart')
             sys.exit(1)
             
 def get_inst(hostname):
@@ -125,7 +128,9 @@ if __name__ == "__main__":
     inst,hfunc,node,site = get_inst(hostname)
     logging.debug(hostname)
     logging.debug("%s,%s,%s,%s" % (inst,hfunc,node,site))
-    paths = get_squid_client_path(inst)
+    paths = getSquidClientPath(inst)
+    logging.debug(paths)
+    logging.debug(inst)
     if re.search(r'public', inst):
         live_max_file_desc_values = checkMaxFileDescPP(paths)
     else:
