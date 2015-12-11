@@ -15,7 +15,7 @@ def getVendor():
     logging.debug('Checking dmidecode to identify vendor')
 
     try:
-        cmd="dmidecode | head -15 | grep Vendor | awk '{print $2}'"
+        cmd="dmidecode | grep Vendor | awk '{print $2}'"
         result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         out,err=result.communicate()
         vendor=out.upper().strip()
@@ -42,9 +42,9 @@ def setBootDev(vendor,device):
             persistence=1
         else:
             persistence=0
-               
-        logging.debug('Setting persistence to : ' + str(persistence))    
-        try:   
+
+        logging.debug('Setting persistence to : ' + str(persistence))
+        try:
             cmd="racadm config -g cfgServerInfo -o cfgServerBootOnce " + str(persistence)
             result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             out,err=result.communicate()
@@ -52,7 +52,7 @@ def setBootDev(vendor,device):
         except:
             print('Unable to set to boot persistence to ' + str(persistence))
             exit(1)
-    
+
         logging.debug('Setting first boot device to: ' + device)
         try:
             cmd="racadm config -g cfgServerInfo -o cfgServerFirstBootDevice " + device
@@ -60,7 +60,7 @@ def setBootDev(vendor,device):
             out,err=result.communicate()
             logging.debug(out.rstrip())
             print('Successfully set first boot device to ' + device)
-        
+
         except:
             print('Unable to set boot device.')
             exit(1)
