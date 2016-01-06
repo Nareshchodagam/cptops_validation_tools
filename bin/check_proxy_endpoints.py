@@ -46,7 +46,7 @@ def parseResponse(r_output,inst,tcp_port):
         RIP = 'Request IP : ' + data['IP']
         if inst == 'ap0':
             AppServ = 'DefaultAppServerPath: http://ap.salesforce.com'
-        elif inst == 'eu1':
+        elif inst == 'eu1' or inst == 'eu0':
             AppServ = 'DefaultAppServerPath: http://emea.salesforce.com'
         elif inst == 'na0':
             AppServ = 'DefaultAppServerPath: http://ssl.salesforce.com'
