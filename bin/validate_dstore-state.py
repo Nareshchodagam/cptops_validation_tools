@@ -142,12 +142,11 @@ def run_nagios_query(cmd, host, monitor, user, passwd, state):
 if __name__ == "__main__":
     usage = """
 
-    python %prog -H [hostnames] -M [monitor_hosts] -S [service_name]
+    python %prog -H [hostnames]  -S [service_name]
 
 
     Check the monitoring of hosts
-    python validate_monhost.py -H umps1-sshare1-1-sjl,umps2-prsn1-1-sjl -M ops-monitor-was,ops-monitor30-was -S
-    Chatternow-Dstore-STATE
+    python validate_monhost.py -H umps1-sshare1-1-sjl,umps2-prsn1-1-sjl -S Chatternow-Dstore-STATE
 
 
     This script checks if monitoring has been setup or not. If monitor host is
@@ -192,8 +191,3 @@ if __name__ == "__main__":
             else:
                 print("Please verify the service name")
                 sys.exit(1)
-
-
-
-
-
