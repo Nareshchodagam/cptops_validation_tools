@@ -142,11 +142,11 @@ def run_nagios_query(cmd, host, monitor, user, passwd, state):
 if __name__ == "__main__":
     usage = """
 
-    python %prog -H [hostnames]  -S [service_name]
+    python %prog -H [hostnames]  -S [service_name] -P [port to check]
 
 
     Check the monitoring of hosts
-    python validate_monhost.py -H umps1-sshare1-1-sjl,umps2-prsn1-1-sjl -S Chatternow-Dstore-STATE
+    python validate_monhost.py -H umps1-sshare1-1-sjl,umps2-prsn1-1-sjl -S Chatternow-Dstore-STATE -P 8087
 
 
     This script checks if monitoring has been setup or not. If monitor host is
@@ -155,10 +155,10 @@ if __name__ == "__main__":
 
     """
     parser = ArgumentParser(usage)
-    parser.add_argument("-M", "--monitor-host", dest="monhost", action="store", help="Monitor (nagios server) hostname")
     parser.add_argument("-H", "--hostname", dest="hostname", action="store", help="Target hostname")
     parser.add_argument("-S", "--services", action="store", dest="svc_desc", help="The service name")
-    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose", help="Set verbosity to debug level.")
+    parser.add_argument("-P", "--port", dest="port", action="store", type=int, help="Port to check the connectivity")
+    parser.add_argument("-V", "--verbose", action="store_true", dest="verbose", help="Set verbosity to debug level.")
 
     args = parser.parse_args()
     naguser, nagpasswd = get_nagios_creds(passwd_file)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    if args.hostname is None and args.svc_desc is None:
+    if args.hostname is None or args.svc_desc is None or args.port is None:
         print(usage)
 
     else:
@@ -178,14 +178,13 @@ if __name__ == "__main__":
             if json_response['result']['type_text'] == "Success" and json_response['result']['type_code'] == 0:
                 print(host + " == " + json_response['data']['service']['plugin_output'])
                 svc_status[host] = json_response['data']['service']['status']
-
                 if svc_status[host] == 2:
                     pass
                 else:
-                    print("May be passive check is stale, Checking dstore port 8087")
-                    result = check_port(host, 8087)
+                    print("May be passive check is stale, Checking on port %s"%args.port)
+                    result = check_port(host, args.port)
                     if result is True:
-                        print("Port 8087 is up and running")
+                        print("Port %s is up and running"%args.port)
                     else:
                         sys.exit(1)
             else:
