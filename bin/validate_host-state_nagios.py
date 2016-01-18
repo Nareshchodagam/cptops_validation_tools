@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-Purpose - Script to check the UMPS dstore state.
+Purpose - Script to check the state of a service from Nagios and to hit the given port.
 date - 01-08-2015
 version - 1.0
 """
