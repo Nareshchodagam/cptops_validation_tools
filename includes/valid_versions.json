@@ -5,9 +5,10 @@
 				{
 					"current": 
 						{
-							"os_version": "6.6",
-							"kernel": "2.6.32-504.12.2.el6.x86_64",
-							"sfdc-release": "2015.05"
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.8.1.el6.x86_64",
+							"sfdc-release": "2016.01"
+
 						},
 					"candidate":
 						{
