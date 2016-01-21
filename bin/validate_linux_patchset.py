@@ -99,13 +99,13 @@ if __name__ == "__main__":
 
     %prog [-c (current|candidate)] [-f path/to/json/file] [-u] [-v]
     %prog [-k kernel] [-r redhat] [-b seconds] [-u] [-v]
-    
+
     Validate the host needs patching.
     %prog -c current -f valid_versions.json
-    
+
     Validate the host has been updated
     %prog -c current -f valid_versions.json -u
-    
+
     Valdiate the kernel version
     %prog -k <kernel version>
 
@@ -132,14 +132,14 @@ if __name__ == "__main__":
     parser.add_option("-u", dest="updated", action="store_true", help="Check if the host was updated")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity")
     (options, args) = parser.parse_args()
-    
+
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
     if options.verfile:
         versions_file = options.verfile
     else:
         versions_file = 'valid_versions.json'
-    
+
     version_data = get_json(versions_file)
     os_type = get_os_type()
     os_ver = get_os_ver(os_type)

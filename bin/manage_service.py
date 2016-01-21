@@ -12,9 +12,9 @@ from optparse import OptionParser
 tmpDir='/tmp/'
 
 
-def recordStatus(procName):
+def recordStatus(procName,procString):
     logging.debug('Checking for running process' + procName)
-    output=commands.getoutput('ps -ef | grep -v grep | grep -v python | grep -v sudo | grep ' + procName )
+    output=commands.getoutput('ps -ef | grep -v grep | grep -v python | grep -v sudo | grep "' + procString + '"' )
     logging.debug('Result: ' + output)
     tmpFile=tmpDir + procName + '_status.tmp'
 
@@ -54,7 +54,7 @@ def getStatus(procName):
 
 def startService(procName,cmd,force):
     status=getStatus(procName)
-    if status is "RUNNING" or force is True:
+    if status.strip() == "RUNNING" or force is True:
         print('Starting service: ' + procName)
         try:
             output=commands.getoutput(cmd)
@@ -68,9 +68,9 @@ def startService(procName,cmd,force):
         print('Refusing to start service as it was not recorded running')
         print('Run with the -f (force) option to override this')
 
-def stopService(procName,cmd,force):
-    status=recordStatus(procName)
-    if status is "RUNNING" or force is True:
+def stopService(procName,procString,cmd,force):
+    status=recordStatus(procName,procString)
+    if status.strip() == "RUNNING" or force is True:
         print('Stopping process: ' + procName)
         try:
             output=commands.getoutput(cmd)
@@ -118,6 +118,7 @@ if __name__ == "__main__":
     parser.add_option("-s", action="store_true", dest="startsvc", default=False, help="Start Process")
     parser.add_option("-k", action="store_true", dest="stopsvc", default=False, help="Stop Process")
     parser.add_option("-n", dest="procname", help="Process Name")
+    parser.add_option("-e", dest='extended_proc_name', default=False, help='Extended process name')
     parser.add_option("-f", action="store_true", dest="force", default=False, help="Force")
     parser.add_option("-c", dest="cmd", help="Command")
 
@@ -125,15 +126,22 @@ if __name__ == "__main__":
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+    if options.extended_proc_name:
+        procname=options.procname
+        procstring=options.extended_proc_name
+    else:
+        procname=options.procname
+        procstring=options.procname
+
     if options.checksvc:
-        recordStatus(options.procname)
+        recordStatus(procname)
 
     if options.getstatus:
-        result=getStatus(options.procname)
+        result=getStatus(procname)
         print "RESULT: " + result
 
     if options.startsvc:
-        startService(options.procname,options.cmd,options.force)
+        startService(procname,options.cmd,options.force)
 
     if options.stopsvc:
-        stopService(options.procname,options.cmd,options.force)
+        stopService(procname,procstring,options.cmd,options.force)
