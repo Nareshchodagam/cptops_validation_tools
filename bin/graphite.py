@@ -20,7 +20,9 @@ def kill_carbon():
 		for proc in proc_ids:
 			cmd = "kill -9 " + proc
 			retcode = subprocess.call(cmd.split)
-			error_check(retcode, msg="Carbon-cache processes killed.")
+			if retcode != 0:
+				error_check(retcode, msg="Error killing carbon-cache process.")
+		error_check(retcode, ms="Carbon-cache killed successfully.")
 
 def httpd_filechk():
 	files = ['welcome.conf', 'ssl.conf']
@@ -43,8 +45,6 @@ def start_metrics():
 			cmd = "sudo -u appmon /opt/ajna-metrics-monitor/bin/runMonitor.sh start"
 			retcode = subprocess.call(cmd.split())
 			error_check(retcode, msg="Metrics monitor started.")
-		else:
-			error_check(1, msg="Metrics script not present.")
 
 def start_reporter():
 	host_name = socket.gethostname().split('.')[0]
