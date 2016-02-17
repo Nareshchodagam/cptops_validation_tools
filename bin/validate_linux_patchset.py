@@ -44,14 +44,21 @@ def get_os_ver(os_type):
     ver = check_release(release)
     return ver
 
+def getGlibcVer(glibc_ver):
+    cmd_lst = ['rpm', '-q', 'glibc']
+    installed_glibc_ver = run_cmd(cmd_lst).rstrip()
+    result = False if installed_glibc_ver != glibc_ver else True
+    logging.debug("Current : %s | Wanted : %s | Check : %s" % (installed_glibc_ver, glibc_ver, result))
+    return result
+
 def get_release(os_ver, os_type):
     os_types = {'OEL': '/etc/oracle-release', 'RHEL': '/etc/redhat-release', 'CENTOS': '/etc/centos-release'}
     logging.debug(os_ver)
     cmd_lst = ['cat', os_types[os_type]]
     release = run_cmd(cmd_lst)
     ver = check_release(release)
-    logging.debug("Current : %s | Wanted : %s" % (ver, os_ver))
     result = False if ver != os_ver else True
+    logging.debug("Current : %s | Wanted : %s | Check : %s" % (ver, os_ver, result))
     return result
 
 def run_cmd(cmdlist):
@@ -65,8 +72,8 @@ def get_kernel_ver(kernver):
     cmd_lst = ['uname', '-a']
     uname = run_cmd(cmd_lst)
     ver = check_kernel(uname)
-    logging.debug("Current : %s | Wanted : %s" % (ver, kernver))
     result = False if ver != kernver else True
+    logging.debug("Current : %s | Wanted : %s | Check : %s" % (ver, kernver,result))
     return result
 
 def check_uptime(limit):
@@ -144,6 +151,7 @@ if __name__ == "__main__":
     os_type = get_os_type()
     os_ver = get_os_ver(os_type)
     os_major,os_minor = os_ver.split('.')
+    glibc_ver = False
     logging.debug('OS: %s, Major: %s, Minor: %s' % (os_type,os_major,os_minor))
     if options.check and options.updated:
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
@@ -156,7 +164,9 @@ if __name__ == "__main__":
     elif options.check and not options.updated:
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
-        if kern_result == True and rel_result == True:
+        if 'glibc' in version_data[os_type][os_major][options.check]:
+            glibc_ver = getGlibcVer(version_data[os_type][os_major][options.check]['glibc'])
+        if kern_result == True and rel_result == True and glibc_ver == True:
             print('System running correct patch level no need to update')
             sys.exit(1)
         else:
