@@ -45,10 +45,12 @@ def get_os_ver(os_type):
     return ver
 
 def getGlibcVer(glibc_ver):
+    result = False
     cmd_lst = ['rpm', '-q', 'glibc']
     installed_glibc_ver = run_cmd(cmd_lst).rstrip()
-    result = False if installed_glibc_ver != glibc_ver else True
-    logging.debug("Current : %s | Wanted : %s | Check : %s" % (installed_glibc_ver, glibc_ver, result))
+    for glibc in installed_glibc_ver.split('\n'):
+        result = False if glibc != glibc_ver else True
+        logging.debug("Current : %s | Wanted : %s | Check : %s" % (glibc, glibc_ver, result))
     return result
 
 def get_release(os_ver, os_type):
