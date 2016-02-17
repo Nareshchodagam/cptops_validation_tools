@@ -160,6 +160,10 @@ if __name__ == "__main__":
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         print('Checking RH release version:')
         exit_code(rel_result)
+        if 'glibc' in version_data[os_type][os_major][options.check]:
+            print('Checking glibc version:')
+            glibc_ver = getGlibcVer(version_data[os_type][os_major][options.check]['glibc'])
+            exit_code(glibc_ver)
         print('System running correct patch level')
     elif options.check and not options.updated:
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
