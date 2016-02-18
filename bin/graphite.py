@@ -1,6 +1,5 @@
 #!/usr/bin/python
 #
-#
 import optparse
 import os
 import sys
@@ -24,7 +23,7 @@ def kill_carbon():
 				subprocess.call(cmd.split())
 			except subprocess.CalledProcessError:
 				error_check(retcode, msg="Error killing carbon-cache process.")
-		error_check(retcode, msg="Carbon-cache killed successfully.")
+		error_check(0, msg="Carbon-cache killed successfully.")
 
 def httpd_filechk():
 	files = ['welcome.conf', 'ssl.conf']
