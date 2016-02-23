@@ -36,6 +36,50 @@ ANT_DETAILS_BY_HOSTTYPE = {
                 ]
 }
 
+COMMAND_SETS = {
+	'EXIT_1' : 'exit 1',
+        'VERBOSE_ON' : [ 'set -e' ],
+        'VERBOSE_OFF' : [ 'set +e' ],
+        'KILL_TOMCAT' : [ 'ps -ef | grep Bootstrap | grep -v grep | awk "{print $2}" | xargs kill'],
+        'SOURCE_TDSB' : ['TEST_SFDC_USER', 'shopt -s expand_aliases','source /home/sfdc/opentsdb-2.1.0/tsdb.rc','cd /home/sfdc/opentsdb-2.1.0'],
+        'SOURCE_ARGUS_RC' : [ 'TEST_SFDC_USER', 'shopt -s expand_aliases', 'source /home/sfdc/argus.rc', 'cd /home/sfdc/argus/kafkaconsumer' ],
+        'TEST_SFDC_USER' : [ '[ "$USER" == "sfdc" ]' ],
+        'TEST_JAVA_1' : []
+        'TEST_JAVA_6' : []
+        'KILL_JAVA', : [ 'ps -ef | grep java | grep -v grep | awk "{print $2}" | xargs kill' ],
+
+
+        'START_AJNA_CHI' : [ 'SOURCE_ARGUS_RC', 'startchicon'],
+        'START_SFZ_IMT' : [ 'SOURCE_ARGUS_RC', 'startsfzimt' ],
+        'START_SFZ_AJNABUS' : [ 'SOURCE_ARGUS_RC', 'startsfzajnabus'],
+        'START_SFZ_LOGHUB' : [ 'SOURCE_ARGUS_RC', 'startsfzloghub' ],
+        'START_WAS_LOGBUS' : [ 'SOURCE_ARGUS_RC', 'startwaslogbus' ],
+        'START_AJNA_WAS' : [ 'SOURCE_ARGUS_RC', 'startwascon' ],
+        'START_AJNA' : []
+
+
+        'START_TOMCAT' : [ 'SOURCE_ARGUS_RC', 'starttomcat'],
+        'START_METRICS' : [ 'SOURCE_ARGUS_RC', 'startcommitclient' ],
+        'START_ANNOTATION' : [ 'SOURCE_ARGUS_RC', 'startannotationclient' ],
+        'START_ALERT' : [ 'SOURCE_ARGUS_RC', 'startalertclient'],
+        'START_TDSBR' : ['SOURCE_TDSB','starttsdb']
+        'START_TDSWB' : [ 'SOURCE_TDSB', 'startdsbwrite' ]
+}
+
+SCRIPT_BY_HOSTTYPE = { 
+'shared.*argusws.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }),
+'shared.*argusui.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
+'shared.*argusajna.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
+'shared.*argusmetrics.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
+'shared.*argusannotation.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
+'shared.*argusalert.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
+'shared.*argustsdbr.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
+'shared.*argustsdbw1.*' : ('sfdc', { 'start' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] })
+
+
+
+}
+
 def get_local_hostname():
         return  os.popen("hostname -s").readlines()[0].rstrip('\n')
 
