@@ -9,6 +9,12 @@ import cmd
 import re
 import shlex
 
+#supported commands
+START = 'Start'
+STOP = 'Stop'
+
+SCRIPT_LIST=[]
+
 COMMAND_SETS = {
 	'EXIT_1' : 'exit 1',
         'VERBOSE_ON' : 'set -x\n',
@@ -41,14 +47,14 @@ COMMAND_SETS = {
 }
 
 SCRIPT_BY_HOSTTYPE = { 
-	'^shared.*argusws.*' : ('sfdc', { 'stop' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }),
-	'^shared.*argusui.*' : ('sfdc', { 'stop' : ['KILL_TOMCAT'], 'start' : ['START_TOMCAT'] }), 
-	'^shared.*argusajna.*' : ('sfdc', { 'stop' : ['KILL_JAVA'], 'start' : ['START_AJNA'] }), 
-	'^shared.*argusmetrics.*' : ('sfdc', { 'stop' : ['KILL_JAVA'], 'start' : ['START_METRICS'] }), 
-	'^shared.*argusannotation.*' : ('sfdc', { 'stop' : ['KILL_JAVA'], 'start' : ['START_ANNOTATION'] }), 
-	'^shared.*argusalert.*' : ('sfdc', { 'stop' : ['KILL_JAVA'], 'start' : ['START_ALERT'] }), 
-	'^shared.*argustsdbr.*' : ('sfdc', { 'stop' : ['KILL_JAVA'], 'start' : ['START_TDSBR'] }), 
-	'^shared.*argustsdbw1.*' : ('sfdc', { 'stop' : ['KILL_JAVA'], 'start' : ['START_TDSBW'] }),
+	'^shared.*argusws.*' : ('sfdc', { STOP : ['KILL_TOMCAT'], START : ['START_TOMCAT'] }),
+	'^shared.*argusui.*' : ('sfdc', { STOP : ['KILL_TOMCAT'], START : ['START_TOMCAT'] }), 
+	'^shared.*argusajna.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_AJNA'] }), 
+	'^shared.*argusmetrics.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_METRICS'] }), 
+	'^shared.*argusannotation.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_ANNOTATION'] }), 
+	'^shared.*argusalert.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_ALERT'] }), 
+	'^shared.*argustsdbr.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_TDSBR'] }), 
+	'^shared.*argustsdbw1.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_TDSBW'] }),
 
         '^cfgdev-cidb.*' : [
                 ('dca4', '/home/dca4/cheetah/cms/cidb/main' )
@@ -86,18 +92,19 @@ def get_local_hostname():
         	return  os.popen("hostname -s").readlines()[0].rstrip('\n')
 
 def get_commandlist_from_hostname():
-        hostname = get_local_hostname()
-        logging.debug( hostname )
-        script_list = []
+        myhostname = get_local_hostname()
+        logging.debug( myhostname )
+        script=()
         for key in SCRIPT_BY_HOSTTYPE:
-                print key, hostname
-                if re.match(key,hostname):
-                        script_list = SCRIPT_BY_HOSTTYPE[key]
+                if re.match(key,myhostname):
+                        script = SCRIPT_BY_HOSTTYPE[key]
                         break;
-        if not script_list:
+        if not script:
                 print 'host type not found'
+        else:
+		print 'Host matching : ' + myhostname +  ' matched: ' + key
 
-        return script_list
+        return script
 
 def run_cmd_line(cmdline):
 
@@ -149,7 +156,15 @@ def test_ant_services():
         return process_ant_commands('su - {0}  -c "cd {1}; pwd; ls -al build/ant; ps -fu {0} | grep {1}"', "checking service for user : ")
 
 def start_services():
-        return process_commands('start')
+        print 'processing commands top start applications'
+        return process_commands([START])
+
+def stop_services():
+        print 'processing commands to stop applications'
+        return process_commands([STOP])
+
+def display_services():
+        return process_commands([START,STOP])
 
 def get_command_set(cmd):
   result = [] 
@@ -168,27 +183,36 @@ def gen_command(commands):
           logging.debug( 'gen_command results: ' + str(result) )
         return [COMMAND_SETS['VERBOSE_ON']] + result
 	
-def process_commands(task):
-        script_list = get_commandlist_from_hostname()
-        logging.debug( script_list )
+def process_commands(tasks):
+      for task in tasks:
+        assert task in (STOP,START), 'unrecocnised task specified'
+      results = {}
+      for task in tasks:    
+        logging.debug( SCRIPT_LIST )
         
-        if script_list:
-	   user, mycommand = script_list
+        if SCRIPT_LIST:
+	   user, mycommand = SCRIPT_LIST
 	   mycmdlist= gen_command(mycommand[task])
            payload = 'su - ' + user + ' -c "' + ''.join(mycmdlist) + '"'
-           return { payload : run_cmd_line(['/bin/bash', '-c',  payload]) }        
-        else:
-           return {}
+           if options.displayonly:
+		results[task]=payload
+	   else:    
+                results[payload] = run_cmd_line(['/bin/bash', '-c',  payload])
+       
+      return results          
 
 def process_results(results):
+	"""
+	derives cumulative return value for all results of command executed to return to shell
+	"""        
         ret_val = 1 if len(results.keys())==0 else 0
         logging.debug( results )
         for key in results:
-                print 'Command: ' + key
+                print 'Command Executed: ' + key
                 print 'Command Output: ' + results[key]['output']
                 ind_val = results[key]['returncode']
                 ret_val = ret_val + ind_val if ind_val !=0 else 0
-                print 'Command ReturnCode: ' + str(ind_val) + str(ret_val)
+                print 'Command ReturnCode: ' + str(ind_val)
         return ret_val
 
 if __name__ == "__main__":
@@ -213,11 +237,13 @@ if __name__ == "__main__":
     parser.add_option("--start", dest="start_service", action="store_true", help="start stuff")
     parser.add_option("--stop", dest="stop_service", action="store_true", help="stop stuff")
     parser.add_option("--test_host", dest="test_host", help="test stuff")
+    parser.add_option("--displayonly", dest="displayonly", action="store_true", help="display stuff")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="Verbosity")
     (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+    SCRIPT_LIST = get_commandlist_from_hostname()
     if options.test_all_functions:
         result = test_services()
         exit(process_results(result))
@@ -230,6 +256,16 @@ if __name__ == "__main__":
     elif options.start_service:
 	result = start_services()
         sys.exit(process_results(result))
+    elif options.stop_service:
+	result = stop_services()
+        sys.exit(process_results(result))
+    elif options.displayonly:
+	results = display_services()
+        for key in results:
+          print '====================== Command : '  + key
+          print 'Script :' 
+          print '-----------------------------------------'
+          print results[key]
     else:
         print(usage)
 
