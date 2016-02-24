@@ -12,23 +12,47 @@ import shlex
 #supported commands
 START = 'Start'
 STOP = 'Stop'
+TEST='test'
 
 SCRIPT_LIST=[]
 
+
+BIG_STOP_GACKP_SCRIPT="""
+
+# Removing crontab for traffic
+crontab -r
+cronRC=$?
+sleep 2
+#Killing gack_parser and gack_mailbox_monitor scripts'
+pkill -f 'gack_' #Stops gack_parser.pl and gack_mailbox_monitor.pl
+pkillRC=$?
+
+if [ cronRC -ne 0 ] || [ $pkillRC -ne 0 ]
+then
+  exit 1
+else
+  exit 0
+fi
+
+
+"""
+
 COMMAND_SETS = {
+         #GENERIC COMMANDS
 	'EXIT_1' : 'exit 1',
         'VERBOSE_ON' : 'set -x\n',
         'VERBOSE_OFF' : 'set +x\n',
         'KILL_TOMCAT' : [ 'ps -ef | grep Bootstrap | grep -v grep | awk "{print $2}" | xargs kill'],
-        'SOURCE_TDSB' : ['TEST_SFDC_USER', 'shopt -s expand_aliases','source /home/sfdc/opentsdb-2.1.0/tsdb.rc','cd /home/sfdc/opentsdb-2.1.0' ],
-        'SOURCE_ARGUS_RC' : [ 'TEST_SFDC_USER', 'shopt -s expand_aliases', 'source /home/sfdc/argus.rc' ],
-        'TEST_SFDC_USER' : [ '[ "$USER" == "sfdc" ]' ],
+        'TEST_SFDC_USER' : [ '[ "\$USER" == "sfdc" ]' ],
+        'TEST_JAVA_0' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 0 ]' ],
         'TEST_JAVA_1' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 1 ]' ],
         'TEST_JAVA_6' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 6 ]' ],
-        'KILL_JAVA' : [ 'ps -ef | grep java | grep -v grep | awk "{print $2}" | xargs kill' ],
+        'KILL_JAVA' : [ 'ps -ef | grep java | grep -v grep | awk "{print $2}" | xargs kill', 'TEST_JAVA_0' ],
         'SLEEP_10' : ['sleep 10'],
 
-
+	#ARGUS commmands
+        'SOURCE_TDSB' : ['TEST_SFDC_USER', 'shopt -s expand_aliases','source /home/sfdc/opentsdb-2.1.0/tsdb.rc','cd /home/sfdc/opentsdb-2.1.0' ],
+        'SOURCE_ARGUS_RC' : [ 'TEST_SFDC_USER', 'shopt -s expand_aliases', 'source /home/sfdc/argus.rc' ],
         'START_AJNA_CHI' : [ 'startchicon', 'SLEEP_10'],
         'START_SFZ_IMT' : [ 'startsfzimt', 'SLEEP_10' ],
         'START_SFZ_AJNABUS' : [ 'startsfzajnabus', 'SLEEP_10' ],
@@ -37,24 +61,59 @@ COMMAND_SETS = {
         'START_AJNA_WAS' : [ 'startwascon' ],
 
 
-        'START_AJNA' : ['SOURCE_ARGUS_RC', 'cd /home/sfdc/argus/kafkaconsumer','START_AJNA_CHI','START_SFZ_IMT','START_SFZ_AJNABUS','START_SFZ_LOGHUB','START_WAS_LOGBUS','START_AJNA_WAS'],
-        'START_TOMCAT' : [ 'SOURCE_ARGUS_RC', 'starttomcat'],
-        'START_METRICS' : [ 'SOURCE_ARGUS_RC', 'startcommitclient' ],
-        'START_ANNOTATION' : [ 'SOURCE_ARGUS_RC', 'echo startannotationclient; aaaggah' ],
-        'START_ALERT' : [ 'SOURCE_ARGUS_RC', 'startalertclient'],
-        'START_TDSBR' : ['SOURCE_TDSB','starttsdb'],
-        'START_TDSBW' : [ 'SOURCE_TDSB', 'startdsbwrite' ]
+        'START_AJNA' : ['SOURCE_ARGUS_RC', 'cd /home/sfdc/argus/kafkaconsumer','START_AJNA_CHI','START_SFZ_IMT','START_SFZ_AJNABUS','START_SFZ_LOGHUB','START_WAS_LOGBUS','START_AJNA_WAS', 'TEST_JAVA_6'],
+        'START_TOMCAT' : [ 'SOURCE_ARGUS_RC', 'starttomcat',],
+        'START_METRICS' : [ 'SOURCE_ARGUS_RC', 'startcommitclient', 'TEST_JAVA_1' ],
+        'START_ANNOTATION' : [ 'SOURCE_ARGUS_RC', 'startannotationclient', 'TEST_JAVA_1' ],
+        'START_ALERT' : [ 'SOURCE_ARGUS_RC', 'startalertclient', 'TEST_JAVA_1'],
+        'START_TDSBR' : ['SOURCE_TDSB','starttsdb' ],
+        'START_TDSBW' : [ 'SOURCE_TDSB', 'startdsbwrite' ],
+
+
+	#GACKPARSER
+	'START_SENDMAIL' : ['service sendmail start'],
+	'STOP_SENDMAIL' : ['service sendmail stop'],
+	'STARTGACKPARSER' : ['crontab /var/traffic/cron_job'],
+        'STOP_GACKP' : [ BIG_STOP_GACKP_SCRIPT ],
+        'START_GACKP' : [ 'STARTGACKPARSER' ],
+          
+
+
+	#DELPHI
+
+
+        'CD_DELPHI' : [ 'cd /home/delphi/current/dust-delphi/delphi/build' ],  
+        'CHECK_DELPHI_COUNT' : ['ps -ef | grep -i "[d]elphi.app.properties" | wc -l > delphicount' ],
+        'ANT_STOP_DELPHI' : [ 'if grep "^1\$" delphicount; then ./ant stop; fi' ],  
+        'ANT_START_DELPHI' : [ 'if grep "^1\$" delphicount; then ./ant start; fi' ],  
+        'STOP_DELPHI' : [ 'CD_DELPHI', 'CHECK_DELPHI_COUNT', 'ANT_STOP_DELPHI' ],
+        'START_DELPHI' : [ 'CD_DELPHI', 'ANT_START_DELPHI' ]
+
+	
+	
 }
 
-SCRIPT_BY_HOSTTYPE = { 
-	'^shared.*argusws.*' : ('sfdc', { STOP : ['KILL_TOMCAT'], START : ['START_TOMCAT'] }),
-	'^shared.*argusui.*' : ('sfdc', { STOP : ['KILL_TOMCAT'], START : ['START_TOMCAT'] }), 
-	'^shared.*argusajna.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_AJNA'] }), 
-	'^shared.*argusmetrics.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_METRICS'] }), 
-	'^shared.*argusannotation.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_ANNOTATION'] }), 
-	'^shared.*argusalert.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_ALERT'] }), 
-	'^shared.*argustsdbr.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_TDSBR'] }), 
-	'^shared.*argustsdbw1.*' : ('sfdc', { STOP : ['KILL_JAVA'], START : ['START_TDSBW'] }),
+SCRIPTS_BY_USER_HOSTTYPE = {
+
+	#ARGUS 
+	'^shared.*argusws.*' : [('sfdc', { STOP : ['KILL_TOMCAT'], START : ['START_TOMCAT'] })],
+	'^shared.*argusui.*' : [('sfdc', { STOP : ['KILL_TOMCAT'], START : ['START_TOMCAT'] })], 
+	'^shared.*argusajna.*' : [('sfdc', { STOP : ['KILL_JAVA'], START : ['START_AJNA'] })], 
+	'^shared.*argusmetrics.*' : [('sfdc', { STOP : ['KILL_JAVA'], START : ['START_METRICS'] })], 
+	'^shared.*argusannotation.*' : [('sfdc', { STOP : ['KILL_JAVA'], START : ['START_ANNOTATION'] })], 
+	'^shared.*argusalert.*' : [('sfdc', { STOP : ['KILL_JAVA'], START : ['START_ALERT'] })], 
+	'^shared.*argustsdbr.*' : [('sfdc', { STOP : ['KILL_JAVA'], START : ['START_TDSBR'] })], 
+	'^shared.*argustsdbw.*' : [('sfdc', { STOP : ['KILL_JAVA'], START : ['START_TDSBW'] })],
+        '^testcommand' : [('dsheehan', { TEST: ['TEST_JAVA_1']})],
+
+	#GACKPARSER
+	'(^dust-app2.*sfm)|(^dust-app2.*sfz)' : [('traffic', { STOP : ['STOP_GACKP'], START : ['START_GACKP'] }),
+						 ('root', { STOP : ['STOP_SENDMAIL'], START : ['START_SENDMAIL'] })],
+	
+	#DELPHI
+	'(^dust-app1.*sfm)|(^dust-app1.*sfz)' : [('delphi', { STOP : ['STOP_DELPHI'], START : ['START_DELPHI'] })],
+
+
 
         '^cfgdev-cidb.*' : [
                 ('dca4', '/home/dca4/cheetah/cms/cidb/main' )
@@ -95,9 +154,9 @@ def get_commandlist_from_hostname():
         myhostname = get_local_hostname()
         logging.debug( myhostname )
         script=()
-        for key in SCRIPT_BY_HOSTTYPE:
+        for key in SCRIPTS_BY_USER_HOSTTYPE:
                 if re.match(key,myhostname):
-                        script = SCRIPT_BY_HOSTTYPE[key]
+                        script = SCRIPTS_BY_USER_HOSTTYPE[key]
                         break;
         if not script:
                 print 'host type not found'
@@ -164,7 +223,11 @@ def stop_services():
         return process_commands([STOP])
 
 def display_services():
-        return process_commands([START,STOP])
+        return process_commands([START,STOP,TEST])
+
+def test_commands():
+        print 'processing commands to stop applications'
+        return process_commands([TEST])
 
 def get_command_set(cmd):
   result = [] 
@@ -185,18 +248,24 @@ def gen_command(commands):
 	
 def process_commands(tasks):
       for task in tasks:
-        assert task in (STOP,START), 'unrecocnised task specified'
+        assert task in (STOP,START,TEST), 'unrecocnised task specified'
       results = {}
       for task in tasks:    
+        payloadlist = []
         logging.debug( SCRIPT_LIST )
         
         if SCRIPT_LIST:
-	   user, mycommand = SCRIPT_LIST
-	   mycmdlist= gen_command(mycommand[task])
-           payload = 'su - ' + user + ' -c "' + ''.join(mycmdlist) + '"'
-           if options.displayonly:
-		results[task]=payload
-	   else:    
+          for script in SCRIPT_LIST:
+	    user, mycommand = script
+            logging.debug( mycommand )
+            if not task in mycommand.keys():
+		continue
+	    mycmdlist= gen_command(mycommand[task])
+            payload = 'su - ' + user + ' -c "' + ''.join(mycmdlist) + '"'
+            if options.displayonly:
+                payloadlist.append(payload)
+		results[task]=payloadlist
+	    else:    
                 results[payload] = run_cmd_line(['/bin/bash', '-c',  payload])
        
       return results          
@@ -236,6 +305,7 @@ if __name__ == "__main__":
     parser.add_option("--test_ant", dest="test_all_functions", action="store_true")
     parser.add_option("--start", dest="start_service", action="store_true", help="start stuff")
     parser.add_option("--stop", dest="stop_service", action="store_true", help="stop stuff")
+    parser.add_option("--testcommands", dest="testcommands", action="store_true", help="stop stuff")
     parser.add_option("--test_host", dest="test_host", help="test stuff")
     parser.add_option("--displayonly", dest="displayonly", action="store_true", help="display stuff")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="Verbosity")
@@ -253,6 +323,9 @@ if __name__ == "__main__":
     elif options.stop_ant_service:
         result = start_ant_services()
         exit(process_results(result))
+    elif options.testcommands:
+	result = test_commands()
+        sys.exit(process_results(result))
     elif options.start_service:
 	result = start_services()
         sys.exit(process_results(result))
@@ -265,7 +338,8 @@ if __name__ == "__main__":
           print '====================== Command : '  + key
           print 'Script :' 
           print '-----------------------------------------'
-          print results[key]
+          for line in results[key]:
+		print line
     else:
         print(usage)
 
