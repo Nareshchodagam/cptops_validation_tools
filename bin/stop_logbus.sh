@@ -1,6 +1,6 @@
 #! /bin/bash
 
-set -e
+set -x
 
 [ "$USER" == "logstash" ] || exit 1
 
@@ -12,9 +12,9 @@ crontab -r || exit 1
 
 TESTSTOP=$(ps -ef | egrep "(consumer)|(kickoff)|(housekeeper)" | grep -v grep | wc -l) || exit 1 
  
-[TESTSTOP -eq 0 ] || exit 1
+[ $TESTSTOP -eq 0 ] || exit 1
 
-set +e
+set +x
 
 
 #ssh <hostsh <host>
