@@ -9,6 +9,8 @@ import cmd
 import re
 import shlex
 
+#TODONB: have some way of ensuring it checks entry assumptions so it doesn't fix the host in an unknown state on rebooting
+
 #supported commands
 START = 'Start'
 STOP = 'Stop'
@@ -273,14 +275,15 @@ def process_commands(tasks):
 def process_results(results):
 	"""
 	derives cumulative return value for all results of command executed to return to shell
-	"""        
+	"""       
+        # set to 1 first in case there are no results 
         ret_val = 1 if len(results.keys())==0 else 0
         logging.debug( results )
         for key in results:
                 print 'Command Executed: ' + key
                 print 'Command Output: ' + results[key]['output']
                 ind_val = results[key]['returncode']
-                ret_val = ret_val + ind_val if ind_val !=0 else 0
+                ret_val = ret_val + ind_val #simply adding the numeric return codes gives us the cumulative value
                 print 'Command ReturnCode: ' + str(ind_val)
         return ret_val
 
