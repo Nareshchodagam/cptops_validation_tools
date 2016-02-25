@@ -26,7 +26,7 @@ crontab -r
 cronRC=$?
 sleep 2
 #Killing gack_parser and gack_mailbox_monitor scripts'
-pkill -f 'gack_' #Stops gack_parser.pl and gack_mailbox_monitor.pl
+pkill -f "perl ./gack_" #Stops gack_parser.pl and gack_mailbox_monitor.pl
 pkillRC=$?
 
 if [ cronRC -ne 0 ] || [ $pkillRC -ne 0 ]
@@ -44,23 +44,24 @@ COMMAND_SETS = {
 	'EXIT_1' : 'exit 1',
         'VERBOSE_ON' : 'set -x\n',
         'VERBOSE_OFF' : 'set +x\n',
-        'KILL_TOMCAT' : [ 'ps -ef | grep Bootstrap | grep -v grep | awk "{print $2}" | xargs kill'],
+        'KILL_TOMCAT' : [ '([ $(ps -ef | grep Bootstrap | grep -v grep | wc -l) -eq 0 ] || ps -ef | grep Bootstrap | grep -v grep | awk \'{print $2}\' | xargs kill)'],
         'TEST_SFDC_USER' : [ '[ "\$USER" == "sfdc" ]' ],
         'TEST_JAVA_0' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 0 ]' ],
         'TEST_JAVA_1' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 1 ]' ],
         'TEST_JAVA_6' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 6 ]' ],
-        'KILL_JAVA' : [ 'ps -ef | grep java | grep -v grep | awk "{print $2}" | xargs kill', 'TEST_JAVA_0' ],
+        'KILL_JAVA' : [ '[ $(ps -ef | grep java | grep -v grep | wc -l) -eq 0 ] || (ps -ef | grep java | grep -v grep | awk \'{print \$2}\' | xargs kill -9 || sleep 90)', 'TEST_JAVA_0' ], 
         'SLEEP_10' : ['sleep 10'],
+        'SLEEP_60' : ['sleep 60'],
 
 	#ARGUS commmands
         'SOURCE_TDSB' : ['TEST_SFDC_USER', 'shopt -s expand_aliases','source /home/sfdc/opentsdb-2.1.0/tsdb.rc','cd /home/sfdc/opentsdb-2.1.0' ],
         'SOURCE_ARGUS_RC' : [ 'TEST_SFDC_USER', 'shopt -s expand_aliases', 'source /home/sfdc/argus.rc' ],
-        'START_AJNA_CHI' : [ 'startchicon', 'SLEEP_10'],
-        'START_SFZ_IMT' : [ 'startsfzimt', 'SLEEP_10' ],
-        'START_SFZ_AJNABUS' : [ 'startsfzajnabus', 'SLEEP_10' ],
-        'START_SFZ_LOGHUB' : [ 'startsfzloghub', 'SLEEP_10' ],
-        'START_WAS_LOGBUS' : [ 'startwaslogbus', 'SLEEP_10' ],
-        'START_AJNA_WAS' : [ 'startwascon' ],
+        'START_AJNA_CHI' : [ '(startchicon)', 'SLEEP_10'],
+        'START_SFZ_IMT' : [ '(startsfzimt)', 'SLEEP_60' ],
+        'START_SFZ_AJNABUS' : [ '(startsfzajnabus)', 'SLEEP_10' ],
+        'START_SFZ_LOGHUB' : [ '(startsfzloghub)', 'SLEEP_10' ],
+        'START_WAS_LOGBUS' : [ '(startwaslogbus)', 'SLEEP_10' ],
+        'START_AJNA_WAS' : [ '(startwascon)' ],
 
 
         'START_AJNA' : ['SOURCE_ARGUS_RC', 'cd /home/sfdc/argus/kafkaconsumer','START_AJNA_CHI','START_SFZ_IMT','START_SFZ_AJNABUS','START_SFZ_LOGHUB','START_WAS_LOGBUS','START_AJNA_WAS', 'TEST_JAVA_6'],
