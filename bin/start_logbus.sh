@@ -1,6 +1,6 @@
 #! /bin/bash
 
-set -e
+set -x
 
 [ "$USER" == "logstash" ] || exit 1
 cd /opt/logbus-reconciler/bin || exit 1
