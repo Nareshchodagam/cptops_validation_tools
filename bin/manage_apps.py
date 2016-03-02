@@ -49,7 +49,7 @@ COMMAND_SETS = {
         'TEST_JAVA_0' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 0 ]' ],
         'TEST_JAVA_1' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 1 ]' ],
         'TEST_JAVA_6' : ['[ $(ps -ef | grep java | grep -v grep | awk \"{print $2}\" | wc -l) -eq 6 ]' ],
-        'KILL_JAVA' : [ '[ $(ps -ef | grep java | grep -v grep | wc -l) -eq 0 ] || (ps -ef | grep java | grep -v grep | awk \'{print \$2}\' | xargs kill -9 || sleep 90)', 'TEST_JAVA_0' ], 
+        'KILL_JAVA' : [ '[ $(ps -ef | grep java | grep -v grep | wc -l) -eq 0 ] || (ps -ef | grep java | grep -v grep | awk \'{print \$2}\' | xargs kill || sleep 180)', 'TEST_JAVA_0' ], 
         'SLEEP_10' : ['sleep 10'],
         'SLEEP_60' : ['sleep 60'],
 
