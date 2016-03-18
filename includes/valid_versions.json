@@ -3,7 +3,7 @@
 		{
 			"6":
 				{
-					"current": 
+					"current":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.8.1.el6.x86_64",
@@ -15,7 +15,7 @@
 							"kernel": "2.6.32-573.8.1.el6.x86_64",
 							"sfdc-release": "2016.01"
 						},
-					"2015.10": 
+					"2015.10":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.7.1.el6.x86_64",
@@ -39,7 +39,13 @@
 							"kernel": "2.6.32-573.12.1.el6.x86_64",
 							"sfdc-release": "2016.02"
 						},
-					"gia-current": 
+					"2016.04":
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.18.1.el6.x86_64",
+							"sfdc-release": "2016.04"
+						},
+					"gia-current":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.8.1.el6.x86_64",
@@ -57,7 +63,7 @@
 		{
 			"6":
 				{
-					"current": 
+					"current":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.8.1.el6.x86_64",
@@ -69,7 +75,7 @@
 							"kernel": "2.6.32-573.8.1.el6.x86_64",
 							"sfdc-release": "2016.01"
 						},
-					"2015.10": 
+					"2015.10":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.7.1.el6.x86_64",
@@ -93,7 +99,13 @@
 							"kernel": "2.6.32-573.12.1.el6.x86_64",
 							"sfdc-release": "2016.02"
 						},
-					"gia-current": 
+					"2016.04":
+						{
+							"os_version": "6.7",
+							"kernel": "2.6.32-573.18.1.el6.x86_64",
+							"sfdc-release": "2016.04"
+						},
+					"gia-current":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.7.1.el6.x86_64",
@@ -111,7 +123,7 @@
 		{
 			"6":
 				{
-					"current": 
+					"current":
 						{
 							"os_version": "6.6",
 							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
@@ -121,7 +133,7 @@
 							"os_version": "6.6",
 							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
 						},
-					"gia-current": 
+					"gia-current":
 						{
 							"os_version": "6.6",
 							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
