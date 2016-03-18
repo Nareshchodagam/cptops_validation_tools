@@ -108,15 +108,12 @@
 							"glibc": "glibc-2.12-1.166.el6_7.7.x86_64",
 							"sfdc-release": "2016.02"
 						},
-<<<<<<< HEAD
 					"2016.04":
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.18.1.el6.x86_64",
 							"sfdc-release": "2016.04"
 						},
-					"gia-current":
-=======
 					"p0-glibc":
 						{
 							"os_version": "6.7",
@@ -125,7 +122,6 @@
 							"glibc": "glibc-2.12-1.166.el6_7.7.x86_64"
 						},
 					"gia-current":
->>>>>>> upstream/master
 						{
 							"os_version": "6.7",
 							"kernel": "2.6.32-573.7.1.el6.x86_64",
