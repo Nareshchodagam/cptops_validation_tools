@@ -23,6 +23,7 @@ def where_am_i():
 def getPriSec(pod_details,insts):
     instsPROD = {}
     for inst in insts.split(','):
+        instsPROD[inst] = None
         for sp in pod_details:
             logging.debug(pod_details[sp])
             if 'Primary' in pod_details[sp]:
@@ -40,7 +41,9 @@ def validatePROD(details,loc):
     loc_details = {}
     for d in details:
         logging.debug("%s %s %s" %(d,details[d],loc))
-        if not re.match(loc, details[d], re.IGNORECASE):
+        if details[d] == None:
+            loc_details[d] = False
+        elif not re.match(loc, details[d], re.IGNORECASE) :
             loc_details[d] = False
         else:
             loc_details[d] = True
