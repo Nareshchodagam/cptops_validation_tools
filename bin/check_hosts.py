@@ -15,25 +15,10 @@ import os.path
 reload(sys)
 sys.setdefaultencoding('utf8')
 
-if __name__ == "__main__":
-    usage = """
-    if checkhosts file does not exist create it  
-    if it is there exclude hosts in checkhosts file from list of hosts -H 
-    %prog -H [hostlist] -v
-    """
-     
-    parser = OptionParser(usage)
-    parser.add_option("-H", dest="hosts", action="store", help="comma separated list of hosts , buildplan v_HOSTS")
-    parser.add_option("-v", action="store_true", dest="verbose", help="verbosity")
-    (options, args) = parser.parse_args()
-    
+def cleanline(line):
+    return line.strip()
 
-    def cleanline(line):
-        return line.strip()
-    if not options.hosts:
-       sys.exit(1) 
-    if options.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+def filter_and_display():
     filename =  os.path.expanduser('~') + '/checkhosts'
     excludelist, returnlist = [],[]
     open(filename,'a')
@@ -52,16 +37,23 @@ if __name__ == "__main__":
     logging.debug(returnlist) 
     
     print ','.join(returnlist)
-    #if options.hostlist:
-        #if arch == 'Linux':
-        #    os = whichOS()
-        #    if os == options.ostype.upper():
-        #        print("Checked OS matches host OS : %s : %s" % (os, options.ostype.upper()))
-        #        sys.exit(0)
-        #    else:
-        #        print("Checked OS does not match host OS : %s : %s" % (os, options.ostype.upper()))
-        #        sys.exit(1)
-        #elif arch == 'SunOs':
-        #    os = 'Solaris'
-        #else:
-        #    os = 'Unknown'
+
+if __name__ == "__main__":
+    usage = """
+    if checkhosts file does not exist create it  
+    if it is there exclude hosts in checkhosts file from list of hosts -H 
+    %prog -H [hostlist] -v
+    """
+     
+    parser = OptionParser(usage)
+    parser.add_option("-H", dest="hosts", action="store", help="comma separated list of hosts , buildplan v_HOSTS")
+    parser.add_option("-v", action="store_true", dest="verbose", help="verbosity")
+    (options, args) = parser.parse_args()
+    
+
+    if not options.hosts:
+       sys.exit(1) 
+    if options.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    filter_and_display()
