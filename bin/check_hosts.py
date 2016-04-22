@@ -17,7 +17,8 @@ sys.setdefaultencoding('utf8')
 
 if __name__ == "__main__":
     usage = """
-    exclude hosts in chekhosts file from list of hosts -H 
+    if checkhosts file does not exist create it  
+    if it is there exclude hosts in checkhosts file from list of hosts -H 
     %prog -H [hostlist] -v
     """
      
@@ -29,7 +30,8 @@ if __name__ == "__main__":
 
     def cleanline(line):
         return line.strip()
- 
+    if not options.hosts:
+       sys.exit(1) 
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
     filename =  os.path.expanduser('~') + '/checkhosts'
