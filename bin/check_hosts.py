@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""Script to validate which os is being worked on"""
+"""script to exclude hosts from a comma separated list"""
 
 #from datetime import datetime, date, timedelta
 import sys
