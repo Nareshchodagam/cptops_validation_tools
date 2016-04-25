@@ -7,8 +7,18 @@ from re import search, compile
 import sys
 import pprint
 import logging
+import common
+from idbhost import Idbhost
 
+# idb class instantiate
+idb = Idbhost()
 
+# Function to get the pod_list
+def get_site_pod(hostlist):
+    pod = [host.split('-')[0] for host in hostlist]
+    return pod
+
+# Function to  query the web
 def query_to_web(host):
     inst = host.split('-')[0]
     url = 'http://%s.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp' % inst
@@ -28,6 +38,7 @@ def query_to_web(host):
         err_inst[inst] = "ERROR"
         return False
 
+# Function for web-scrapping
 def parse_web(data, inst):
     com_patt = compile('(%s.*?)\|\d+\|(\w+)' % (inst))
     ser_patt = com_patt.findall(data)
@@ -39,6 +50,18 @@ def parse_web(data, inst):
         return status
     else:
         return None
+
+# Function to control the exit_status
+def exit_status():
+    while True:
+        u_input = raw_input("Do you want to exit with exit code '1' (y|n) ")
+        if u_input == "y":
+            sys.exit(1)
+        elif u_input == "n":
+            sys.exit(0)
+        else:
+            print("Please enter valid choice (y|n) ")
+            continue
 
 
 if __name__ == "__main__":
@@ -57,9 +80,19 @@ if __name__ == "__main__":
     hostlist = hosts.split(',')
     err_inst = {}
     prob_host = {}
-    for host in hostlist:
-        query_to_web(host)
 
+    pod_list = get_site_pod(hostlist)
+    pod_status = idb.checkprod(pod_list, dc='phx')
+
+    for host in hostlist:
+        try:
+            if pod_status[host.split('-')[0].upper()] != True:
+                print("This is DR site for host %s, so skipping the buddy pair check!!! " % host)
+            elif pod_status[host.split('-')[0].upper()] == True:
+                query_to_web(host)
+        except KeyError as e:
+            print("ERROR- Invalid key %s " % e)
+            exit_status()
 
     if prob_host or err_inst:
         print( "-" * 70 )
@@ -67,14 +100,4 @@ if __name__ == "__main__":
         print("-" * 70)
         print(prob_host)
         print(err_inst)
-        while True:
-            u_input = raw_input("Do you want to exit with exit code '1' (y|n) ")
-            if u_input == "y":
-                sys.exit(1)
-            elif u_input == "n":
-                sys.exit(0)
-            else:
-                print("Please enter valid choice (y|n) ")
-                continue
-
-
+        exit_status()
