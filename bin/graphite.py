@@ -55,12 +55,14 @@ def start_reporter():
 			cmd = "sudo -u appmon /home/appmon/current/ajna-latency-monitor/runReporter.sh start"
 			if os.path.isfile('/home/appmon/current/ajna-latency-monitor/pid'):
 				subprocess.call('rm /home/appmon/current/ajna-latency-monitor/pid'.split())
+			os.chdir('/home/appmon/current/ajna-latency-monitor')
 			retcode = subprocess.call(cmd.split())
 			error_check(retcode, msg="Latency Reporter started.")
 		elif host_name == reporter_servers[1]:
 			cmd = "sudo -u appmon /opt/ajnabus-latency-reporter/bin/runReporter.sh start"
 			if os.path.isfile('/var/run/ajnabus-latency-reporter/pid'):
 				subprocess.call('rm /var/run/ajnabus-latency-reporter/pid'.split())
+			os.chdir('/opt/ajnabus-latency-reporter/bin')
 			retcode = subprocess.call(cmd.split())
 			error_check(retcode, msg="Latency Reporter started.")
 
