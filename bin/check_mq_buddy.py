@@ -5,27 +5,52 @@ import urllib
 import argparse
 from re import search, compile
 import sys
-import pprint
 import logging
 import common
-import string
+import socket
 from idbhost import Idbhost
 
 
+# Where am I
+def where_am_i():
+    """
+    Figures out location based on hostname
+
+    Input : nothing
+    Returns : 3 letter site code
+    """
+    hostname = socket.gethostname()
+    logging.debug(hostname)
+    if not search(r'(sfdc.net|salesforce.com)', hostname):
+        short_site = 'sfm'
+    elif search(r'internal.salesforce.com', hostname):
+        short_site = 'sfm'
+    else:
+        inst,hfuc,g,site = hostname.split('-')
+        short_site = site.replace(".ops.sfdc.net", "")
+    logging.debug(short_site)
+    return short_site
+
+
 # idb class instantiate
-def idb_connect(dc):
+def idb_connect(site):
     try:
         logging.debug('Connecting to CIDB')
-        idb = Idbhost(dc)
+        if site == "sfm":
+            idb = Idbhost()
+        else:
+            idb = Idbhost(site)
         return idb
     except:
-        print "Unable to connect to idb"
+        print("Unable to connect to idb")
         exit()
+
 
 # Function to get the pod_list
 def get_site_pod(hostlist):
     pod = [host.split('-')[0] for host in hostlist]
-    return pod
+    dc = hostlist[0].split('-')[3]
+    return (pod, dc)
 
 
 # Function to  query the web
@@ -88,23 +113,21 @@ if __name__ == "__main__":
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-
-
     hosts = args.hosts
     hostlist = hosts.split(',')
-    dc = hostlist[0].split('-')[3]
     err_inst = {}
     prob_host = {}
 
-    idb = idb_connect(dc)
-    pod_list = get_site_pod(hostlist)
+    site = where_am_i()
+    idb = idb_connect(site)
+    pod_list, dc = get_site_pod(hostlist)
     pod_status = idb.checkprod(pod_list, dc)
     pod_status = {k.lower(): v for k, v in pod_status.items()}
     for host in hostlist:
         try:
-            if pod_status.get(host.split('-')[0]) != True:
+            if pod_status[(host.split('-')[0])] != True:
                 print("This is DR site for host %s, so skipping the buddy pair check!!! " % host)
-            elif pod_status.get(host.split('-')[0]) == True:
+            elif pod_status[(host.split('-')[0  ])] == True:
                 query_to_web(host)
         except KeyError as e:
             print("ERROR- Invalid key, Instance name is not valid %s" % e)
