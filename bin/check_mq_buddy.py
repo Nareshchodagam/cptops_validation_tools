@@ -10,13 +10,22 @@ import logging
 import common
 from idbhost import Idbhost
 
+
 # idb class instantiate
-idb = Idbhost()
+def idb_connect(dc):
+    try:
+        logging.debug('Connecting to CIDB')
+        idb = Idbhost()
+        return idb
+    except:
+        print "Unable to connect to idb"
+        exit()
 
 # Function to get the pod_list
 def get_site_pod(hostlist):
     pod = [host.split('-')[0] for host in hostlist]
     return pod
+
 
 # Function to  query the web
 def query_to_web(host):
@@ -38,6 +47,7 @@ def query_to_web(host):
         err_inst[inst] = "ERROR"
         return False
 
+
 # Function for web-scrapping
 def parse_web(data, inst):
     com_patt = compile('(%s.*?)\|\d+\|(\w+)' % (inst))
@@ -50,6 +60,7 @@ def parse_web(data, inst):
         return status
     else:
         return None
+
 
 # Function to control the exit_status
 def exit_status():
@@ -76,13 +87,17 @@ if __name__ == "__main__":
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+
+
     hosts = args.hosts
     hostlist = hosts.split(',')
+    dc = hostlist[0].split('-')[3]
     err_inst = {}
     prob_host = {}
 
+    idb = idb_connect(dc)
     pod_list = get_site_pod(hostlist)
-    pod_status = idb.checkprod(pod_list, dc='phx')
+    pod_status = idb.checkprod(pod_list, dc)
 
     for host in hostlist:
         try:
@@ -91,13 +106,13 @@ if __name__ == "__main__":
             elif pod_status[host.split('-')[0].upper()] == True:
                 query_to_web(host)
         except KeyError as e:
-            print("ERROR- Invalid key %s " % e)
-            exit_status()
+            print("ERROR- Invalid key, Instance name is not valid %s" % e)
+            prob_host[host] = "ERROR"
 
     if prob_host or err_inst:
-        print( "-" * 70 )
-        print('-------ERROR: Problem with qpidBrokerStatus OR cannot connect to remote url -------')
-        print("-" * 70)
+        print("-" * 50)
+        print('\t \t ERROR')
+        print("-" * 50)
         print(prob_host)
         print(err_inst)
         exit_status()
