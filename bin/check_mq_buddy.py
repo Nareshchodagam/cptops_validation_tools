@@ -21,6 +21,7 @@ def idb_connect(dc):
         print "Unable to connect to idb"
         exit()
 
+
 # Function to get the pod_list
 def get_site_pod(hostlist):
     pod = [host.split('-')[0] for host in hostlist]
