@@ -8,6 +8,7 @@ import sys
 import pprint
 import logging
 import common
+import string
 from idbhost import Idbhost
 
 
@@ -15,7 +16,7 @@ from idbhost import Idbhost
 def idb_connect(dc):
     try:
         logging.debug('Connecting to CIDB')
-        idb = Idbhost()
+        idb = Idbhost(dc)
         return idb
     except:
         print "Unable to connect to idb"
@@ -98,12 +99,12 @@ if __name__ == "__main__":
     idb = idb_connect(dc)
     pod_list = get_site_pod(hostlist)
     pod_status = idb.checkprod(pod_list, dc)
-
+    pod_status = {k.lower(): v for k, v in pod_status.items()}
     for host in hostlist:
         try:
-            if pod_status[host.split('-')[0].upper()] != True:
+            if pod_status.get(host.split('-')[0]) != True:
                 print("This is DR site for host %s, so skipping the buddy pair check!!! " % host)
-            elif pod_status[host.split('-')[0].upper()] == True:
+            elif pod_status.get(host.split('-')[0]) == True:
                 query_to_web(host)
         except KeyError as e:
             print("ERROR- Invalid key, Instance name is not valid %s" % e)
