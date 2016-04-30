@@ -16,8 +16,8 @@ def where_am_i():
     """
     Figures out location based on hostname
 
-    Input : nothing
-    Returns : 3 letter site code
+    :param: nothing
+    :return: 3 letter site code
     """
     hostname = socket.gethostname()
     logging.debug(hostname)
@@ -34,6 +34,12 @@ def where_am_i():
 
 # idb class instantiate
 def idb_connect(site):
+    """
+    Intitiate connection to idb based on the site.
+    :param site: The site name
+    :rtype: Make a connection to idb based on the site.
+
+    """
     try:
         logging.debug('Connecting to CIDB')
         if site == "sfm":
@@ -48,35 +54,65 @@ def idb_connect(site):
 
 # Function to get the pod_list
 def get_site_pod(hostlist):
-    pod = [host.split('-')[0] for host in hostlist]
+    """
+    This function is to create a dict of pod as keys and value as hostname. It will return the dict and  the datacenter
+    name
+
+    :param hostlist: The list of hostnames
+    :return pod, dc: Return the dictionary with pod as key and hostnames as values and datacenter name
+    :type arg1: A list
+    """
+
+    pod = {}
+    for host in hostlist:
+        if not pod.has_key(host.split('-')[0]):
+            pod[host.split('-')[0]] = [host]
+        else:
+            pod[host.split('-')[0]].append(host)
     dc = hostlist[0].split('-')[3]
-    return (pod, dc)
+    return pod, dc
 
 
 # Function to  query the web
-def query_to_web(host):
-    inst = host.split('-')[0]
-    url = 'http://%s.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp' % inst
+def query_to_web(pod):
+    """
+    This function is to connect to remote url based on the POD name \
+    e.g http://na44.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp
+
+    :param pod: Take the POD name as parameter and query to remote url
+    :type arg1: string
+    :return: nothing
+    :
+    """
+    url = 'http://%s.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp' % pod
     logging.debug("Connecting to url %s " % url)
     try:
         file_handle = urllib.urlopen(url).read()
-        result = parse_web(file_handle, inst)
+        result = parse_web(file_handle, pod)
         try:
             for key, val in result.iteritems():
                 if val.upper() != 'ACTIVE':
                     prob_host[key] = val
         except:
             print('ERROR: Fetched empty data from %s' % url)
-            err_inst[inst] = "ERROR"
+            err_inst[pod] = "ERROR"
     except:
-        print("ERROR: Can't connect to remote url for inst %s " % inst)
-        err_inst[inst] = "ERROR"
-        return False
+        print("ERROR: Can't connect to remote url for inst %s " % pod)
+        err_inst[pod] = "ERROR"
 
 
 # Function for web-scrapping
-def parse_web(data, inst):
-    com_patt = compile('(%s.*?)\|\d+\|(\w+)' % (inst))
+def parse_web(data, pod):
+    """
+    This function is used in the query_to_web function and will parse the data.
+
+    :param data: data captured from remote url
+    :param pod:  The pod name for parsing
+    :type arg1: data from web
+    :type arg2: string
+    :return: return the dict with match pattern else return none
+    """
+    com_patt = compile('(%s.*?)\|\d+\|(\w+)' % (pod))
     ser_patt = com_patt.findall(data)
     logging.debug(ser_patt)
     status = {}
@@ -90,6 +126,12 @@ def parse_web(data, inst):
 
 # Function to control the exit_status
 def exit_status():
+    """
+    Function to control the exit status. This is useful while you are running code as commands in katzmeow and
+    the command failed.
+    As default, the KZ exit with status 1, but this fucntion will give you control to handle the exit status even
+    the command as failed or passed.
+    """
     while True:
         u_input = raw_input("Do you want to exit with exit code '1' (y|n) ")
         if u_input == "y":
@@ -121,17 +163,17 @@ if __name__ == "__main__":
     site = where_am_i()
     idb = idb_connect(site)
     pod_list, dc = get_site_pod(hostlist)
-    pod_status = idb.checkprod(pod_list, dc)
+    pod_status = idb.checkprod(pod_list.keys(), dc)
     pod_status = {k.lower(): v for k, v in pod_status.items()}
-    for host in hostlist:
+    for pod, hosts in pod_list.iteritems():
         try:
-            if pod_status[(host.split('-')[0])] != True:
-                print("This is DR site for host %s, so skipping the buddy pair check!!! " % host)
-            elif pod_status[(host.split('-')[0  ])] == True:
-                query_to_web(host)
+            if pod_status[pod] != True:
+                print("This is DR for site %s, so skipping the buddy pair check!!! " % pod)
+            elif pod_status[pod] == True:
+                query_to_web(pod)
         except KeyError as e:
             print("ERROR- Invalid key, Instance name is not valid %s" % e)
-            prob_host[host] = "ERROR"
+            prob_host[pod] = "ERROR"
 
     if prob_host or err_inst:
         print("-" * 50)
