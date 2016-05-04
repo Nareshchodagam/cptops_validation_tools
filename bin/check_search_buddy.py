@@ -142,11 +142,14 @@ def json_parse(pod, hosts, pod_status):
     :rtype:  list
     """
 
-    json_data = json.loads(query_to_web(pod, hosts))
-    logging.debug(json_data)
-    if pod_status[pod]:
-        buddy = json_data['haPeers']
-    return buddy
+    try:
+        json_data = json.loads(query_to_web(pod, hosts))
+        logging.debug(json_data)
+        if pod_status[pod]:
+            buddy = json_data['haPeers']
+        return buddy
+    except:
+        return False
 
 
 # function to check the idb_status of a host
@@ -163,6 +166,22 @@ def idb_status(hostlist):
 
     idb.gethost(hostlist)
     return idb.mlist
+
+
+def dict_lookup(word, lookup_in):
+
+    """
+    Function to lookup a string in the supplied dictionary values
+
+    :param word: String to look up
+    :param lookup_in: The dictionary
+    :return: True
+    :rtype: bool
+
+    """
+    for v in lookup_in.values():
+        if word in v:
+            return True
 
 
 # function to check the port
@@ -219,25 +238,27 @@ if __name__ == "__main__":
         try:
             if pod_status[pod]:
                 json_buddy = json_parse(pod, hosts, pod_status)
-                buddy_hosts = [host.split(':')[0].split('.')[0] for host in json_buddy]
-                logging.debug(buddy_hosts)
-                idb_data = idb_status(buddy_hosts)
-                logging.debug(idb_data)
-                for host in buddy_hosts:
-                    if all([idb_data[host]['opsStatus_Cluster'] == 'ACTIVE', idb_data[host]['opsStatus_Host'] == 'ACTIVE']):
-                        if not check_port(host, 8983):
-                            err_dict[host] = "ERROR - App is not running on buddy host"
-                    else:
-                        err_dict[host] = "ERROR - iDB status not ACTIVE"
+                if json_buddy:
+                    buddy_hosts = [host.split(':')[0].split('.')[0] for host in json_buddy]
+                    logging.debug(buddy_hosts)
+                    idb_data = idb_status(buddy_hosts)
+                    logging.debug(idb_data)
+                    for host in buddy_hosts:
+                        if all([idb_data[host]['opsStatus_Cluster'] == 'ACTIVE', idb_data[host]['opsStatus_Host'] == 'ACTIVE']):
+                            if not check_port(host, 8983):
+                                err_dict[host] = "ERROR - App is not running on buddy host"
+                        else:
+                            err_dict[host] = "ERROR - iDB status not ACTIVE"
+                elif not json_buddy:
+                    err_dict[pod] = "ERROR - Null data returned from the remote url"
             elif not pod_status[pod]:
                 print("INFO - This is DR site for POD [%s], so skipping the buddy check" % pod)
                 err_dict[pod] = "DR"
         except KeyError as e:
             print('Looks like one of the POD [%s] does not belongs to the the dc [%s]' % (e, dc))
-            print(pod_list)
-            err_dict["".join(pod_list.get(pod))] = 'ERROR'
+            err_dict[",".join(pod_list.get(pod))] = 'ERROR '
 
-    if 'ERROR' in err_dict.values():
+    if dict_lookup('ERROR', err_dict):
         print(err_dict)
         exit_status()
 
