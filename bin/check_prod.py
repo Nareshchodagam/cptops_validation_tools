@@ -8,6 +8,14 @@ import subprocess
 import sys
 
 def where_am_i():
+    """
+    This code checks what location you are in based on hostname
+    
+    Returns the three letter site code
+    
+    Example output:
+    was
+    """
     hostname = socket.gethostname()
     logging.debug(hostname)
     if not re.search(r'(sfdc.net|salesforce.com)', hostname):
@@ -21,6 +29,12 @@ def where_am_i():
     return short_site
 
 def getPriSec(pod_details,insts):
+    """
+    This function takes a dict containing instances per dc broken down 
+    by SP and a list of instances to check  
+    
+    Returns a dict with the instances allocated to primary or secondary 
+    """
     instsPROD = {}
     for inst in insts.split(','):
         instsPROD[inst] = None
@@ -37,6 +51,11 @@ def getPriSec(pod_details,insts):
     return instsPROD
 
 def validatePROD(details,loc):
+    """
+    Validates if a list of instances are 
+    Input : a comma seperated list and a string to compare be it primary or secondary
+    Returns : a dict containing instance and true or false based on location
+    """
     logging.debug(details)
     loc_details = {}
     for d in details:
@@ -47,6 +66,7 @@ def validatePROD(details,loc):
             loc_details[d] = False
         else:
             loc_details[d] = True
+    logging.debug(loc_details)
     return loc_details
 
 
@@ -71,22 +91,24 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
+    # Figure out the loation we're running form
     site=where_am_i()
     logging.debug(site)
-
+    # Set the correct site code to create the object
     if site == 'sfm':
         idb=Idbhost()
     else:
         idb=Idbhost(site)
+    # Get the active pods in a site 
     data = idb.sp_data(site, 'ACTIVE', 'pod')
-    
     pod_details = idb.spcl_grp
     logging.debug(pod_details)
     if options.instances and options.loc:
-        
+        # Get the locations of each instance and confirm if primary or secondary
         pri_sec_details = getPriSec(pod_details,options.instances.upper())
         loc_details = validatePROD(pri_sec_details,options.loc)
         for inst in loc_details:
+            print(loc_details[inst])
             if loc_details[inst] == False:
                 print('%s is not %s in this DC, please review the instances' % (inst,options.loc))
                 print('%s' % loc_details)
