@@ -1,3 +1,4 @@
+#!/opt/rh/python27/root/usr/bin/python2.7
 import common
 from idbhost import Idbhost
 from optparse import OptionParser
