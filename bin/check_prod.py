@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import common
 from idbhost import Idbhost
 from optparse import OptionParser
