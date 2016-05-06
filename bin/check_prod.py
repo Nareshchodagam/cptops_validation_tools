@@ -1,4 +1,4 @@
-#!/opt/rh/python27/root/usr/bin/python2.7
+#!/usr/bin/env python
 import common
 from idbhost import Idbhost
 from optparse import OptionParser
