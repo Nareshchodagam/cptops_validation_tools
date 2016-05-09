@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import common
 from idbhost import Idbhost
 from optparse import OptionParser
@@ -37,15 +38,18 @@ def getPriSec(pod_details,insts):
     """
     instsPROD = {}
     for inst in insts.split(','):
+        inst = inst.upper()
         instsPROD[inst] = None
         for sp in pod_details:
             logging.debug(pod_details[sp])
             if 'Primary' in pod_details[sp]:
-                if inst in pod_details[sp]['Primary'].split(','):
+                pri_insts = [x.upper() for x in pod_details[sp]['Primary'].split(',')]
+                if inst in pri_insts:
                     logging.debug('found %s in Primary' % inst)
                     instsPROD[inst] = 'primary'
             if 'Secondary' in pod_details[sp]:
-                if inst in pod_details[sp]['Secondary'].split(','):
+                sec_insts = [x.upper() for x in pod_details[sp]['Secondary'].split(',')]
+                if inst in sec_insts:
                     logging.debug('found %s in Secondary' % inst)
                     instsPROD[inst] = 'secondary'
     return instsPROD
