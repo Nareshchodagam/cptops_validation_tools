@@ -173,7 +173,10 @@ if __name__ == "__main__":
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         if 'glibc' in version_data[os_type][os_major][options.check]:
             glibc_ver = getGlibcVer(version_data[os_type][os_major][options.check]['glibc'])
-        if kern_result == True and rel_result == True and glibc_ver == True:
+            if kern_result == True and rel_result == True and glibc_ver == True:
+                print('System running correct patch level no need to update')
+                sys.exit(1)
+        elif kern_result == True and rel_result == True:
             print('System running correct patch level no need to update')
             sys.exit(1)
         else:
