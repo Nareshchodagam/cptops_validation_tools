@@ -233,6 +233,7 @@ if __name__ == "__main__":
     pod_status = idb.checkprod(pod_list.keys(), dc)
     logging.debug(pod_list)
     pod_status = {k.lower(): v for k, v in pod_status.items()}
+    logging.debug(pod_status)
 
     for pod, hosts in pod_list.iteritems():
         try:
