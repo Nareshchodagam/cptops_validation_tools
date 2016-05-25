@@ -107,7 +107,7 @@ if __name__ == "__main__":
     This script will validate if a host is running the correct kernel and linux release.
     Support for RHEL, OEL and CENTOS currently.
 
-    %prog [-c (current|candidate)] [-f path/to/json/file] [-u] [-v]
+    %prog [-c (current|candidate)] [-f path/to/json/file] [-u] [-o (rhel|centos)] [-m] [-v]
     %prog [-k kernel] [-r redhat] [-b seconds] [-u] [-v]
 
     Validate the host needs patching.
@@ -133,11 +133,16 @@ if __name__ == "__main__":
 
     Usage after patching to check if the host has been updated and rebooted within the last 5 mins
     %prog -k 2.6.32-504.8.1.el6.x86_64 -r 6.6 -u
+    
+    Validate if a host should be migrated or not
+    %prog -c 2016.04 -o centos -m
     """
     parser = OptionParser(usage)
     parser.add_option("-k", dest="kernver", action="store", help="The kernel version host should have")
     parser.add_option("-r", dest="releasever", action="store", help="The RH release host should have")
     parser.add_option("-c", dest="check", action="store", help="Check the current or canidate versions")
+    parser.add_option("-o", dest="os", action="store", help="OS to check for rhel|centos")
+    parser.add_option("-m", dest="migration", action="store_true", default=False, help="Use to confirm migration")
     parser.add_option("-f", dest="verfile", action="store", help="The host should have")
     parser.add_option("-u", dest="updated", action="store_true", help="Check if the host was updated")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity")
@@ -169,6 +174,12 @@ if __name__ == "__main__":
             exit_code(glibc_ver)
         print('System running correct patch level')
     elif options.check and not options.updated:
+        # Adding code to check if we're migrating or not
+        if options.os and options.migration:
+            if options.os.upper() != os_type:
+                logging.debug("%s : %s" % (options.os.upper(), os_type))
+                print('System not running correct OS and will be migrated')
+                sys.exit(0)
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         if 'glibc' in version_data[os_type][os_major][options.check]:
