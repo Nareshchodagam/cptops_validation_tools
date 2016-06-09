@@ -8,9 +8,10 @@ import logging
 import os
 import commands
 from optparse import OptionParser
+import subprocess
+import sys
 
 tmpDir='/tmp/'
-
 
 def recordStatus(procName,procString):
     logging.debug('Checking for running process' + procName)
@@ -80,8 +81,7 @@ def stopService(procName,procString,cmd,force):
             exit(1)
     else:
         print('Process is not running. Nothing to stop.')
-
-
+        
 if __name__ == "__main__":
 
     usage="""
@@ -132,9 +132,9 @@ if __name__ == "__main__":
     else:
         procname=options.procname
         procstring=options.procname
-
+            
     if options.checksvc:
-        recordStatus(procname)
+        recordStatus(procname,procstring)
 
     if options.getstatus:
         result=getStatus(procname)

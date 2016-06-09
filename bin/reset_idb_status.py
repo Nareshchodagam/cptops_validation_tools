@@ -32,8 +32,8 @@ def currentStatus(hosts, idb_mlist, status):
                 print("Current status %s and proposed status %s match. Exiting." % (idb_mlist[i]['opsStatus_Host'], status))
                 sys.exit(0)
         
-def setStatus(hosts, idb_mlist, status):
-    user = os.environ['USER']
+def setStatus(hosts, idb_mlist, status, user):
+    
     currentStatus(hosts, idb.mlist,status)
     pp = pprint.PrettyPrinter(indent=4)
     #pp.pprint(idb.hjson)
@@ -60,6 +60,8 @@ if __name__ == '__main__':
     parser = OptionParser(usage)
     parser.add_option("-s", "--status", dest="status",
                             help="The status to set the host to in iDB")
+    parser.add_option("-u", "--user", dest="krbuser",
+                            help="Kerb user if different from SSO")
     parser.add_option("-H", "--hosts", dest="hosts",
                             help="The host[s] in comma seperated format")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
@@ -67,7 +69,11 @@ if __name__ == '__main__':
     if options.hosts is None:
         parser.print_help()
         exit(-1)
-
+    
+    if options.krbuser:
+        user = options.krbuser
+    else:
+        user = os.environ['USER']
 
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -78,4 +84,4 @@ if __name__ == '__main__':
         idb=Idbhost(site)
     hosts=options.hosts.split(',')
     idb.gethost(hosts)    
-    setStatus(hosts, idb.mlist, options.status)
+    setStatus(hosts, idb.mlist, options.status,user)
