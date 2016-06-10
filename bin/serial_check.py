@@ -34,7 +34,7 @@ def compare(host_list):
 				for line in rr_output:
 					if host in line:
 						line_fix1 = line.split('@')[1]
-                        line_fix2 = line_fix1.rstrip()
+						line_fix2 = line_fix1.rstrip()
 						rr_list.append(line_fix2.strip('\n'))
 		except IOError as e:
 			print('Problem loading serial.txt, is the file in your home dir? \n %s' % (e))
