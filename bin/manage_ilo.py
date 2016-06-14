@@ -37,13 +37,12 @@ def getVendor():
     print("Vendor identified as: " + vendor)
     return vendor
 
-def deviceInfo(vendor):
+def deviceInfoB(vendor):
+    # get device info Before factory reset
     # DELL Section
     if vendor == "DELL":
 
         dump_file = '/tmp/drac-dump-pre.txt'
-        if os.path.exists('/tmp/drac-dump-pre.txt'):
-            dump_file = '/tmp/drac-dump-post.txt'
 
         rtrn_flag = False
         cmnds = ['/opt/dell/srvadmin/bin/idracadm7', '/opt/dell/srvadmin/bin/idracadm',
@@ -68,8 +67,6 @@ def deviceInfo(vendor):
     elif vendor == "HP":
 
         dump_file = '/tmp/ilo-dump-pre.xml'
-        if os.path.exists('/tmp/ilo-dump-pre.xml'):
-            dump_file = '/tmp/ilo-dump-post.xml'
 
         try:
             cmd="/sbin/hponcfg -a -w %s" % (dump_file)
@@ -80,13 +77,14 @@ def deviceInfo(vendor):
             return True
 
         except:
-            print('Unable to set boot device.')
+            print('Unable to get device info.')
             return False
     else:
         print("Unidentified vendor: " + vendor)
         exit(1)
 
 def factoryReset(vendor):
+    # factory reset    
     # DELL Section
     if vendor == "DELL":
     
@@ -111,6 +109,14 @@ def factoryReset(vendor):
 
     # HP Section
     elif vendor == "HP":
+
+        if os.path.exists('/tmp/ilo-dump-pre.xml'):
+            print "Good to proceed with factory reset"
+        else:
+            print "Re-run step to get device info before factory reset"
+            deviceInfoB(vendor)
+            factoryReset(vendor)
+
         try:
             cmd="/sbin/hponcfg --reset"
             logging.debug('Executing command: ' + cmd)
@@ -120,15 +126,63 @@ def factoryReset(vendor):
             return True
 
         except:
-            print('Unable to set boot device.')
+            print('Unable to reset device to default.')
             return False
     else:
         print("Unidentified vendor: " + vendor)
         exit(1)    
-        
+
+def deviceInfoA(vendor):
+    # get device info After factory reset
+    # DELL Section
+    if vendor == "DELL":
+        #pause for 30 secs to allow DRAC reset
+        time.sleep(30)
+        dump_file = '/tmp/drac-dump-post.txt'
+
+        rtrn_flag = False
+        cmnds = ['/opt/dell/srvadmin/bin/idracadm7', '/opt/dell/srvadmin/bin/idracadm',
+                     '/opt/dell/srvadmin/sbin/racadm']
+        for command in cmnds:
+            if os.path.exists(command):
+                cmd = "{0} getsysinfo >> %s" .format(command) % (dump_file)
+                logging.debug("Executing command "+ cmd)
+                result = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = result.communicate()
+                logging.debug(out.rstrip())
+                if result.returncode == 0:
+                    rtrn_flag = True
+                    return True
+                else:
+                    continue
+            else:
+                continue
+        return False
+
+    # HP Section
+    elif vendor == "HP":
+
+        dump_file = '/tmp/ilo-dump-post.xml'
+        #pause for 60 secs to allow DRAC reset
+        time.sleep(60) 
+
+        try:
+            cmd="/sbin/hponcfg -a -w %s" % (dump_file)
+            logging.debug('Executing command: ' + cmd)
+            result=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            out,err=result.communicate()
+            print(out.rstrip())
+            return True
+
+        except:
+            print('Unable to get device info.')
+            return False
+    else:
+        print("Unidentified vendor: " + vendor)
+        exit(1)
+
 def deviceCheck(vendor):
-    print "Pause for 30 seconds to allow factory reset complete"
-    time.sleep(30)
+    # confirm factory reset
     # DELL Section
     if vendor == "DELL":
 
@@ -140,7 +194,7 @@ def deviceCheck(vendor):
         drac_post = []
 
         #get values from drac_dump_pre file
-        with open('drac-dump-pre.txt', 'r') as drac_dump_pre:
+        with open('/tmp/drac-dump-pre.txt', 'r') as drac_dump_pre:
             try:
                 for line in drac_dump_pre:
                     for item in drac_value:
@@ -155,7 +209,7 @@ def deviceCheck(vendor):
                 print('Problem loading file %s : %s' % (drac_dump_pre,e))
          
         #get values from drac_dump_post file
-        with open('drac-dump-post.txt', 'r') as drac_dump_post:
+        with open('/tmp/drac-dump-post.txt', 'r') as drac_dump_post:
             try:
                 for line in drac_dump_post:
                     for item in drac_value:
@@ -183,6 +237,13 @@ def deviceCheck(vendor):
     # HP Section
     elif vendor == "HP":
 
+        if os.path.exists('/tmp/ilo-dump-post.xml'):
+            print "Good to proceed with factory default check"
+        else:
+            print "Re-run step to get device info after factory reset"
+            deviceInfoA(vendor)
+            deviceCheck(vendor)
+
         #select values to check drac_dump_pre vs. drac_dump_post
         ilo_value = ["<DNS_NAME VALUE", "<IP_ADDRESS VALUE", "<DOMAIN_NAME VALUE"]
         #Store ilo_dump_pre Name:Value
@@ -191,7 +252,7 @@ def deviceCheck(vendor):
         ilo_post = []
 
         #get values from ilo_dump_pre file
-        with open('ilo-dump-pre.xml', 'r') as ilo_dump_pre:
+        with open('/tmp/ilo-dump-pre.xml', 'r') as ilo_dump_pre:
             try:
                 for line in ilo_dump_pre:
                     for item in ilo_value:
@@ -206,7 +267,7 @@ def deviceCheck(vendor):
                 print('Problem loading file %s : %s' % (ilo_dump_post,e))
 
         #get values from ilo_dump_post file
-        with open('ilo-dump-post.xml', 'r') as ilo_dump_post:
+        with open('/tmp/ilo-dump-post.xml', 'r') as ilo_dump_post:
             try:
                 for line in ilo_dump_post:
                     for item in ilo_value:
@@ -225,8 +286,16 @@ def deviceCheck(vendor):
         i = set(ilo_pre).intersection(set(ilo_post))
         diff = list(u - i)
         if not diff:
-            print 'Factory reset unsuccessful, pre and post still match: \n pre \n %s  \n and post \n %s' % (ilo_pre,ilo_post)
-            exit(1)
+            if ilo_pre[1].split('"')[1] == "":
+                print 'Factory reset already completed: \n pre \n %s  \n and post \n %s' % (ilo_pre,ilo_post)
+                exit(0) 
+            else:
+                print 'Factory reset unsuccessful, pre and post still match: \n pre \n %s  \n and post \n %s' % (ilo_pre,ilo_post)
+                print 'Retry factory reset and re-check'                
+                os.remove('/tmp/ilo-dump-post.xml') 
+                factoryReset(vendor)
+                deviceInfoA(vendor)
+                deviceCheck(vendor) 
         else:
             print 'Factory reset successful: \n pre \n %s  \n and post \n %s' % (ilo_pre,ilo_post)
             exit(0)
@@ -316,8 +385,9 @@ if __name__ == "__main__":
     parser = OptionParser(usage)
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="Verbosity")
     parser.add_option("-g", action="store_true", dest="getvendor", default=False, help="Get vendor")
-    parser.add_option("-i", action="store_true", dest="getsysinfo", default=False, help="Factory reset pre_post")
+    parser.add_option("-b", action="store_true", dest="getsysinfoB", default=False, help="Factory reset pre/before")
     parser.add_option("-r", action="store_true", dest="resetdevice", default=False, help="Factory reset device")
+    parser.add_option("-a", action="store_true", dest="getsysinfoA", default=False, help="Factory reset post/after")
     parser.add_option("-c", action="store_true", dest="checkdevice", default=False, help="Factory reset confirm")
     parser.add_option("-s", action="store_true", dest="setdevice", default=False, help="Set boot device")
     parser.add_option("-d", dest="devicename", help="Device (HDD or PXE)")
@@ -335,13 +405,18 @@ if __name__ == "__main__":
         if not setBootDev(vendor,options.devicename.upper()):
             print("Unable to set boot device")
             exit(1)
+
+    if options.getsysinfoB:
+        vendor=getVendor()
+        deviceInfoB(vendor)
+
     if options.resetdevice:
         vendor=getVendor()
         factoryReset(vendor)
 
-    if options.getsysinfo:
+    if options.getsysinfoA:
         vendor=getVendor()
-        deviceInfo(vendor)
+        deviceInfoA(vendor)
 
     if options.checkdevice:
         vendor=getVendor()
