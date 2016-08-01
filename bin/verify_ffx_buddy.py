@@ -6,15 +6,15 @@
     Created -  07/25/2016
 '''
 
-from argparse import ArgumentParser, RawTextHelpFormatter
-import sys
-import socket
 import logging
-import common
-from idbhost import Idbhost
-from urllib2 import urlopen, URLError
-from re import  search
+import socket
+import sys
+import urllib2
+from argparse import ArgumentParser, RawTextHelpFormatter
+from re import search
 from socket import gethostname
+
+from idbhost import Idbhost
 
 
 # Where am I
@@ -36,6 +36,7 @@ def where_am_i():
         short_site = site.replace(".ops.sfdc.net", "")
     logging.debug(short_site)
     return short_site
+
 
 # idb class instantiate
 def idb_connect(site):
@@ -102,12 +103,12 @@ def buddy_check(host):
     """
     cluster = host.split("-")[0]
     url = "http://%s.salesforce.com/stats/ffxinstancespaceinfo.jsp" % cluster
-    logging.debug("Checking buddy pair of " + host+".ops.sfdc.net at "+ url)
+    logging.debug("Checking buddy pair of " + host + ".ops.sfdc.net at " + url)
     try:
-        url_handle = urlopen(url, timeout=10).readlines()
+        url_handle = urllib2.urlopen(url, timeout=10).readlines()
         page = url_handle
         return page
-    except URLError as e:
+    except urllib2.URLError as e:
         print("ERROR: %s " % e)
         err_dict[host] = "ERROR {0}" .format(e)
         return False
@@ -139,7 +140,7 @@ def check_buddy_host(host):
     :param host: hostname to check the buddy
     :return: nothing
     """
-    status = None
+    status = False
     buddy = parse_web(host)
     if buddy:
         dc = buddy.split("-")[3]
@@ -156,11 +157,11 @@ def check_buddy_host(host):
                 status = handle.read()
             except:
                 err_dict[buddy] = "ERROR"
-                print(status)
-            if "ALIVE" in status:
-                print("FFX App on buddy host %s is Running" % buddy)
-            else:
-                err_dict[host] = "ERROR - FFX app on host {0} is not UP" .format(buddy)
+
+            if not status:
+                err_dict[host] = "ERROR - FFX app on buddy host {0} is not running".format(buddy)
+            elif "ALIVE" in status:
+                print("FFX App on buddy host %s is Running \n" % buddy)
 
 
 if __name__ == "__main__":
@@ -179,10 +180,7 @@ if __name__ == "__main__":
     err_dict = {}
 
     for host in hosts:
-        #print("Buddy Pair is " + buddy_check(sys.argv[1])+"\n")
-        #check_query_host(sys.argv[1])
         check_buddy_host(host)
-
 
     if dict_lookup('ERROR', err_dict):
         print(err_dict)
