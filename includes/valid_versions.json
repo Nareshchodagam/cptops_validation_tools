@@ -1,222 +1,153 @@
 {
-	"RHEL":
-		{
-			"6":
-				{
-					"current":
-						{
-							"os_version": "6.8",
-                             				"kernel": "2.6.32-642.1.1.el6.x86_64",
-                             				"sfdc-release": "2016.07"
-						},
-					"candidate":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.18.1.el6.x86_64",
-							"sfdc-release": "2016.04"
-						},
-					"2015.10":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.7.1.el6.x86_64",
-							"sfdc-release": "2015.10"
-						},
-					"2015.12":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.8.1.el6.x86_64",
-							"sfdc-release": "2015.12"
-						},
-					"2016.01":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.8.1.el6.x86_64",
-							"sfdc-release": "2016.01"
-						},
-					"2016.02":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.12.1.el6.x86_64",
-							"glibc": "glibc-2.12-1.166.el6_7.7.x86_64",
-							"sfdc-release": "2016.02"
-						},
-					"2016.04":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.18.1.el6.x86_64",
-							"sfdc-release": "2016.04"
-						},
-					"2016.05":
-                                                {
-                                                        "os_version": "6.7",
-                                                        "kernel": "2.6.32-573.22.1.el6.x86_64",
-                                                        "sfdc-release": "2016.05"
-                                                },
-					"2016.06":
-                                                {
-                                                        "os_version": "6.7",
-                                                        "kernel": "2.6.32-573.26.1.el6.x86_64",
-                                                        "sfdc-release": "2016.06"
-                                                },
-					"2016.07":
-                                                {
-                                                        "os_version": "6.8",
-                                                        "kernel": "2.6.32-642.1.1.el6.x86_64",
-                                                        "sfdc-release": "2016.07"
-                                                },
-					"2016.08":
-												{
-                                                        "os_version": "6.8",
-                                                        "kernel": "2.6.32-642.3.1.el6.x86_64",
-                                                        "sfdc-release": "2016.08"
-                                                },
-					"p0-glibc":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.12.1.el6.x86_64",
-							"sfdc-release": "2016.02",
-							"glibc": "glibc-2.12-1.166.el6_7.7.x86_64"
-						},
-					"gia-current":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.8.1.el6.x86_64",
-							"sfdc-release": "2015.12"
-						},
-					"gia-candidate":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.8.1.el6.x86_64",
-							"sfdc-release": "2016.01"
-						}
-				}
-		},
-	"CENTOS":
-		{
-			"6":
-				{
-					"current":
-						{
-							"os_version": "6.8",
-                            				"kernel": "2.6.32-642.1.1.el6.x86_64",
-                            				"sfdc-release": "2016.07"
-						},
-					"candidate":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.18.1.el6.x86_64",
-							"sfdc-release": "2016.04"
-						},
-					"2015.10":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.7.1.el6.x86_64",
-							"sfdc-release": "2015.10"
-						},
-					"2015.12":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.8.1.el6.x86_64",
-							"sfdc-release": "2015.12"
-						},
-					"2016.01":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.8.1.el6.x86_64",
-							"sfdc-release": "2016.01"
-						},
-					"2016.02":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.12.1.el6.x86_64",
-							"glibc": "glibc-2.12-1.166.el6_7.7.x86_64",
-							"sfdc-release": "2016.02"
-						},
-					"2016.04":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.18.1.el6.x86_64",
-							"sfdc-release": "2016.04"
-						},
-                                       "2016.05":
-                                                {
-                                                        "os_version": "6.7",
-                                                        "kernel": "2.6.32-573.22.1.el6.x86_64",
-                                                        "sfdc-release": "2016.05"
-                                                },
-                                       "2016.06":
-                                                {
-                                                        "os_version": "6.7",
-                                                        "kernel": "2.6.32-573.26.1.el6.x86_64",
-                                                        "sfdc-release": "2016.06"
-                                                },
-                                  	   "2016.07":
-                                                {
-                                                        "os_version": "6.8",
-                                                        "kernel": "2.6.32-642.1.1.el6.x86_64",
-                                                        "sfdc-release": "2016.07"
-                                                },
-										"2016.08":
-												{
-                                                        "os_version": "6.8",
-                                                        "kernel": "2.6.32-642.3.1.el6.x86_64",
-                                                        "sfdc-release": "2016.08"
-                                                },
-
-					"p0-glibc":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.12.1.el6.x86_64",
-							"sfdc-release": "2016.02",
-							"glibc": "glibc-2.12-1.166.el6_7.7.x86_64"
-						},
-					"gia-current":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.7.1.el6.x86_64",
-							"sfdc-release": "2015.12"
-						},
-					"gia-candidate":
-						{
-							"os_version": "6.7",
-							"kernel": "2.6.32-573.7.1.el6.x86_64",
-							"sfdc-release": "2015.12"
-						}
-				}
-		},
-	"OEL":
-		{
-			"6":
-				{
-					"current":
-						{
-							"os_version": "6.6",
-							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
-						},
-					"candidate":
-						{
-							"os_version": "6.6",
-							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
-						},
-					"gia-current":
-						{
-							"os_version": "6.6",
-							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
-						},
-					"gia-candidate":
-						{
-							"os_version": "6.6",
-							"kernel": "3.8.13-16.2.1.el6uek.x86_64"
-						}
-				}
-		},
-	"HP":
-		{
-			"firmware":
-				{
-					"raid":	"6.64",
-					"system": "2014.08.02",
-					"ilo": "2.20"
-				}
+    "RHEL":
+        {
+            "6":
+                {
+                    "current":
+                        {
+                            "os_version": "6.8",
+                            "kernel": "2.6.32-642.3.1.el6.x86_64",
+                            "sfdc-release": "2016.08"
+                        },
+                    "candidate":
+                        {
+                            "os_version": "6.7",
+                            "kernel": "2.6.32-573.18.1.el6.x86_64",
+                            "sfdc-release": "2016.04"
+                        },
+                    "2016.05":
+		        {
+		            "os_version": "6.7",
+                            "kernel": "2.6.32-573.22.1.el6.x86_64",
+                            "sfdc-release": "2016.05"
+                        },
+		    "2016.06":
+                        {
+		            "os_version": "6.7",
+			    "kernel": "2.6.32-573.26.1.el6.x86_64",
+			    "sfdc-release": "2016.06"
+		        },
+                    "2016.07":
+		        {
+		            "os_version": "6.8",
+			    "kernel": "2.6.32-642.1.1.el6.x86_64",
+			    "sfdc-release": "2016.07"
+                        },
+                    "2016.08":
+		        {
+		            "os_version": "6.8",
+			    "kernel": "2.6.32-642.3.1.el6.x86_64",
+			    "sfdc-release": "2016.08"
+		        },
+                    "2016.09":
+		        {
+		            "os_version": "6.8",
+			    "kernel": "2.6.32-642.3.1.el6.x86_64",
+			    "sfdc-release": "2016.09"
+		        },
+                    "p0-glibc":
+		        {
+		            "os_version": "6.7",
+			    "kernel": "2.6.32-573.12.1.el6.x86_64",
+			    "sfdc-release": "2016.02",
+			    "glibc": "glibc-2.12-1.166.el6_7.7.x86_64"
+		        },
+                }
+        },
+   "CENTOS":
+      {
+          "6":
+             {
+                   "current":
+	                {
+                            "os_version": "6.8",
+		  	    "kernel": "2.6.32-642.3.1.el6.x86_64",
+			    "sfdc-release": "2016.08"
+		        },
+		   "candidate":
+		        {
+		            "os_version": "6.7",
+		            "kernel": "2.6.32-573.18.1.el6.x86_64",
+			    "sfdc-release": "2016.04"
+		        },
+		   "2016.05":
+		        {
+		            "os_version": "6.7",
+		 	    "kernel": "2.6.32-573.22.1.el6.x86_64",
+			    "sfdc-release": "2016.05"
+		        },
+		   "2016.06":
+		        {
+		  	    "os_version": "6.7",
+			    "kernel": "2.6.32-573.26.1.el6.x86_64",
+			    "sfdc-release": "2016.06"
+                        },
+                   "2016.07":
+		        {
+		            "os_version": "6.8",
+		            "kernel": "2.6.32-642.1.1.el6.x86_64",
+		            "sfdc-release": "2016.07"
+		        },
+		   "2016.08":
+		        {
+		            "os_version": "6.8",
+		            "kernel": "2.6.32-642.3.1.el6.x86_64",
+		            "sfdc-release": "2016.08"
+		        },
+                   "2016.09":
+		        {
+		            "os_version": "6.8",
+		            "kernel": "2.6.32-642.3.1.el6.x86_64",
+			    "sfdc-release": "2016.09"
+		        },
+		   "p0-glibc":
+		        {
+		            "os_version": "6.7",
+			    "kernel": "2.6.32-573.12.1.el6.x86_64",
+			    "sfdc-release": "2016.02",
+			    "glibc": "glibc-2.12-1.166.el6_7.7.x86_64"
+		        },
+		   "gia-current":
+		        {
+		            "os_version": "6.7",
+			    "kernel": "2.6.32-573.7.1.el6.x86_64",
+			    "sfdc-release": "2015.12"
+		        },
 		}
+	},
+    "OEL":
+        {
+	    "6":
+                {
+		    "current":
+                        {
+		      	    "os_version": "6.6",
+   			    "kernel": "3.8.13-16.2.1.el6uek.x86_64"
+			},
+		    "candidate":
+			{
+			    "os_version": "6.6",
+			    "kernel": "3.8.13-16.2.1.el6uek.x86_64"
+			},
+		    "gia-current":
+			{
+		            "os_version": "6.6",
+			    "kernel": "3.8.13-16.2.1.el6uek.x86_64"
+			},
+		    "gia-candidate":
+			{
+			    "os_version": "6.6",
+			    "kernel": "3.8.13-16.2.1.el6uek.x86_64"
+			}
+		}
+	},
+    "HP":
+        {
+            "firmware":
+                {
+                    "raid":	"6.64",
+                    "system": "2014.08.02",
+                    "ilo": "2.20"
+                }
+        }
 }
