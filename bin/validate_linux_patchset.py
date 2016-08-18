@@ -62,7 +62,7 @@ def get_Sfdc_rel(sfdc_ver):
         installed_sfdc_ver = installed_sfdc_ver.split('-')[2]
         result = False if installed_sfdc_ver != sfdc_ver else True
         logging.debug("Current : %s | Wanted : %s | Check : %s" % (installed_sfdc_ver, sfdc_ver, result))
-    return result
+    return result, installed_sfdc_ver
 
 def get_release(os_ver, os_type):
     os_types = {'OEL': '/etc/oracle-release', 'RHEL': '/etc/redhat-release', 'CENTOS': '/etc/centos-release'}
@@ -178,6 +178,10 @@ if __name__ == "__main__":
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         print('Checking RH release version:')
         exit_code(rel_result)
+        (sfdc_ver, sfdc_rpm) = getSfdcrel(version_data[os_type][os_major][options.check]['sfdc-release'])
+        if not 'not installed' in sfdc_rpm:
+            print('Checking sfdc release:')
+            exit_code(sfdc_ver)
         if 'glibc' in version_data[os_type][os_major][options.check]:
             print('Checking glibc version:')
             glibc_ver = getGlibcVer(version_data[os_type][os_major][options.check]['glibc'])
@@ -192,13 +196,14 @@ if __name__ == "__main__":
                 sys.exit(0)
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
-        if 'sfdc-release' in version_data[os_type][os_major][options.check]:
-            sfdc_ver = get_Sfdc_rel(version_data[os_type][os_major][options.check]['sfdc-release'])
-            if kern_result == True and rel_result == True and sfdc_ver == True:
-                print('System running correct patch level no need to update')
-                sys.exit(1)
-            else:
-                print('System not running correct patch level and needs to be updated')
+        sfdc_ver = get_Sfdc_rel(version_data[os_type][os_major][options.check]['sfdc-release'])
+        if not 'not installed' in sfdc_rpm:
+            if 'sfdc-release' in version_data[os_type][os_major][options.check]:
+                    if kern_result == True and rel_result == True and sfdc_ver == True:
+                        print('System running correct patch level no need to update')
+                        sys.exit(1)
+                    else:
+                        print('System not running correct patch level and needs to be updated')
         elif kern_result == True and rel_result == True:
             print('System running correct patch level no need to update')
             sys.exit(1)
