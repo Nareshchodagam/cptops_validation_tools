@@ -54,6 +54,16 @@ def getGlibcVer(glibc_ver):
             logging.debug("Current : %s | Wanted : %s | Check : %s" % (glibc, glibc_ver, result))
     return result
 
+def getSfdcrel(sfdc_ver):
+    result = False
+    cmd_lst = ['rpm', '-q', 'sfdc-release']
+    installed_sfdc_ver = run_cmd(cmd_lst).rstrip()
+    if re.search(r'x86_64', installed_sfdc_ver):
+        installed_sfdc_ver = installed_sfdc_ver.split('-')[2]
+        result = False if installed_sfdc_ver != sfdc_ver else True
+        logging.debug("Current : %s | Wanted : %s | Check : %s" % (installed_sfdc_ver, sfdc_ver, result))
+    return result
+
 def get_release(os_ver, os_type):
     os_types = {'OEL': '/etc/oracle-release', 'RHEL': '/etc/redhat-release', 'CENTOS': '/etc/centos-release'}
     logging.debug(os_ver)
@@ -182,16 +192,28 @@ if __name__ == "__main__":
                 sys.exit(0)
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
-        if 'glibc' in version_data[os_type][os_major][options.check]:
-            glibc_ver = getGlibcVer(version_data[os_type][os_major][options.check]['glibc'])
-            if kern_result == True and rel_result == True and glibc_ver == True:
+        if 'sfdc-release' in version_data[os_type][os_major][options.check]:
+            sfdc_ver = getSfdcrel(version_data[os_type][os_major][options.check]['sfdc-release'])
+            if kern_result == True and rel_result == True and sfdc_ver == True:
                 print('System running correct patch level no need to update')
                 sys.exit(1)
+            else:
+                print('System not running correct patch level and needs to be updated')
         elif kern_result == True and rel_result == True:
             print('System running correct patch level no need to update')
             sys.exit(1)
         else:
             print('System not running correct patch level and needs to be updated')
+        #if 'glibc' in version_data[os_type][os_major][options.check]:
+        #    glibc_ver = getGlibcVer(version_data[os_type][os_major][options.check]['glibc'])
+        #   if kern_result == True and rel_result == True and glibc_ver == True:
+        #        print('System running correct patch level no need to update')
+        #        sys.exit(1)
+        #elif kern_result == True and rel_result == True:
+        #    print('System running correct patch level no need to update')
+        #    sys.exit(1)
+        #else:
+        #    print('System not running correct patch level and needs to be updated')
     elif options.kernver:
         result = get_kernel_ver(options.kernver)
         exit_code(result)
