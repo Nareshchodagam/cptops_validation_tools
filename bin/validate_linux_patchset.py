@@ -178,7 +178,7 @@ if __name__ == "__main__":
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
         print('Checking RH release version:')
         exit_code(rel_result)
-        (sfdc_ver, sfdc_rpm) = getSfdcrel(version_data[os_type][os_major][options.check]['sfdc-release'])
+        (sfdc_ver, sfdc_rpm) = get_Sfdc_rel(version_data[os_type][os_major][options.check]['sfdc-release'])
         if not 'not installed' in sfdc_rpm:
             print('Checking sfdc release:')
             exit_code(sfdc_ver)
@@ -196,7 +196,7 @@ if __name__ == "__main__":
                 sys.exit(0)
         kern_result = get_kernel_ver(version_data[os_type][os_major][options.check]['kernel'])
         rel_result = get_release(version_data[os_type][os_major][options.check]['os_version'],os_type)
-        sfdc_ver = get_Sfdc_rel(version_data[os_type][os_major][options.check]['sfdc-release'])
+        (sfdc_ver, sfdc_rpm) = get_Sfdc_rel(version_data[os_type][os_major][options.check]['sfdc-release'])
         if not 'not installed' in sfdc_rpm:
             if 'sfdc-release' in version_data[os_type][os_major][options.check]:
                     if kern_result == True and rel_result == True and sfdc_ver == True:
