@@ -1,0 +1,13 @@
+#!/bin/bash
+##############################################
+# unit_script
+# mgaddy@salesforce.com
+# unit test script for cpt that will be 
+# called by the pipeline
+#
+##############################################
+
+# Currently unit test will be perform by CPT therefore
+# this script just need exit with success. 
+
+exit 0
