@@ -21,4 +21,4 @@ pushd ..
 ./build.sh -i $ITERATION -v $VERSION
 
 # copy the rpm generated to $TNRP_BUILD_ARTIFACTS(TnRP specified env variable) to be used by the next pipeline segment
-cp *rpm $TNRP_BUILD_ARTIFACTS
+cp *.rpm $TNRP_BUILD_ARTIFACTS
