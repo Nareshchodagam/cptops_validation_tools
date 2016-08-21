@@ -3,8 +3,6 @@
 # template for package script which generates an rpm 
 # package should move all generated rpm’s to the folder path specified in $TNRP_BUILD_ARTIFACTS
 # 
-TNRP_BUILD_ARTIFACTS="/build/rpms"
-
 # required argument; defines the version number for the artifact
 VERSION="1.0"
 
