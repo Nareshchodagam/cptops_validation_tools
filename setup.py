@@ -1,36 +1,38 @@
-#!/usr/bin/python
-#
-"""
-Case Gen environment setup script. 
-    - Activate idbhost submodule
-    - Create necessary symlinks
-"""
-import subprocess
-import os
-import sys
+from setuptools import setup, find_packages
 
-gitrepo='cptops_validation_tools'
-
-activate_cmd = "git submodule init"
-update_cmd = "git submodule update"
-
-if os.getcwd() != os.environ['HOME'] + "/git/" + gitrepo:
-    print "Current working directory should be " + os.environ['HOME'] + "/git/" + gitrepo
-    sys.exit(1)
-else:
-    print "Activating submodule and refreshing....\n"
-    try:
-        subprocess.check_call(activate_cmd.split())
-        subprocess.check_call(update_cmd.split())
-    except subprocess.CalledProcessError:
-        print "Submodule update failed."
-        sys.exit(1)
-        
-print "Verifying idbhost symlinks....\n"
-if not os.path.exists('includes'):
-    os.mkdir('includes')
-    os.symlink('../idbhost/includes/idbhost.py', 'includes/idbhost.py')
-    os.symlink('../idbhost/includes/common.py', 'bin/common.py')
-else:
-    os.symlink('../idbhost/includes/idbhost.py', 'includes/idbhost.py')
-    os.symlink('../idbhost/includes/common.py', 'bin/common.py')
+install_dir = '/opt/cpt/bin'
+install_files = ['bin/check_hosts.py',
+                 'bin/check_local_port.py',
+                 'bin/check_maxfs_desc.py',
+                 'bin/check_mq_buddy.py',
+                 'bin/check_proxy_endpoints.py',
+                 'bin/check_reconnect.py',
+                 'bin/check_search_buddy.py',
+                 'bin/check_static_routes.py',
+                 'bin/chk_symlinks.py',
+                 'bin/manage_bootdevice.py',
+                 'bin/manage_service.py',
+                 'bin/mtavalidation.sh',
+                 'bin/validate_linux_patchset.py',
+                 'bin/verify_ffx_buddy.py',
+                 'bin/verify_search_buddy.py',
+                 'bin/zookeeper_status.py']
+setup(
+    name='cpt-tools',
+    version='1.0',
+    description='Validation scripts used by CPT during patching.',
+    author='Mitchell Gaddy',
+    author_email='mgaddy@salesforce.com',
+    url="https://git.soma.salesforce.com/CPT/cptops_validation_tools",
+    packages=find_packages(),
+    data_files=[(install_dir, install_files)],
+    classifiers=[
+          "License :: Salesforce Proprietary Code",
+          "Programming Language :: Python",
+          "Development Status :: 1 - Alpha",
+          "Intended Audience :: Developers",
+          "Topic :: Build",
+    ],
+    keywords='cpt tools',
+    license='Salesforce Proprietary Code',
+    )
