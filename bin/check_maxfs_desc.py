@@ -105,7 +105,8 @@ def validValues(data):
             sys.exit(1)
             
 def get_inst(hostname):
-    m = re.search(r'(.*).ops.sfdc.net', hostname)
+    #m = re.search(r'(.*).ops.sfdc.net', hostname)
+    m = re.search(r'(.*).[a-z]{3}.sfdc.net', hostname)
     if m:
         short_host = m.group(1)
         lst = short_host.split("-")
@@ -124,7 +125,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG)
     checkId()
     hostname = get_hostname()
-    short_host = hostname.replace('.ops.sfdc.net', '')
+    short_host = hostname.replace(r'.[a-z]{3}.sfdc.net', '')
     inst,hfunc,node,site = get_inst(hostname)
     logging.debug(hostname)
     logging.debug("%s,%s,%s,%s" % (inst,hfunc,node,site))
