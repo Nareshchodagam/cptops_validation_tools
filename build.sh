@@ -53,7 +53,7 @@ then
 fi
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
-	--architecture all \
+	--architecture noarch \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
 	setup.py
