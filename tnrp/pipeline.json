@@ -1,7 +1,0 @@
-{
-  "pipeline": {
-    "manifests": [
-      { "file_url" : "https://git.soma.salesforce.com/cpt/cptops_validation_tools/raw/master/tnrp/pipeline_manifest.json" }
-    ]
-  }
-}

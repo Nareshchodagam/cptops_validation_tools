@@ -1,15 +1,1 @@
-{
- "artifacts": [
-  { "repo_id": "testandrelease",
-    "artifact_id": "cpt-tools",
-    "nexus_url": "https://nexus.soma.salesforce.com/nexus",
-    "filename": "<filename - eg: test_artifact-1-0.noarch.rpm>",
-    "version": "<version_number - eg: 1-0.noarch>",
-    "scope": [],
-    "group_id": "cpt",
-    "type": "rpm",
-    "repo_path": "cpt"
-    }
-], 
-	"snapshot_id": ""
-}
+{"artifacts": [], "snapshot_id": ""}
