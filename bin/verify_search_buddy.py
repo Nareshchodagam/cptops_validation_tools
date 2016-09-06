@@ -139,7 +139,7 @@ def query_to_hapeer(host):
         return file_handle
     except URLError as e:
         print("ERROR: %s " % e)
-        err_dict["Looks like host %s doesn't exists, please check " % host] = 'ERROR'
+        err_dict["Looks like host %s is not reachable, please check " % host] = 'ERROR'
 
 
 # Function to json parser
@@ -251,7 +251,6 @@ if __name__ == "__main__":
     logging.debug(pod_list)
     pod_status = {k.lower(): v for k, v in pod_status.items()}
     logging.debug(pod_status)
-
     for pod, hosts in pod_list.iteritems():
         try:
             for i_host in hosts:
