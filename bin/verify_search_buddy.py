@@ -255,7 +255,7 @@ if __name__ == "__main__":
         try:
             for i_host in hosts:
                 json_buddy = json_parse(pod, i_host, pod_status)
-                if not query_to_hapeer(i_host):
+                if 'false' in query_to_hapeer(i_host):
                     if json_buddy:
                         buddy_hosts = [host.split(':')[0].split('.')[0] for host in json_buddy]
                         logging.debug(buddy_hosts)
