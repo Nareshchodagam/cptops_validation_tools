@@ -45,6 +45,12 @@
 				"kernel": "2.6.32-642.3.1.el6.x86_64",
 				"sfdc-release": "2016.09"
 			},
+                    "2016.10":
+		        {
+				"os_version": "6.8",
+				"kernel": "2.6.32-642.4.2.el6.x86_64",
+				"sfdc-release": "2016.10"
+			},
                     "p0-glibc":
 		        {
 		        	"os_version": "6.7",
@@ -99,6 +105,12 @@
 		            		"os_version": "6.8",
 		            		"kernel": "2.6.32-642.3.1.el6.x86_64",
 			    			"sfdc-release": "2016.09"
+		        		},
+					"2016.10":
+		        		{
+		            		"os_version": "6.8",
+		            		"kernel": "2.6.32-642.4.2.el6.x86_64",
+			    			"sfdc-release": "2016.10"
 		        		},
 		   			"p0-glibc":
 		        		{
