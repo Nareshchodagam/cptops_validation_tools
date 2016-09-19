@@ -105,7 +105,7 @@ def buddy_check(host):
     url = "http://%s.salesforce.com/stats/ffxinstancespaceinfo.jsp" % cluster
     logging.debug("Checking buddy pair of " + host + ".ops.sfdc.net at " + url)
     try:
-        url_handle = urllib2.urlopen(url, timeout=10).readlines()
+        url_handle = urllib2.urlopen(url).readlines()
         page = url_handle
         return page
     except urllib2.URLError as e:
@@ -153,7 +153,7 @@ def check_buddy_host(host):
                 logging.debug("Found valid release host %s, Checking Ping.jsp for host %s\n" % (hostname, buddy))
                 url = "http://%s:8085/ping.jsp" % buddy
                 request = urllib2.Request(url)
-                handle = urllib2.urlopen(request, timeout=5)
+                handle = urllib2.urlopen(request)
                 status = handle.read()
             except:
                 err_dict[buddy] = "ERROR"
