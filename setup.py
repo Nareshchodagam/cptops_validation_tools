@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 
 install_dir = '/opt/cpt/bin'
+install_dir2 = '/opt/cpt/includes'
 install_files = ['bin/check_hosts.py',
                  'bin/check_local_port.py',
                  'bin/check_maxfs_desc.py',
@@ -17,6 +18,10 @@ install_files = ['bin/check_hosts.py',
                  'bin/verify_ffx_buddy.py',
                  'bin/verify_search_buddy.py',
                  'bin/zookeeper_status.py']
+
+install_files2 = ['idbhost/includes/idbhost.py',
+                  'idbhost/includes/common.py']
+
 setup(
     name='cpt-tools',
     version='1.0',
@@ -25,7 +30,8 @@ setup(
     author_email='mgaddy@salesforce.com',
     url="https://git.soma.salesforce.com/CPT/cptops_validation_tools",
     packages=find_packages(),
-    data_files=[(install_dir, install_files)],
+    data_files=[(install_dir, install_files),
+                (install_dir2, install_files2)],
     classifiers=[
           "License :: Salesforce Proprietary Code",
           "Programming Language :: Python",
