@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 
 bin_dir = '/opt/cpt/bin'
 modules_dir = '/opt/cpt/modules'
+base_dir = '/opt/cpt'
 bin_files = ['bin/check_hosts.py',
                  'bin/check_local_port.py',
                  'bin/check_maxfs_desc.py',
@@ -19,8 +20,9 @@ bin_files = ['bin/check_hosts.py',
                  'bin/verify_search_buddy.py',
                  'bin/zookeeper_status.py',
                  'cptops_nagios/bin/nagios_monitor.py',
-                 'cptops_nagios/bin/nagios_monitor_single.py',
-                 'cptops_idbhost/includes/idbhost.py']
+                 'cptops_nagios/bin/nagios_monitor_single.py']
+
+base_files = ['cptops_idbhost/includes/idbhost.py']
 
 modules_files = ['idbhost/includes/common.py']
 
@@ -33,7 +35,8 @@ setup(
     url="https://git.soma.salesforce.com/CPT/cptops_validation_tools",
     packages=find_packages(),
     data_files=[(bin_dir, bin_files),
-                (modules_dir, modules_files)],
+                (modules_dir, modules_files),
+                (base_dir, base_files)],
     classifiers=[
           "License :: Salesforce Proprietary Code",
           "Programming Language :: Python",
