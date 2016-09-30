@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 install_dir = '/opt/cpt/bin'
-install_dir2 = '/opt/cpt/includes'
+install_dir2 = '/opt/cpt/modules'
 install_files = ['bin/check_hosts.py',
                  'bin/check_local_port.py',
                  'bin/check_maxfs_desc.py',
@@ -17,7 +17,9 @@ install_files = ['bin/check_hosts.py',
                  'bin/validate_linux_patchset.py',
                  'bin/verify_ffx_buddy.py',
                  'bin/verify_search_buddy.py',
-                 'bin/zookeeper_status.py']
+                 'bin/zookeeper_status.py',
+                 'cptops_nagios/bin/nagios_monitor.py',
+                 'cptops_nagios/bin/nagios_monitor_single.py']
 
 install_files2 = ['idbhost/includes/idbhost.py',
                   'idbhost/includes/common.py']

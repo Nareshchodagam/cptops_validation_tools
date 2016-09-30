@@ -51,6 +51,11 @@ then
   echo "-v version  is a required argument"
   exit 1
 fi
+
+#Clone other git repos
+git clone https://mgaddy:7a436aa87260eda8acbf9dfd240a8e582722d56a@git.soma.salesforce.com/CPT/cptops_idbhost $WORKSPACE/cptops_idbhost -b master
+git clone https://mgaddy:7a436aa87260eda8acbf9dfd240a8e582722d56a@git.soma.salesforce.com/CPT/cptops_nagios $WORKSPACE/cptops_nagios -b master
+
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
