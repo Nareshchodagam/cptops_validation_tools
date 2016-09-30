@@ -24,7 +24,7 @@ bin_files = ['bin/check_hosts.py',
 
 base_files = ['cptops_idbhost/includes/idbhost.py']
 
-modules_files = ['idbhost/includes/common.py']
+modules_files = ['cptops_idbhost/includes/common.py']
 
 setup(
     name='cpt-tools',
