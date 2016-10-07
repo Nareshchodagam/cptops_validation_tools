@@ -51,9 +51,15 @@ then
   echo "-v version  is a required argument"
   exit 1
 fi
+
+#Clone other git repos
+git clone https://svc-cpt-git:fcdb5c3ea86e5509cd8c4944420ba2d74863ae92@git.soma.salesforce.com/CPT/cptops_idbhost $WORKSPACE/cptops_idbhost -b master
+git clone https://svc-cpt-git:fcdb5c3ea86e5509cd8c4944420ba2d74863ae92@git.soma.salesforce.com/CPT/cptops_nagios $WORKSPACE/cptops_nagios -b master
+
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
+	--after-remove post.sh \
 	setup.py
