@@ -53,9 +53,10 @@ then
 fi
 
 #Clone other git repos
-git clone git@git.soma.salesforce.com/CPT/cptops_idbhost $WORKSPACE/cptops_idbhost -b master
-git clone git@git.soma.salesforce.com/CPT/cptops_nagios $WORKSPACE/cptops_nagios -b master
-git clone --recursive git@git.soma.salesforce.com/CPT/cptops_exec_with_creds $WORKSPACE/cptops_exec_with_creds -b master 
+git clone git@git.soma.salesforce.com:CPT/cptops_idbhost $WORKSPACE/cptops_idbhost -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_nagios $WORKSPACE/cptops_nagios -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_sysfiles.git $WORKSPACE/cptops_sysfiles -b master
+git clone --recursive git@git.soma.salesforce.com:CPT/cptops_exec_with_creds $WORKSPACE/cptops_exec_with_creds -b master 
 
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #
 # manage_service.py
 #
@@ -6,44 +5,57 @@
 
 import logging
 import os
+import subprocess
 import commands
 from optparse import OptionParser
 import subprocess
+import shlex
 import sys
 
 tmpDir='/tmp/'
 
-def recordStatus(procName,procString):
+def recordStatus(procName, procString):
+    proc_cmd = 'ps -ef | egrep -v "grep|python|sudo" | grep "' + procString + '"'
+    tmpFile = tmpDir + procName + '_status.tmp'
     logging.debug('Checking for running process' + procName)
-    output=commands.getoutput('ps -ef | grep -v grep | grep -v python | grep -v sudo | grep "' + procString + '"' )
-    logging.debug('Result: ' + output)
-    tmpFile=tmpDir + procName + '_status.tmp'
-
-    if procName in output:
-        print(procName + " is currently running")
-        logging.debug('Printing RUNNING status to ' + tmpFile)
-        status='RUNNING'
+    if options.sysinit:
+        proc_initcmd = "service %s status" % procName
+        retcode = subprocess.call(shlex.split(proc_initcmd))
+        if retcode == 0:
+            print(procName + " is currently running")
+            logging.debug('Printing RUNNING status to ' + tmpFile)
+            status = 'RUNNING'
+        else:
+            print(procName + " is NOT currently running")
+            logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
+            status = 'NOT_RUNNING'
     else:
-        print(procName + " is NOT currently running")
-        logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
-        status='NOT_RUNNING'
-
+        output=commands.getoutput(proc_cmd)
+        if procName in output:
+            print(procName + " is currently running")
+            logging.debug('Printing RUNNING status to ' + tmpFile)
+            status = 'RUNNING'
+        else:
+            print(procName + " is NOT currently running")
+            logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
+            status = 'NOT_RUNNING'
+        
     try:
-        f=open(tmpFile,'w')
+        f = open(tmpFile,'w')
         f.write(status)
         f.close()
     except:
         print('Unable to write to file: ' + tmpFile)
         exit(1)
-
+    
     return status
 
 def getStatus(procName):
     logging.debug('Retrieving status for process ' + procName)
-    tmpFile=tmpDir + procName + '_status.tmp'
+    tmpFile = tmpDir + procName + '_status.tmp'
     try:
-        f=open(tmpFile,'r')
-        svcStatus=f.readline()
+        f = open(tmpFile,'r')
+        svcStatus = f.readline()
         print('Recorded status for ' + procName + ' is ' + svcStatus)
         f.close()
     except:
@@ -51,14 +63,19 @@ def getStatus(procName):
         print('The service state must be recorded. Run: ')
         print('manage_service.py -n ' + procName + ' -r')
         exit(1)
+  
     return svcStatus
 
-def startService(procName,cmd,force):
+def chkState(procName, cmd):
+    logging.debug('Checking current status for process ' + procName)
+    retcode = subprocess
+
+def startService(procName, cmd, force):
     status=getStatus(procName)
     if status.strip() == "RUNNING" or force is True:
         print('Starting service: ' + procName)
         try:
-            output=commands.getoutput(cmd)
+            output = commands.getoutput(cmd)
             logging.debug(output)
             logging.debug('Removing tmpfile after service start.')
             os.remove(tmpDir + procName + '_status.tmp')
@@ -69,12 +86,13 @@ def startService(procName,cmd,force):
         print('Refusing to start service as it was not recorded running')
         print('Run with the -f (force) option to override this')
 
-def stopService(procName,procString,cmd,force):
-    status=recordStatus(procName,procString)
+def stopService(procName, procString, cmd, force, sysinit):
+    status = recordStatus(procName, procString)
     if status.strip() == "RUNNING" or force is True:
         print('Stopping process: ' + procName)
         try:
-            output=commands.getoutput(cmd)
+            print cmd
+            output = commands.getoutput(cmd)
             logging.debug(output)
         except:
             print('Unable to execute: ' + cmd)
@@ -114,6 +132,7 @@ if __name__ == "__main__":
     parser = OptionParser(usage)
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="Verbosity")
     parser.add_option("-r", action="store_true", dest="checksvc", default=False, help="Record process state")
+    parser.add_option("-i", action="store_true", dest="sysinit", default=False, help="Process is controlled by init.")
     parser.add_option("-g", action="store_true", dest="getstatus", default=False, help="Get last status")
     parser.add_option("-s", action="store_true", dest="startsvc", default=False, help="Start Process")
     parser.add_option("-k", action="store_true", dest="stopsvc", default=False, help="Stop Process")
@@ -122,26 +141,32 @@ if __name__ == "__main__":
     parser.add_option("-f", action="store_true", dest="force", default=False, help="Force")
     parser.add_option("-c", dest="cmd", help="Command")
 
-    (options, args) = parser.parse_args()
+    (options, args) = parser.parse_args()    
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
     if options.extended_proc_name:
-        procname=options.procname
-        procstring=options.extended_proc_name
+        procname = options.procname
+        procstring = options.extended_proc_name
     else:
-        procname=options.procname
+        procname = options.procname
         procstring=options.procname
-            
+       
     if options.checksvc:
-        recordStatus(procname,procstring)
+        recordStatus(procname, procstring)
 
     if options.getstatus:
-        result=getStatus(procname)
+        result = getStatus(procname)
         print "RESULT: " + result
 
-    if options.startsvc:
-        startService(procname,options.cmd,options.force)
+    if options.startsvc and options.sysinit:
+        cmd = "service %s start" % procname
+        startService(procname, cmd, options.force)
+    elif options.startsvc and not options.sysinit:
+        startService(procname, options.cmd, options.force)
 
-    if options.stopsvc:
-        stopService(procname,procstring,options.cmd,options.force)
+    if options.stopsvc and options.sysinit:
+        cmd = "service %s stop" % procname
+        stopService(procname, procstring, cmd, options.force, options.sysinit)
+    elif options.stopsvc and not options.sysinit:
+        stopService(procname, procstring, options.cmd, options.force, options.sysinit)
