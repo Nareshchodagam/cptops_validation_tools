@@ -109,21 +109,31 @@ if __name__ == "__main__":
 
     Record the current status of a process:
     %prog -n focus -r
+    %prog -n focus -r -i *Process controlled by init. 
 
     Retreive the last recorded state of a process:
     %prog -n focus -g
 
     Start a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/startup.sh -s
+    
+    %prog -n focus -i -s *Process controlled by init. 
 
     Force start a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/startup.sh -s -f
 
+    %prog -n focus -i -s -f *Process controlled by init.
+     
     Stop a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/shutdown.sh -k
+    
+    %prog -n focus -k -i *Process controlled by init.
 
     Force stop a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/shutdown.sh -k -f
+    
+    %prog -n focus -i -k -f *Process controlled by init.
+    
 
     ------------------------------------------------------------------------
 
