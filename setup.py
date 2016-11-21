@@ -17,7 +17,7 @@ bin_files = ['bin/check_hosts.py',
                  'bin/validate_linux_patchset.py',
                  'bin/verify_ffx_buddy.py',
                  'bin/verify_search_buddy.py',
-                 'bin/zookeeper_status.py'
+                 'bin/zookeeper_status.py',
                  'cptops_sysfiles/bin/system_update.sh',
                  'cptops_sysfiles/bin/system_vendortools_update.sh',
                  'cptops_nagios/bin/nagios_monitor.py',

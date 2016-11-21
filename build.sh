@@ -60,6 +60,7 @@ git clone git@git.soma.salesforce.com:CPT/cptops_sysfiles.git $WORKSPACE/cptops_
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
+	--verbose \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
 	--after-remove post.sh \
