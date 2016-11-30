@@ -29,7 +29,9 @@ class CheckRemoteUrl(object):
         url = None
         if re.search(r'argusws', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/argusws/help" .format(hostname, self.domain, port)
-            logging.debug("Built url {0}" .format(url))
+        elif re.search(r'argusui', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}/argus" .format(hostname, self.domain, port)
+        logging.debug("Built url {0}" .format(url))
         return url
 
     # Class method to check the return code from remote url
@@ -40,9 +42,10 @@ class CheckRemoteUrl(object):
         """
         try:
             logging.debug("Connecting to url {0}" .format(url))
-            ret = requests.get(url, allow_redirects=False)
+            ret = requests.get(url, allow_redirects=True)
             if ret.status_code != 200:
                 print("Could not connect to remote url {0}".format(url))
+                self.err_dict[url] = "ERROR"
         except requests.ConnectionError as e:
             print("Couldn't connect to port {0} on remote url{1}" .format(port, url))
             self.err_dict[url] = "ERROR"
