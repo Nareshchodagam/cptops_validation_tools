@@ -22,11 +22,12 @@ class HostsCheck(object):
     """
     :param: Class definition which accepts bundle name and case_no as command line arguments and pass to class methods.
     """
-    def __init__(self, bundle, case_no):
+    def __init__(self, bundle, case_no, force=False):
         self.bundle = bundle
         self.case_no = case_no
         self.data = []
         self.user_home = path.expanduser('~')
+        self.force = force
 
     def check_ssh(self, host, p_queue):
         """
@@ -71,6 +72,9 @@ class HostsCheck(object):
                     in_buffer.write("{0}".format(k)+',')
                     logging.debug(in_buffer.getvalue())
                 else:
+                    if self.force and v == 'patched':
+                        in_buffer.write("{0}".format(k) + ',')
+                        logging.debug(in_buffer.getvalue())
                     ex_buffer.write("{0} -  {1}".format(k, host_dict[k])+'\n')
                     logging.debug(ex_buffer.getvalue())
         in_hosts = in_buffer.buf.rstrip(',')
@@ -118,6 +122,7 @@ def main():
     parser.add_argument("-H", dest="hosts", required=True, help="The hosts in command line argument")
     parser.add_argument("--bundle", dest="bundle", required=True, help="Bundle name")
     parser.add_argument("--case", dest="case", required=True, help="Case number")
+    parser.add_argument("--force", dest="force", action="store_true", help="Case number")
     parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
     args = parser.parse_args()
     if args.verbose:
@@ -125,7 +130,8 @@ def main():
     bundle = args.bundle
     hosts = args.hosts.split(',')
     case_no = args.case
-    class_object = HostsCheck(bundle, case_no)
+    force = args.force
+    class_object = HostsCheck(bundle, case_no, force)
     class_object.process(hosts)
     class_object.write_to_file()
     class_object.check_file_empty()
