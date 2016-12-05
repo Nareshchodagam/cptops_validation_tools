@@ -1,4 +1,4 @@
-#
+#!/usr/bin/python
 # manage_service.py
 #
 """ Record current state of a process and stop/start as necessary"""
