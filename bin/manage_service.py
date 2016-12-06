@@ -18,27 +18,15 @@ def recordStatus(procName, procString):
     proc_cmd = 'ps -ef | egrep -v "grep|python|sudo" | grep "' + procString + '"'
     tmpFile = tmpDir + procName + '_status.tmp'
     logging.debug('Checking for running process' + procName)
-    if options.sysinit:
-        proc_initcmd = "service %s status" % procName
-        retcode = subprocess.call(shlex.split(proc_initcmd))
-        if retcode == 0:
-            print(procName + " is currently running")
-            logging.debug('Printing RUNNING status to ' + tmpFile)
-            status = 'RUNNING'
-        else:
-            print(procName + " is NOT currently running")
-            logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
-            status = 'NOT_RUNNING'
+    output=commands.getoutput(proc_cmd)
+    if procName in output:
+        print(procName + " is currently running")
+        logging.debug('Printing RUNNING status to ' + tmpFile)
+        status = 'RUNNING'
     else:
-        output=commands.getoutput(proc_cmd)
-        if procName in output:
-            print(procName + " is currently running")
-            logging.debug('Printing RUNNING status to ' + tmpFile)
-            status = 'RUNNING'
-        else:
-            print(procName + " is NOT currently running")
-            logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
-            status = 'NOT_RUNNING'
+        print(procName + " is NOT currently running")
+        logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
+        status = 'NOT_RUNNING'
         
     try:
         f = open(tmpFile,'w')
