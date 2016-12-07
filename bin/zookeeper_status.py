@@ -49,6 +49,7 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.DEBUG)
     hostlist = ['localhost']
     hosts_status = {}
+    failure_count = 0
     if options.buildlist:
         hostlist =[]
         se = re.compile(r'(?<=[shared0|perfeng0]-searchzk)(\d)')
@@ -58,13 +59,10 @@ if __name__ == '__main__':
         if host_num.group() == "2":
             for num in range(21, 26):
                 hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
-                print hostlist
-                exit(0)
         elif host_num.group() == "4":
              for num in range(41, 46):
                 hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
-                print hostlist
-                exit(0)
+        logging.debug(hostlist)
     if options.hostlist:
         hostlist = options.hostlist.split(',')
     for h in hostlist:
@@ -74,7 +72,12 @@ if __name__ == '__main__':
     for h in hosts_status:
         if hosts_status[h] == False:
             print('Zookeeper is not running on %s' % h)
-            sys.exit(1)
+            failure_count += 1
+            #sys.exit(1)
         else:
             print('Zookeeper is running on %s' % h)
-    sys.exit(0)
+    if failure_count > 1:
+        logging.debug("Required nunber of available healthy servers is below threshold. Exiting...")
+        sys.exit(1)
+    else:
+        sys.exit(0)
