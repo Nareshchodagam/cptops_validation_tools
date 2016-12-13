@@ -66,13 +66,21 @@ def getStatus(procName):
   
     return svcStatus
 
-def chkState(procName, cmd):
+def chkInitState(procName):
     logging.debug('Checking current status for process ' + procName)
-    retcode = subprocess
+    proc_initcmd = "service %s status" % procName
+    retcode = subprocess.call(shlex.split(proc_initcmd))
+    
+    return retcode 
 
 def startService(procName, cmd, force):
     status=getStatus(procName)
     if status.strip() == "RUNNING" or force is True:
+        if options.sysinit:
+            retcode = chkInitState(procName)
+        if retcode == 0:
+            print "%s Process already running..." % procName
+            exit(0)
         print('Starting service: ' + procName)
         try:
             output = commands.getoutput(cmd)
