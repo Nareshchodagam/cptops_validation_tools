@@ -63,5 +63,5 @@ fpm -s python -t rpm \
 	--verbose \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
-	--after-remove post.sh \
+	--pre-install post.sh \
 	setup.py
