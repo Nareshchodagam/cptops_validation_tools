@@ -1,6 +1,15 @@
 from setuptools import setup, find_packages
 
+root_dir = '/opt/cpt'
 bin_dir = '/opt/cpt/bin'
+include_dir = '/opt/cpt/includes'
+km_dir = '/opt/cpt/km'
+gus_dir = '/opt/cpt/GUS'
+
+root_files = ['cptops_nagios/bin/nagios_monitor.py',
+              'cptops_nagios/bin/nagios_monitor_single.py',
+              'cptops_idbhost/idbhost.py',
+              'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
 
 bin_files = ['bin/check_hosts.py',
                  'bin/check_local_port.py',
@@ -20,9 +29,20 @@ bin_files = ['bin/check_hosts.py',
                  'bin/zookeeper_status.py',
                  'cptops_sysfiles/bin/system_update.sh',
                  'cptops_sysfiles/bin/system_vendortools_update.sh',
-                 'cptops_nagios/bin/nagios_monitor.py',
-                 'cptops_nagios/bin/nagios_monitor_single.py',
-                 'cptops_idbhost/idbhost.py']
+                 'cptops_nagios/bin/nagios_backup.sh']
+
+include_files = ['includes/valid_versions.json']
+
+km_files = ['cptops_exec_with_creds/km/__init__.py',
+            'cptops_exec_with_creds/km/katzmeow.py']
+
+gus_files = ['cptops_gus_base/GUS/__init__.py',
+             'cptops_gus_base/GUS/auth.py',
+             'cptops_gus_base/GUS/base.py',
+             'cptops_gus_base/GUS/cred.py',
+             'cptops_gus_base/GUS/gusparse.py',
+             'cptops_gus_base/GUS/ssl_version.py']
+
 setup(
     name='cpt-tools',
     version='1.1',
@@ -31,7 +51,11 @@ setup(
     author_email='mgaddy@salesforce.com',
     url="https://git.soma.salesforce.com/CPT/cptops_validation_tools",
     packages=find_packages(),
-    data_files=[(bin_dir, bin_files)],
+    data_files=[(bin_dir, bin_files),
+                (include_dir, include_files),
+                (km_dir, km_files),
+                (gus_dir, gus_files),
+                (root_dir, root_files)],
     classifiers=[
           "License :: Salesforce Proprietary Code",
           "Programming Language :: Python",
