@@ -7,12 +7,11 @@ from re import search
 from socket import gethostname
 from idbhost import Idbhost
 from argparse import ArgumentParser, RawTextHelpFormatter
-import texttable as tt
-
 
 
 class bcolors:
-    HEADER = '\033[95m'
+    HEADER = '\033[34m'
+    GREY = '\033[90m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
     WARNING = '\033[93m'
@@ -20,7 +19,6 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
 
 def exit_status():
     """
@@ -35,7 +33,6 @@ def exit_status():
         else:
             print(bcolors.WARNING + "WARNING : " + bcolors.ENDC + " Please enter valid choice (y|n) ")
             continue
-
 
 # Where am I
 def where_am_i():
@@ -56,9 +53,7 @@ def where_am_i():
     logging.debug(short_site)
     return short_site
 
-
 def dict_lookup(word, lookup_in):
-
     """
     Function to lookup a string in the supplied dictionary values
     :param word: String to look up
@@ -69,7 +64,6 @@ def dict_lookup(word, lookup_in):
     for v in lookup_in.values():
         if word in v:
             return True
-
 
 # idb class instantiate
 def idb_connect(site):
@@ -91,6 +85,25 @@ def idb_connect(site):
         print("Unable to connect to idb")
         exit()
 
+def format_matrix(header, matrix, top_format, left_format, cell_format, row_delim, col_delim):
+    """
+    Create a Tabular format for IDB data representation when prog invoked with -I option
+    :param: run with -I option
+    """
+    table = [ header] + [row for name, row in zip(matrix, matrix)]
+    table_format = [[bcolors.HEADER + '{:^{}}' + bcolors.ENDC] + len(header) * [top_format]] + len(matrix) * [
+        [left_format] + len(header) * [cell_format]]
+    
+    col_widths = [max(
+                      len(format.format(cell, 0))
+                      for format, cell in zip(col_format, col))
+                  for col_format, col in zip(zip(*table_format), zip(*table))]
+
+    return row_delim.join(
+               col_delim.join(
+                   format.format(cell, width)
+                   for format, cell, width in zip(row_format, row, col_widths))
+               for row_format, row in zip(table_format, table))
 
 def idb_status_check(hosts):
     """
@@ -101,31 +114,22 @@ def idb_status_check(hosts):
     idb = idb_connect(site)
     idb.gethost(hosts)
     data = idb.mlist
-    tab = tt.Texttable()
-    col_width = []
-    # hosts_l = hosts.split(',')
+    row_data = []
+
     for i in range(len(data.keys())):
         row = data.items()[i][0]
         cluster_s, host_s = data[row]['opsStatus_Cluster'], data[row]['opsStatus_Host']
         buddy = buddy_find(row)
-        clus_s, ho_s, bud_h = data.get(row)['opsStatus_Cluster'], data.get(row)['opsStatus_Host'], buddy
-        row1 = [row, clus_s, ho_s, bud_h]
-        tab.add_row(row1)
+        row_data.append([row, cluster_s, host_s, buddy])
 
         if 'ACTIVE' not in cluster_s or 'ACTIVE' not in host_s:
             err_dict[row] = 'ERROR - FFX IDB State of Either Host or Cluster is Not ACTIVE for host %s, Check Above Table' % row
-            # print(idb_state)
         elif 'ACTIVE' in cluster_s or 'ACTIVE' in host_s:
             print('Cluster and Host Status is ' + bcolors.OKGREEN + 'ACTIVE' + bcolors.ENDC + ' in IDB of Host %s.') % row
 
     headers = ['Hostname','Cluster Status', 'Host Status', 'Buddy Host']
-
-    for i in headers:
-        col_width.append(len(i))
-
-    tab.header(headers)
-    tab.set_cols_width(col_width)
-    print(tab.draw())
+    print (format_matrix(headers, row_data, bcolors.HEADER + '{:^{}}' + bcolors.ENDC, bcolors.GREY + '{:<{}}', '{:>{}}', '\n'  + bcolors.ENDC, ' | '))
+    return
 
 
 def application_ping_check(host):
@@ -142,7 +146,6 @@ def application_ping_check(host):
         request = urllib2.Request(url)
         handle = urllib2.urlopen(request)
         status = handle.read()
-        # print(status)
     except:
         err_dict[host] = "ERROR"
 
@@ -205,4 +208,3 @@ if __name__ == "__main__":
             line += 1
             print(bcolors.FAIL +'ERROR#'+ str(line) + bcolors.ENDC +' : %s --> %s' % (i, err_dict[i]))
         exit_status()
-
