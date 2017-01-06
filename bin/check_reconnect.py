@@ -6,7 +6,6 @@ import time
 import sys
 import threading
 import Queue
-import common
 
 
 
