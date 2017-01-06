@@ -8,7 +8,6 @@ import subprocess
 import logging
 from optparse import OptionParser
 import glob
-import common
 
 def find_lastest_install_data():
     output = False
