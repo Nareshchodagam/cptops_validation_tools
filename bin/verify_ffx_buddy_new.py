@@ -171,7 +171,7 @@ def buddy_find(host):
     elif hostprefix == '5':
         buddyprefix = '6'
     elif hostprefix == '6':
-        buddyprefix = '6'
+        buddyprefix = '5'
 
     buddyhost = '%s-ffx%s-%s-%s' % (cluster, buddyprefix, hostnum, site)
     return buddyhost
