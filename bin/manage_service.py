@@ -39,7 +39,7 @@ def recordStatus(procName, procString):
             print(procName + " is NOT currently running")
             logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
             status = 'NOT_RUNNING'
-        
+
     try:
         f = open(tmpFile,'w')
         f.write(status)
@@ -47,7 +47,7 @@ def recordStatus(procName, procString):
     except:
         print('Unable to write to file: ' + tmpFile)
         exit(1)
-    
+
     return status
 
 def getStatus(procName):
@@ -63,24 +63,24 @@ def getStatus(procName):
         print('The service state must be recorded. Run: ')
         print('manage_service.py -n ' + procName + ' -r')
         exit(1)
-  
+
     return svcStatus
 
 def chkInitState(procName):
     logging.debug('Checking current status for process ' + procName)
     proc_initcmd = "service %s status" % procName
     retcode = subprocess.call(shlex.split(proc_initcmd))
-    
-    return retcode 
+
+    return retcode
 
 def startService(procName, cmd, force):
     status=getStatus(procName)
     if status.strip() == "RUNNING" or force is True:
         if options.sysinit:
             retcode = chkInitState(procName)
-        if retcode == 0:
-            print "%s Process already running..." % procName
-            exit(0)
+            if retcode == 0:
+                print "%s Process already running..." % procName
+                exit(0)
         print('Starting service: ' + procName)
         try:
             output = commands.getoutput(cmd)
@@ -107,7 +107,7 @@ def stopService(procName, procString, cmd, force, sysinit):
             exit(1)
     else:
         print('Process is not running. Nothing to stop.')
-        
+
 if __name__ == "__main__":
 
     usage="""
@@ -117,31 +117,31 @@ if __name__ == "__main__":
 
     Record the current status of a process:
     %prog -n focus -r
-    %prog -n focus -r -i *Process controlled by init. 
+    %prog -n focus -r -i *Process controlled by init.
 
     Retreive the last recorded state of a process:
     %prog -n focus -g
 
     Start a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/startup.sh -s
-    
-    %prog -n focus -i -s *Process controlled by init. 
+
+    %prog -n focus -i -s *Process controlled by init.
 
     Force start a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/startup.sh -s -f
 
     %prog -n focus -i -s -f *Process controlled by init.
-     
+
     Stop a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/shutdown.sh -k
-    
+
     %prog -n focus -k -i *Process controlled by init.
 
     Force stop a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/shutdown.sh -k -f
-    
+
     %prog -n focus -i -k -f *Process controlled by init.
-    
+
 
     ------------------------------------------------------------------------
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     parser.add_option("-f", action="store_true", dest="force", default=False, help="Force")
     parser.add_option("-c", dest="cmd", help="Command")
 
-    (options, args) = parser.parse_args()    
+    (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     else:
         procname = options.procname
         procstring=options.procname
-       
+
     if options.checksvc:
         recordStatus(procname, procstring)
 
