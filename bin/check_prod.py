@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import common
 from idbhost import Idbhost
 from optparse import OptionParser
 import socket
@@ -29,7 +28,7 @@ def where_am_i():
     logging.debug(short_site)
     return short_site
 
-def getPriSec(pod_details,insts):
+def getPriSec(pod_details,insts, dc):
     """
     This function takes a dict containing instances per dc broken down 
     by SP and a list of instances to check  
@@ -40,19 +39,20 @@ def getPriSec(pod_details,insts):
     for inst in insts.split(','):
         inst = inst.upper()
         instsPROD[inst] = None
-        for sp in pod_details:
-            logging.debug(pod_details[sp])
-            if 'Primary' in pod_details[sp]:
-                pri_insts = [x.upper() for x in pod_details[sp]['Primary'].split(',')]
-                if inst in pri_insts:
-                    logging.debug('found %s in Primary' % inst)
-                    instsPROD[inst] = 'primary'
-            if 'Secondary' in pod_details[sp]:
-                sec_insts = [x.upper() for x in pod_details[sp]['Secondary'].split(',')]
-                if inst in sec_insts:
-                    logging.debug('found %s in Secondary' % inst)
-                    instsPROD[inst] = 'secondary'
-    return instsPROD
+
+        for sp, pods in pod_details[dc].items():
+            ttl_len = len(pods)
+            pri_insts = [pods[index]['Primary'] for index in range(0, ttl_len) if 'Primary' in pods[index]]
+            if inst in pri_insts:
+                logging.debug('found %s in Primary' % inst)
+                instsPROD[inst] = 'primary'
+
+            sec_insts = [pods[index]['Secondary'] for index in range(0, ttl_len) if 'Secondary' in pods[index]]
+            if inst in sec_insts:
+                logging.debug('found %s in Secondary' % inst)
+                instsPROD[inst] = 'secondary'
+        return instsPROD
+
 
 def validatePROD(details,loc):
     """
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     logging.debug(pod_details)
     if options.instances and options.loc:
         # Get the locations of each instance and confirm if primary or secondary
-        pri_sec_details = getPriSec(pod_details,options.instances.upper())
+        pri_sec_details = getPriSec(pod_details,options.instances.upper(), site)
         loc_details = validatePROD(pri_sec_details,options.loc)
         for inst in loc_details:
             print(loc_details[inst])
