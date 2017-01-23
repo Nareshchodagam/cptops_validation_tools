@@ -9,6 +9,7 @@ gus_dir = '/opt/cpt/GUS'
 root_files = ['cptops_nagios/bin/nagios_monitor.py',
               'cptops_nagios/bin/nagios_monitor_single.py',
               'cptops_idbhost/idbhost.py',
+              'bin/check_prod.py',
               'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
 
 bin_files = ['bin/check_hosts.py',
