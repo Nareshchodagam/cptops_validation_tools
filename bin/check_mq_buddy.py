@@ -6,7 +6,6 @@ import argparse
 from re import search, compile
 import sys
 import logging
-import common
 import socket
 from idbhost import Idbhost
 
