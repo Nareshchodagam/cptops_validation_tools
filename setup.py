@@ -9,6 +9,7 @@ gus_dir = '/opt/cpt/GUS'
 root_files = ['cptops_nagios/bin/nagios_monitor.py',
               'cptops_nagios/bin/nagios_monitor_single.py',
               'cptops_idbhost/idbhost.py',
+              'bin/check_mq_buddy.py',
               'bin/check_prod.py',
               'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
 
@@ -27,6 +28,7 @@ bin_files = ['bin/check_hosts.py',
                  'bin/validate_linux_patchset.py',
                  'bin/verify_ffx_buddy.py',
                  'bin/verify_search_buddy.py',
+                 'bin/validate_firmware.py',
                  'bin/zookeeper_status.py',
                  'cptops_sysfiles/bin/system_update.sh',
                  'cptops_sysfiles/bin/system_vendortools_update.sh',
