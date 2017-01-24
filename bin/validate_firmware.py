@@ -5,10 +5,12 @@ from __future__ import print_function
 import sys
 import logging
 import time
+import errno
 from argparse import ArgumentParser, RawTextHelpFormatter
 try:
     from tricorder import cli as tricorder
     from phaser import cli as phaser
+
     frb_install = True
 except:
     frb_install = False
@@ -30,7 +32,7 @@ def validate_firmware():
     exit_code = tricorder.check_platform_preferred(state='stable')
     if exit_code != 0:
         logging.warn("INFO: Firmware is not running on the latest")
-        return output, True
+        return True
     elif exit_code == 0:
         logging.info("INFO: Firmware already updated, so quitting")
         sys.exit(0)
@@ -65,8 +67,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if not phaser.am_i_root():
+        logging.warn("Phaser must be run with elevated privileges")
+        sys.exit(errno.EPERM)
+
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     if args.update:
         start_time = time.time()
@@ -74,8 +82,7 @@ if __name__ == "__main__":
         if validate_commands():
             logging.info("INFO: Phaser related commands are present on host")
             logging.info("INFO: Validating, if firmware required an update")
-            out, exit_status = validate_firmware()
-            logging.debug(out)
+            exit_status = validate_firmware()
             if exit_status:
                 execute_firmware()
                 if args.time_taken:
@@ -85,7 +92,7 @@ if __name__ == "__main__":
 
     elif args.check:
         logging.info("INFO: Validating firmware...")
-        output, exit_status = validate_firmware()
+        exit_status = validate_firmware()
         if exit_status:
             logging.warn("INFO: Firmware was not updated to latest")
             sys.exit(1)
