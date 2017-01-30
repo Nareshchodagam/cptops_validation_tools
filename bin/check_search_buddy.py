@@ -9,7 +9,6 @@
 # imports
 from argparse import ArgumentParser, RawTextHelpFormatter
 import json
-import common
 from idbhost import Idbhost
 from socket import gethostname
 import logging

@@ -11,6 +11,7 @@ root_files = ['cptops_nagios/bin/nagios_monitor.py',
               'cptops_idbhost/idbhost.py',
               'bin/check_mq_buddy.py',
               'bin/check_prod.py',
+              'cptops_exec_with_creds/close_gus_cases.py',
               'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
 
 bin_files = ['bin/check_hosts.py',
@@ -32,6 +33,7 @@ bin_files = ['bin/check_hosts.py',
                  'bin/zookeeper_status.py',
                  'cptops_sysfiles/bin/system_update.sh',
                  'cptops_sysfiles/bin/system_vendortools_update.sh',
+                 'cptops_idbhost/idbhost.py'
                  'cptops_nagios/bin/nagios_backup.sh']
 
 include_files = ['includes/valid_versions.json']
