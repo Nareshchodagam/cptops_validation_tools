@@ -31,7 +31,7 @@ bin_files = ['bin/check_hosts.py',
                  'bin/zookeeper_status.py',
                  'cptops_sysfiles/bin/system_update.sh',
                  'cptops_sysfiles/bin/system_vendortools_update.sh',
-                 'cptops_idbhost/idbhost.py'
+                 'cptops_idbhost/idbhost.py',
                  'cptops_nagios/bin/nagios_backup.sh']
 
 include_files = ['includes/valid_versions.json']
