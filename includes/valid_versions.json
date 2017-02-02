@@ -140,6 +140,12 @@
                                         "kernel": "2.6.32-642.11.1.el6.x86_64",
                                                 "sfdc-release": "2017.01"
                                         },
+					"2017.02":
+                                        {
+                                        "os_version": "6.8",
+                                        "kernel": "2.6.32-642.13.1.el6.x86_64",
+                                                "sfdc-release": "2017.02"
+                                        },
 		   			"p0-glibc":
 		        		{
 		            		"os_version": "6.7",
