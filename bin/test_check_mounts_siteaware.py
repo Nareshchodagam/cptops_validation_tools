@@ -1,5 +1,4 @@
 import unittest
-import common
 import check_mounts_siteaware
 import socket
 

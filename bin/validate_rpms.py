@@ -1,7 +1,6 @@
 #!/usr/bin/python
 import re
 import subprocess
-import common
 
 
 def get_rpm_details():

@@ -8,7 +8,6 @@ import subprocess
 import logging
 from optparse import OptionParser
 import glob
-import common
 import json
 import os.path
 

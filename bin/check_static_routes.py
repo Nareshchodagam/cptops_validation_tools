@@ -4,7 +4,6 @@ import subprocess
 import logging
 import re
 from optparse import OptionParser
-import common
 
 def valid_ints(routes):
     #print(routes)

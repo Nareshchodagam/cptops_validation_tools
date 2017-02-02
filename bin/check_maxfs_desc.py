@@ -9,7 +9,6 @@ import subprocess
 import logging
 from optparse import OptionParser
 import subprocess
-import common
 
 def squid_max_file_desc(paths):
     logging.debug(paths)

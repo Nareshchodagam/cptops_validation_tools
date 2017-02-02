@@ -7,7 +7,6 @@ import logging
 from optparse import OptionParser
 import socket
 import subprocess
-import common
 
 def where_am_i():
     hostname = socket.gethostname()

@@ -6,7 +6,6 @@ import re
 import sys
 import logging
 import subprocess
-import common
 
 def where_am_i():
     hostname = socket.gethostname()
