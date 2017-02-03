@@ -1,0 +1,12 @@
+{
+	"ffx":{
+		"ping_port":8085
+		},
+	"nodeapp":{
+		"url":"http://%s:8083/manage/health",
+		"ping_port":8082
+		},
+	"mq":{
+		"url":"http://%s.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp"
+		}
+}
