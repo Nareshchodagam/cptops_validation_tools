@@ -13,7 +13,6 @@ import urllib2
 import urllib
 import json
 import re
-import common
 from idbhost import Idbhost
 
 

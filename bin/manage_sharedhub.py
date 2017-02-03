@@ -2,7 +2,6 @@
 
 import os
 import sys,traceback
-import common
 from optparse import OptionParser
 import subprocess
 import logging

@@ -8,7 +8,6 @@ import subprocess
 import logging
 from optparse import OptionParser
 import glob
-import common
 
 def check_rh_release(input):
     ver = 'unknown'
