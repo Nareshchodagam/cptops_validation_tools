@@ -160,7 +160,7 @@ def application_ping_check(cust_msg, host, role):
     logging.debug(url)
     try:
         request = urllib2.Request(url)
-        handle = urllib2.urlopen(request)
+        handle = urllib2.urlopen(request, timeout=10)
         status = handle.read()
         logging.debug(status)
     except:
@@ -168,7 +168,7 @@ def application_ping_check(cust_msg, host, role):
         logging.error("%s not found.", host)
     
     if "ALIVE" not in status:
-        err_dict[host] = "ERROR : %s is not running" % (cust_msg)
+        err_dict[host] = "ERROR : %s is not running.\n" % (cust_msg)
     elif "ALIVE" in status:
         print("%s is" + bcolors.OKGREEN + " Running " + bcolors.ENDC + "\n") % (cust_msg)
 
@@ -262,6 +262,30 @@ def parse_web(data, pod):
     else:
         return None
 
+def get_nodeapp_nodes(site):
+    url = "https://inventorydb1-0-%s.data.sfdc.net/api/1.03/allhosts?fields=name&deviceRole=nodeapp" % (site)
+    #fdqn = socket.gethostname().split('-')
+    #pod = fdqn[3].split('.')[0]
+    #url = url % (site)
+    logging.debug(url)
+    role = "nodeapp"
+    host_lst = []
+    
+    try:
+        file_handle = urllib2.urlopen(url)
+        data = json.load(file_handle)
+        host_data = data['data']
+    except:
+        logging.error("Error collecting cluster names.")
+        sys.exit(1)
+    
+    for val in host_data:
+        host_lst.append(val['name'])
+    
+    for host in host_lst:
+        cust_msg = "Nodeapp ping.jsp check for %s" % (host)
+        application_ping_check(cust_msg, host, role)
+
 def nodeapp_check(host, role):
     cust_msg = "Nodeapp ping.jsp check for %s" % (host)
     cust_url = sets[role]['url']
@@ -294,16 +318,24 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="""    Program designed to check the buddy status of a host.
     Currently works for roles MQ, Search, FFX, Nodeapp.""",
     usage='%(prog)s -H <host_list>', formatter_class=RawTextHelpFormatter)
-    parser.add_argument("-H", dest="hosts", required=True, help="The hosts in command line argument")
+    parser.add_argument("-H", dest="hosts", help="The hosts in command line argument")
+    parser.add_argument("--clustercheck", dest="clust", help="Cluster check for nodeapp servers.", action="store_true")
     parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
     args = parser.parse_args()
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
-
-    site = where_am_i()
-    hosts = args.hosts
     err_dict = {}
+    site = where_am_i()   
+    if args.clust and not args.hosts:
+        sets = chks_importer()
+        get_nodeapp_nodes(site)
+        if len(err_dict) == 0:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
+    hosts = args.hosts
     hosts_lst = hosts.split(',')
     
     for host in hosts_lst:       
