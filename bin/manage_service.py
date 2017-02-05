@@ -4,6 +4,7 @@
 """ Record current state of a process and stop/start as necessary"""
 
 import logging
+import platform
 import os
 import subprocess
 import commands
@@ -19,24 +20,27 @@ def recordStatus(procName, procString):
     tmpFile = tmpDir + procName + '_status.tmp'
     logging.debug('Checking for running process' + procName)
     if options.sysinit:
-        proc_initcmd = "service %s status" % procName
+        if os == "CentOS" and ver[0] == 7:
+            proc_initcmd = "systemctl status %s" % procName
+        else:
+            proc_initcmd = "service %s status" % procName
         retcode = subprocess.call(shlex.split(proc_initcmd))
         if retcode == 0:
-            print(procName + " is currently running")
+            print(procName + " is currently running\n")
             logging.debug('Printing RUNNING status to ' + tmpFile)
             status = 'RUNNING'
         else:
-            print(procName + " is NOT currently running")
+            print(procName + " is NOT currently running\n")
             logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
             status = 'NOT_RUNNING'
     else:
         output=commands.getoutput(proc_cmd)
         if procName in output:
-            print(procName + " is currently running")
+            print(procName + " is currently running\n")
             logging.debug('Printing RUNNING status to ' + tmpFile)
             status = 'RUNNING'
         else:
-            print(procName + " is NOT currently running")
+            print(procName + " is NOT currently running\n")
             logging.debug('Printing NOT_RUNNING status to ' + tmpFile)
             status = 'NOT_RUNNING'
 
@@ -75,6 +79,7 @@ def chkInitState(procName):
 
 def startService(procName, cmd, force):
     status=getStatus(procName)
+    rm_cmd = "rm %s%s_status.tmp" % (tmpDir, procName)
     if status.strip() == "RUNNING" or force is True:
         if options.sysinit:
             retcode = chkInitState(procName)
@@ -82,14 +87,10 @@ def startService(procName, cmd, force):
                 print "%s Process already running..." % procName
                 exit(0)
         print('Starting service: ' + procName)
-        try:
-            output = commands.getoutput(cmd)
-            logging.debug(output)
-            logging.debug('Removing tmpfile after service start.')
-            os.remove(tmpDir + procName + '_status.tmp')
-        except:
-            print('Unable to execute: ' + cmd)
-            exit(1)
+        for procCmd in cmd, rm_cmd:
+            retcode = subprocess.call(shlex.split(procCmd))
+            if retcode != 0:
+                logging.error("Problem executing %s", procCmd)
     else:
         print('Refusing to start service as it was not recorded running')
         print('Run with the -f (force) option to override this')
@@ -163,28 +164,42 @@ if __name__ == "__main__":
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    if options.extended_proc_name:
-        procname = options.procname
-        procstring = options.extended_proc_name
+    os, ver, stg = platform.linux_distribution()
+    if os == "CentOS" and ver[0] == 7:
+        os_cmd = "systemctl %s %s"
     else:
-        procname = options.procname
-        procstring=options.procname
-
-    if options.checksvc:
-        recordStatus(procname, procstring)
-
-    if options.getstatus:
-        result = getStatus(procname)
-        print "RESULT: " + result
-
-    if options.startsvc and options.sysinit:
-        cmd = "service %s start" % procname
-        startService(procname, cmd, options.force)
-    elif options.startsvc and not options.sysinit:
-        startService(procname, options.cmd, options.force)
-
-    if options.stopsvc and options.sysinit:
-        cmd = "service %s stop" % procname
-        stopService(procname, procstring, cmd, options.force, options.sysinit)
-    elif options.stopsvc and not options.sysinit:
-        stopService(procname, procstring, options.cmd, options.force, options.sysinit)
+        os_cmd = "service %s %s"
+    
+    proc_lst = options.procname.split(',')
+    for procs in proc_lst:
+        if options.extended_proc_name:
+            procname = procs
+            #procname = options.procname
+            procstring = options.extended_proc_name
+        else:
+            procname = procs
+            procstring=procs
+    
+        if options.checksvc:
+            recordStatus(procname, procstring)
+    
+        if options.getstatus:
+            result = getStatus(procname)
+            print "RESULT: " + result
+    
+        if options.startsvc and options.sysinit:
+                if os == "CentOS" and ver[0] == 7:
+                   cmd = "systemctl start %s" % procname
+                else:
+                   cmd = "service %s start" % procname
+                startService(procname, cmd, options.force)
+        elif options.startsvc and not options.sysinit:
+            startService(procname, options.cmd, options.force)
+        if options.stopsvc and options.sysinit:
+                if os == "CentOS" and ver[0] == 7:
+                   cmd = "systemctl stop %s" % procname
+                else:
+                   cmd = "service %s stop" % procname
+                stopService(procname, procstring, cmd, options.force, options.sysinit)
+        elif options.stopsvc and not options.sysinit:
+            stopService(procname, procstring, options.cmd, options.force, options.sysinit)
