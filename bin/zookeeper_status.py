@@ -10,7 +10,7 @@ from _socket import gaierror
 
 def getStat(host): 
     TCP_PORT = 2181
-    BUFFER_SIZE = 1024
+    BUFFER_SIZE = 2048
     MESSAGE = "stat"
     
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
