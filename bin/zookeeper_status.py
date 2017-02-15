@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#from common import Common 
 from optparse import OptionParser
 import logging
 import socket
@@ -10,7 +9,7 @@ from _socket import gaierror
 
 def getStat(host): 
     TCP_PORT = 2181
-    BUFFER_SIZE = 2048
+    BUFFER_SIZE = 4096
     MESSAGE = "stat"
     
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
