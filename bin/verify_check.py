@@ -4,6 +4,7 @@ from idbhost import Idbhost
 import logging
 import sys
 import urllib2
+from urllib2 import urlopen, URLError
 from socket import gethostname
 from argparse import ArgumentParser, RawTextHelpFormatter
 import re
@@ -38,8 +39,8 @@ def chks_importer():
     '''
     Function imports checks.json file.
     '''
-    #presets = "/opt/cpt/bin"
-    presets = "checks.json"
+    presets = "/opt/cpt/bin/checks.json"
+    #presets = "checks.json"
     with open(presets, 'r') as pre:
         sets = json.load(pre)
     return sets
@@ -232,7 +233,9 @@ def query_to_web(url):
         file_handle = urllib2.urlopen(url, timeout=10).read()
         logging.debug(file_handle)
     except URLError as e:
-        print("ERROR: %s " % e)
+        logging.error("Error validating: %s", host)
+        logging.error("%s", e)
+        sys.exit(1)
     
     if role == "nodeapp":
         file_handle = json.loads(file_handle)
@@ -261,12 +264,26 @@ def parse_web(data, pod):
         return status
     else:
         return None
+    
+# Function to query for HAPeer
+def query_to_hapeer(host):
+    """
 
-def get_nodeapp_nodes(site):
-    url = "https://inventorydb1-0-%s.data.sfdc.net/api/1.03/allhosts?fields=name&deviceRole=nodeapp" % (site)
-    #fdqn = socket.gethostname().split('-')
-    #pod = fdqn[3].split('.')[0]
-    #url = url % (site)
+    :param hostname:
+    :return:
+    """
+    url = sets['search']['url_1'] % (host)
+    logging.debug("Connecting to url %s " % url)
+    try:
+        file_handle = urlopen(url, timeout=10).read()
+        return file_handle
+    except URLError as e:
+        print("ERROR: %s " % e)
+        err_dict["Looks like host %s is not reachable, please check " % host] = 'ERROR'
+
+def get_nodeapp_nodes():
+    dc = gethostname().split('-')[3].split('.')[0]
+    url = "https://inventorydb1-0-%s.data.sfdc.net/api/1.03/allhosts?fields=name&deviceRole=nodeapp" % (dc)
     logging.debug(url)
     role = "nodeapp"
     host_lst = []
@@ -313,7 +330,40 @@ def mq_check(buddy, role):
         print("Buddy pair %s(current) <--> %s(buddy) is" + bcolors.OKGREEN + " ACTIVE " + bcolors.ENDC + "\n") % (host, buddy)
     elif result[host +".ops.sfdc.net"] != "ACTIVE":
         err_dict[host] = "ERROR : Buddy pair %s(current) <--> %s(buddy) is not ACTIVE." % (host, buddy)
-
+        
+def search_check(host, role):
+    pod = host.split('-')[0]
+    dc = host.split('-')[3]
+    pod_status = idb.checkprod(pod, dc)
+    logging.debug(pod)
+    logging.debug(pod_status)
+    pod_status = {k.lower(): v for k, v in pod_status.items()}
+    #logging.debug(pod_status)
+    
+    cust_url = sets[role]['url'] % (pod, host)
+    data = query_to_web(cust_url)
+    json_data = json.loads(data)
+    buddy = json_data['haPeers']
+    if 'false' in query_to_hapeer(buddy):
+        if json_buddy:
+            buddy_hosts = [host.split(':')[0].split('.')[0] for host in json_buddy]
+            logging.debug(buddy_hosts)
+            idb_data = idb_status(buddy_hosts)
+            logging.debug(idb_data)
+            for host in buddy_hosts:
+                if all([idb_data[host]['opsStatus_Cluster'] == 'ACTIVE', idb_data[host]['opsStatus_Host'] == 'ACTIVE']):
+                    print("iDB status looks good for host %s, but search buddy is not up on host %s" % (host, host))
+                    err_dict[host] = "ERROR - Search buddy is not up"
+                else:
+                    err_dict[host] = "ERROR - iDB status not ACTIVE"
+        elif not json_buddy:
+            print("Looks like we received null from the remote url response")
+    else:
+        try:
+            print("Search Buddy %s  is up for host %s" % ("".join(json_buddy).split(':')[0], i_host))
+        except:
+            print("Looks like search buddy is up, but can't figure out the buddy host")
+        
 if __name__ == "__main__":
     parser = ArgumentParser(description="""    Program designed to check the buddy status of a host.
     Currently works for roles MQ, Search, FFX, Nodeapp.""",
@@ -326,10 +376,11 @@ if __name__ == "__main__":
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     err_dict = {}
-    site = where_am_i()   
+    site = where_am_i()
+    idb = idb_connect(site)   
     if args.clust and not args.hosts:
         sets = chks_importer()
-        get_nodeapp_nodes(site)
+        get_nodeapp_nodes()
         if len(err_dict) == 0:
             sys.exit(0)
         else:
@@ -353,3 +404,5 @@ if __name__ == "__main__":
         elif role == "mq":
             buddy = buddy_find(host)
             mq_check(buddy, role)
+        elif role =="search":
+            search_check(host, role)

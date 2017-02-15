@@ -8,5 +8,9 @@
 		},
 	"mq":{
 		"url":"http://%s.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp"
+		},
+	"search":{
+		"url": "https://%s.salesforce.com/sfdc/admin/solr/SolrPeerInfo?serverAddr=%s.ops.sfdc.net:8983",
+		"url_1":"https://%s.ops.sfdc.net:8983/isAPeerUp.jsp"
 		}
 }
