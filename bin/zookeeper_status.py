@@ -6,10 +6,9 @@ import re
 import sys
 from _socket import gaierror
 
-
 def recvall(s):
     '''
-    revcieve all data from socket until eof or the socket is closed
+    receive all data from socket until eof or the socket is closed
     '''
     BUFFER_SIZE = 2048
     data=[]
@@ -37,7 +36,6 @@ def getStat(host):
     except socket.error as ex:
         logging.error("Exception occured on %s: %s", host, ex)
         return "SOCKET_ERROR"
-
 
 def parseData(data):
     running = False
