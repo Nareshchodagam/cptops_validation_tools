@@ -6,23 +6,36 @@ import re
 import sys
 from _socket import gaierror
 
+def recvall(s):
+    '''
+    receive all data from socket until eof or the socket is closed
+    '''
+    BUFFER_SIZE = 2048
+    data=[]
+    while True:
+        part = s.recv(BUFFER_SIZE)
+        if not part: break
+        data.append(part)
+    return ''.join(data)
 
 def getStat(host): 
     TCP_PORT = 2181
-    BUFFER_SIZE = 4096
     MESSAGE = "stat"
     
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((host, TCP_PORT))
         s.send(MESSAGE)
-        data = s.recv(BUFFER_SIZE)
+        data = recvall(s)
         s.close()
         logging.debug(data)
         return data
     except gaierror:
         logging.error("%s does not exist. Please verify hostname is valid.", host)
         sys.exit(1)
+    except socket.error as ex:
+        logging.error("Exception occured on %s: %s", host, ex)
+        return "SOCKET_ERROR"
 
 def parseData(data):
     running = False
@@ -77,6 +90,9 @@ if __name__ == '__main__':
             print('Zookeeper is running on %s' % h)
     if failure_count > 1:
         logging.debug("Required nunber of available healthy servers is below threshold. Exiting...")
+        sys.exit(1)
+    elif failure_count == 1 and len(hostlist) == 1:
+        logging.debug("Zookeeper does not appear to be running. Exiting...")
         sys.exit(1)
     else:
         sys.exit(0)
