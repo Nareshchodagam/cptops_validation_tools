@@ -85,7 +85,7 @@ def startService(procName, cmd, force):
             retcode = chkInitState(procName)
             if retcode == 0:
                 print "%s Process already running..." % procName
-                exit(0)
+                return
         print('Starting service: ' + procName)
         for procCmd in cmd, rm_cmd:
             retcode = subprocess.call(shlex.split(procCmd))
