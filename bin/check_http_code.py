@@ -6,7 +6,7 @@ import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 import logging
 import sys
-from socket import gethostname
+from socket import gethostname, socket, AF_INET, SOCK_STREAM
 
 # Function to get the site domain
 
@@ -19,6 +19,22 @@ class CheckRemoteUrl(object):
     def __init__(self):
         self.domain = host_domain()
         self.err_dict = {}
+# Added By Amardeep To Check Non HTTP based port
+    def socket_based_port_check(self, hostname, port):
+        """
+        :param hostname:  This Function will take Hostname as Argument
+        :param port: This Function will take Port as an argument along with hostname
+        :return: 0 == Successfull or 1 == Unsuccessfull
+        """
+        sock = socket(AF_INET, SOCK_STREAM)
+        port = int(port)
+        result = sock.connect_ex((hostname, port))
+        if result == 0:
+            print("Port is open")
+            return 0
+        else:
+            print("Port is not open")
+            return 1
 
     # Class method to build the url from given hostname and port
     def build_url(self, hostname):
@@ -31,7 +47,12 @@ class CheckRemoteUrl(object):
             url = "http://{0}.{1}.sfdc.net:{2}/argusws/help" .format(hostname, self.domain, port)
         elif re.search(r'argusui', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/argus" .format(hostname, self.domain, port)
+        #Added to check Argus WriteD web based service validation
+        elif re.search(r'argustsdbw', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}" .format(hostname, self.domain, port)
+        #End
         logging.debug("Built url {0}" .format(url))
+        print("Port is open")
         return url
 
     # Class method to check the return code from remote url
@@ -65,11 +86,18 @@ class CheckRemoteUrl(object):
 # Main function to instantiate class and class methods
 def main():
     obj = CheckRemoteUrl()
+    #Added/Modified To validate Argus Metrics JMX/JAVA based Port using Sockets.
     for host in hosts:
-        ret_url = obj.build_url(host)
-        obj.check_return_code(ret_url)
-    if obj.err_dict:
-        obj.exit_status()
+        if re.search(r'argusmetrics', host):
+            status = obj.socket_based_port_check(host, port)
+            if status != 0:
+                obj.exit_status()
+    #End
+        else:
+            ret_url = obj.build_url(host)
+            obj.check_return_code(ret_url)
+            if obj.err_dict:
+                obj.exit_status()
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="""This code is to check the return code from remote API
