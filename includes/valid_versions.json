@@ -82,21 +82,21 @@
         {
            "2017.03":
                 {
-                  "os_version": "7.3.1611",
+                  "os_version": "7.3",
                   "kernel": "3.10.0-514.6.1.el7.x86_64",
                  "sfdc-release": "2017.03"
                 },
            "2017.02":
                 {
-                  "os_version": "7.3.1611",
+                  "os_version": "7.3",
                   "kernel": "3.10.0-514.2.2.el7.x86_64",
-                 "sfdc-release": "sfdc-release-2017.02-01.ce7.x86_64"
+                 "sfdc-release": "2017.02"
                 },
            "2017.01":
                 {
-                  "os_version": "7.3.1611",
+                  "os_version": "7.3",
                   "kernel": "3.10.0-514.2.2.el7.x86_64",
-                 "sfdc-release": "sfdc-release-2017.01-01.ce7.x86_64"
+                 "sfdc-release": "2017.01"
                 }
         },
 		"6":
