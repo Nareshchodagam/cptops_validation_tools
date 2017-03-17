@@ -51,6 +51,10 @@ class CheckRemoteUrl(object):
         elif re.search(r'argustsdbw', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}" .format(hostname, self.domain, port)
         #End
+        #Added to check Argus Readd service validation
+        elif re.search(r'argustsdbr', hostname):
+            url = "http://argus-tsdb.data.sfdc.net:{0}" .format(port)
+        #End
         logging.debug("Built url {0}" .format(url))
         print("Port is open")
         return url
