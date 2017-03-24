@@ -90,9 +90,9 @@ class CheckRemoteUrl(object):
 # Main function to instantiate class and class methods
 def main():
     obj = CheckRemoteUrl()
-    #Added/Modified To validate Argus Metrics JMX/JAVA based Port using Sockets.
+    #Added/Modified To validate Argus Metrics|Alert JMX/JAVA based Port using Sockets.
     for host in hosts:
-        if re.search(r'argusmetrics', host):
+        if re.search(r'argusmetrics|argusalert', host):
             status = obj.socket_based_port_check(host, port)
             if status != 0:
                 obj.exit_status()
