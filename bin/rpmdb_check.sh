@@ -22,14 +22,15 @@ function rpmdbcreate {
 
 function verifyrpmdb {
     /bin/rpm --verifydb &
-    TASKPID=$! ; SUCESS=$?
+    TASKPID=$!
     sleep 10
     kill -s 0 $TASKPID 2>> /dev/null
     if [ $? -eq 0 ]; then
         kill -9 $TASKPID
         RPMVERIFY=1
     else
-        RPMVERIFY=$SUCESS
+        wait $TASKPID
+        RPMVERIFY=$?
     fi
 
     if [ "$RPMVERIFY" -ne "0" ]; then
