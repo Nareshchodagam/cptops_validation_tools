@@ -15,11 +15,14 @@ def host_domain():
 
 
 class CheckRemoteUrl(object):
+    """
+    This class is used to validate non http port open on remote hosts.
+    """
 
     def __init__(self):
         self.domain = host_domain()
         self.err_dict = {}
-# Added By Amardeep To Check Non HTTP based port
+
     def socket_based_port_check(self, hostname, port):
         """
         :param hostname:  This Function will take Hostname as Argument
@@ -47,14 +50,17 @@ class CheckRemoteUrl(object):
             url = "http://{0}.{1}.sfdc.net:{2}/argusws/help" .format(hostname, self.domain, port)
         elif re.search(r'argusui', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/argus" .format(hostname, self.domain, port)
-        #Added to check Argus WriteD web based service validation
+        # Added to check Argus WriteD web based service validation
         elif re.search(r'argustsdbw', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}" .format(hostname, self.domain, port)
-        #End
-        #Added to check Argus Readd service validation
+        # End
+        # Added to check Argus Readd service validation
         elif re.search(r'argustsdbr', hostname):
             url = "http://argus-tsdb.data.sfdc.net:{0}" .format(port)
-        #End
+        # End
+        # Added to check remote port for ACS hosts - T-1780845
+        elif re.search(r'acs', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
         logging.debug("Built url {0}" .format(url))
         print("Port is open")
         return url
@@ -77,6 +83,10 @@ class CheckRemoteUrl(object):
 
     # Function to control the exit status
     def exit_status(self):
+        """
+        Function to give control to user to exit with status 1 OR 0 in case of any issue
+        :return: 
+        """
         while True:
             u_input = raw_input("Do you want to exit with exit code '1' (y|n) ")
             if u_input == "y":
@@ -87,16 +97,20 @@ class CheckRemoteUrl(object):
                 print("Please enter valid choice (y|n) ")
                 continue
 
+
 # Main function to instantiate class and class methods
 def main():
+    """
+    Main function to call above class method based on http OR non http based port validation
+    :return: None
+    """
     obj = CheckRemoteUrl()
-    #Added/Modified To validate Argus Metrics|Alert JMX/JAVA based Port using Sockets.
+    # Added/Modified To validate Argus Metrics|Alert JMX/JAVA based Port using Sockets.
     for host in hosts:
         if re.search(r'argusmetrics|argusalert', host):
             status = obj.socket_based_port_check(host, port)
             if status != 0:
                 obj.exit_status()
-    #End
         else:
             ret_url = obj.build_url(host)
             obj.check_return_code(ret_url)
