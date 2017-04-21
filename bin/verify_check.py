@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/sfdc/python27/bin/python
 
 from idbhost import Idbhost
 import logging
@@ -92,10 +92,18 @@ def idb_connect(site):
     """
     try:
         logging.debug('Connecting to CIDB')
-        if site == "sfm":
-            idb = Idbhost()
-        else:
-            idb = Idbhost(site)
+        user = pswd = None
+        if args.encrypted_creds:
+            sys.path.append("/opt/cpt/")
+            try:
+                from km.katzmeow import get_password_from_km_pipe
+                import getpass
+                user =  getpass.getuser()
+                pswd = get_password_from_km_pipe(pipe_file=args.encrypted_creds, decrypt_key_file=args.decrypt_key)
+                logging.debug("decoded creds passed by km")
+            except ImportError:
+                logging.error("could not import the km module, will not decode creds passed in by km")
+        idb=Idbhost(site=site, user=user, pswd=pswd)
         return idb
     except:
         print("Unable to connect to idb")
@@ -371,6 +379,8 @@ if __name__ == "__main__":
     parser.add_argument("-H", dest="hosts", help="The hosts in command line argument")
     parser.add_argument("--clustercheck", dest="clust", help="Cluster check for nodeapp servers.", action="store_true")
     parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
+    parser.add_argument("--encrypted_creds", help="Pass creds in via encrpyted named pipe; used by katzmeow")
+    parser.add_argument("--decrypt_key", help="Used only with --encrpyted_creds")
     args = parser.parse_args()
 
     if args.verbose:
