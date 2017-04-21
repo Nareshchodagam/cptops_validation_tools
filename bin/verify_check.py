@@ -289,27 +289,23 @@ def query_to_hapeer(host):
         print("ERROR: %s " % e)
         err_dict["Looks like host %s is not reachable, please check " % host] = 'ERROR'
 
-def get_nodeapp_nodes():
-    dc = gethostname().split('-')[3].split('.')[0]
-    url = "https://inventorydb1-0-%s.data.sfdc.net/api/1.03/allhosts?fields=name&deviceRole=nodeapp" % (dc)
-    logging.debug(url)
-    role = "nodeapp"
-    host_lst = []
-    
+def get_nodeapp_nodes(idb):
     try:
-        file_handle = urllib2.urlopen(url)
-        data = json.load(file_handle)
-        host_data = data['data']
+        dc = gethostname().split('-')[3].split('.')[0]
+        restring = "allhosts?fields=name&deviceRole=nodeapp"
+        result, url = idb._get_request(restring, dc)
+        data = result['data']
     except:
         logging.error("Error collecting cluster names.")
         sys.exit(1)
-    
-    for val in host_data:
+
+    host_lst = []
+    for val in data:
         host_lst.append(val['name'])
     
     for host in host_lst:
         cust_msg = "Nodeapp ping.jsp check for %s" % (host)
-        application_ping_check(cust_msg, host, role)
+        application_ping_check(cust_msg, host, 'nodeapp')
 
 def nodeapp_check(host, role):
     cust_msg = "Nodeapp ping.jsp check for %s" % (host)
@@ -390,7 +386,7 @@ if __name__ == "__main__":
     idb = idb_connect(site)   
     if args.clust and not args.hosts:
         sets = chks_importer()
-        get_nodeapp_nodes()
+        get_nodeapp_nodes(idb)
         if len(err_dict) == 0:
             sys.exit(0)
         else:
