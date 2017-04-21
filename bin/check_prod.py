@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/opt/sfdc/python27/bin/python
 from idbhost import Idbhost
 from optparse import OptionParser
 import socket
@@ -92,6 +92,8 @@ if __name__ == '__main__':
     parser.add_option("-i", "--instances", dest="instances",
                             help="The SP status eg hw_provisioning or provisioning or active ")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
+    parser.add_option("--encrypted_creds", help="Pass creds in via encrpyted named pipe; used by katzmeow")
+    parser.add_option("--decrypt_key", help="Used only with --encrpyted_creds")
     (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -99,10 +101,18 @@ if __name__ == '__main__':
     site=where_am_i()
     logging.debug(site)
     # Set the correct site code to create the object
-    if site == 'sfm':
-        idb=Idbhost()
-    else:
-        idb=Idbhost(site)
+    user = pswd = None
+    if options.encrypted_creds:
+        sys.path.append("/opt/cpt/")
+        try:
+            from km.katzmeow import get_password_from_km_pipe
+            import getpass
+            user =  getpass.getuser()
+            pswd = get_password_from_km_pipe(pipe_file=options.encrypted_creds, decrypt_key_file=options.decrypt_key)
+            logging.debug("decoded creds passed by km")
+        except ImportError:
+            logging.error("could not import the km module, will not decode creds passed in by km")
+    idb=Idbhost(site=site, user=user, pswd=pswd)
     # Get the active pods in a site 
     data = idb.sp_data(site, 'ACTIVE', 'pod')
     pod_details = idb.spcl_grp
