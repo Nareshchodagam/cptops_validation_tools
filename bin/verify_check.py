@@ -99,7 +99,7 @@ def idb_connect(site):
                 from km.katzmeow import get_password_from_km_pipe
                 import getpass
                 user =  getpass.getuser()
-                pswd,_,_ = get_password_from_km_pipe(pipe_file=args.encrypted_creds, decrypt_key_file=args.decrypt_key)
+                pswd = get_password_from_km_pipe(pipe_file=args.encrypted_creds, decrypt_key_file=args.decrypt_key)
                 logging.debug("decoded creds passed by km")
             except ImportError:
                 logging.error("could not import the km module, will not decode creds passed in by km")
