@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 
 root_dir = '/opt/cpt'
 bin_dir = '/opt/cpt/bin'
+auth_dir = '/opt/cpt/bin/auth'
 km_dir = '/opt/cpt/km'
 gus_dir = '/opt/cpt/GUS'
 remote_dir = '/opt/cpt/remote'
@@ -45,6 +46,8 @@ bin_files = ['bin/check_mq_buddy.py',
              'cptops_nagios/bin/nagios_monitor_single.py',
              'cptops_nagios/bin/nagios_backup.sh' ]
 
+auth_files = ['cptops_idbhost/auth/internal_ca.pem']
+
 km_files = ['cptops_exec_with_creds/km/__init__.py',
             'cptops_exec_with_creds/km/katzmeow.py']
 
@@ -64,6 +67,7 @@ setup(
     url="https://git.soma.salesforce.com/CPT/cptops_validation_tools",
     packages=find_packages(),
     data_files=[(bin_dir, bin_files),
+                (auth_dir, auth_files),
                 (km_dir, km_files),
                 (remote_dir, remote_files),
                 (gus_dir, gus_files),
