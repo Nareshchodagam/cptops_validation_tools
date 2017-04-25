@@ -1,4 +1,5 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages
+from setuptools import setup
 
 root_dir = '/opt/cpt'
 bin_dir = '/opt/cpt/bin'
@@ -7,28 +8,29 @@ km_dir = '/opt/cpt/km'
 gus_dir = '/opt/cpt/GUS'
 remote_dir = '/opt/cpt/remote'
 
-root_files = [ 'cptops_exec_with_creds/close_gus_cases.py',
-               'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
+root_files = ['cptops_exec_with_creds/close_gus_cases.py',
+              'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
 
-remote_files = [ 'bin/check_local_port.py',
-                 'bin/check_maxfs_desc.py',
-                 'bin/check_proxy_endpoints.py',
-                 'bin/check_static_routes.py',
-                 'bin/chk_symlinks.py',
-                 'bin/manage_bootdevice.py',
-                 'bin/manage_service.py',
-                 'bin/mtavalidation.py',
-                 'bin/validate_linux_patchset.py',
-                 'bin/validate_firmware.py',
-                 'bin/zookeeper_status.py',
-                 'bin/check_ircd.py',
-                 'bin/manage_apps.py',
-                 'bin/migrate-to-centos.sh',
-                 'bin/rpmdb_check.sh',
-                 'includes/valid_versions.json',
-                 'cptops_sysfiles/bin/system_update.sh',
-                 'cptops_sysfiles/bin/system_vendortools_update.sh',
-                 'cptops_nagios/bin/nagios_backup.sh' ]
+remote_files = ['bin/check_local_port.py',
+                'bin/check_maxfs_desc.py',
+                'bin/check_proxy_endpoints.py',
+                'bin/check_static_routes.py',
+                'bin/chk_symlinks.py',
+                'bin/manage_bootdevice.py',
+                'bin/manage_service.py',
+                'bin/manage_sharedhub.py',
+                'bin/mtavalidation.py',
+                'bin/validate_linux_patchset.py',
+                'bin/validate_firmware.py',
+                'bin/zookeeper_status.py',
+                'bin/check_ircd.py',
+                'bin/manage_apps.py',
+                'bin/migrate-to-centos.sh',
+                'bin/rpmdb_check.sh',
+                'includes/valid_versions.json',
+                'cptops_sysfiles/bin/system_update.sh',
+                'cptops_sysfiles/bin/system_vendortools_update.sh',
+                'cptops_nagios/bin/nagios_backup.sh']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
@@ -44,7 +46,7 @@ bin_files = ['bin/check_mq_buddy.py',
              'cptops_idbhost/idbhost.py',
              'cptops_nagios/bin/nagios_monitor.py',
              'cptops_nagios/bin/nagios_monitor_single.py',
-             'cptops_nagios/bin/nagios_backup.sh' ]
+             'cptops_nagios/bin/nagios_backup.sh']
 
 auth_files = ['cptops_idbhost/auth/internal_ca.pem']
 
@@ -73,12 +75,12 @@ setup(
                 (gus_dir, gus_files),
                 (root_dir, root_files)],
     classifiers=[
-          "License :: Salesforce Proprietary Code",
-          "Programming Language :: Python",
-          "Development Status :: 1 - Alpha",
-          "Intended Audience :: Developers",
-          "Topic :: Build",
+        "License :: Salesforce Proprietary Code",
+        "Programming Language :: Python",
+        "Development Status :: 1 - Alpha",
+        "Intended Audience :: Developers",
+        "Topic :: Build",
     ],
     keywords='cpt tools',
     license='Salesforce Proprietary Code',
-    )
+)
