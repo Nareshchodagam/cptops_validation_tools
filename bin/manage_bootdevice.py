@@ -97,7 +97,7 @@ def setBootDev(vendor,device):
 
     else:
         print("Unidentified vendor: " + vendor)
-        exit(1)
+        exit(0)
 
 
 if __name__ == "__main__":
