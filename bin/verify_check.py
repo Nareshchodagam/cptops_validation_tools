@@ -226,7 +226,7 @@ def getPriSec(pod_details,insts, dc):
                 instsPROD[inst] = 'secondary'
         return instsPROD
     
-def query_to_web(url):
+def query_web(url):
     """
     This function is to connect to remote url based on the POD name \
     e.g http://na44.salesforce.com/sfdc/monitor/qpidBrokerStatus.jsp
@@ -236,12 +236,12 @@ def query_to_web(url):
     :return: nothing
     :
     """
-    logging.debug("Connecting to url %s " % url)
+    logging.debug("connecting to url: {0}".format(url))
     try:
         file_handle = urllib2.urlopen(url, timeout=10).read()
         logging.debug(file_handle)
     except URLError as e:
-        logging.error("Error validating: %s", host)
+        logging.error("error validating: {0}".format(host))
         logging.error("%s", e)
         sys.exit(1)
     
@@ -255,7 +255,7 @@ def query_to_web(url):
 # Function for web-scrapping
 def parse_web(data, pod):
     """
-    This function is used in the query_to_web function and will parse the data.
+    This function is used in the query_web function and will parse the data.
 
     :param data: data captured from remote url
     :param pod:  The pod name for parsing
@@ -313,7 +313,7 @@ def nodeapp_check(host, role):
     cust_url = cust_url % (host)
     logging.debug(cust_url)
     
-    result = query_to_web(cust_url)
+    result = query_web(cust_url)
     if result['status'] != "UP" or result['diskSpace']['status'] != "UP":
         err_dict[host] = "ERROR : Application is not running on %s" % (host) 
     elif result['status'] == "UP" and result['diskSpace']['status'] == "UP":
@@ -321,20 +321,50 @@ def nodeapp_check(host, role):
     
     url = application_ping_check(cust_msg, host, role)
     
-def mq_check(buddy, role):
+def mq_check(host, role):
+    if len(host.split('-')) != 4:
+        logging.error('hostname ({0}) format unknown'.format(host))
+        sys.exit(1)
+
+    dc  = host.split('-')[-1]
     pod = host.split('-')[0]
-    cust_url = sets[role]['url'] % (pod)
-    logging.debug(cust_url)
     
-    data = query_to_web(cust_url)
-    result = parse_web(data, pod)
-    logging.debug(result)
+    # skip check if pod is dr
+    prod_status = idb.checkprod([pod], dc)
+    prod_status = {k.lower(): v for k, v in prod_status.items()}
     
-    if result[host +".ops.sfdc.net"] == "ACTIVE":
-        print("Buddy pair %s(current) <--> %s(buddy) is" + bcolors.OKGREEN + " ACTIVE " + bcolors.ENDC + "\n") % (host, buddy)
-    elif result[host +".ops.sfdc.net"] != "ACTIVE":
-        err_dict[host] = "ERROR : Buddy pair %s(current) <--> %s(buddy) is not ACTIVE." % (host, buddy)
+    # check that pod is contained in the response from idb
+    if pod not in prod_status.keys():
+        logging.error("query for prod/dr status of {0} returned an invalid response: {1}".format(pod,pod_status))
+        sys.exit(1)
+    
+    # if pod is currently dr skip the check, rr app start success is enough
+    if prod_status[pod] != True:
+        print "{0} in {1} is currently dr; skipping the pod health check.".format(pod, dc)
+        # DO NOT EXIT HERE!
+    # if pod is currently prod run a pod health check
+    else:
+        url = sets[role]['url'] % (pod)
+        logging.debug("query url: "+url)
         
+        data   = query_web(url)
+        status = parse_web(data, pod)
+        logging.debug(status)
+        
+        # print the pod health status
+        print("{0} pod {1} mq broker health:".format(dc, pod))
+        for host in status.keys():
+            if status[host] == "ACTIVE":
+                print "{0} is ".format(host) + bcolors.OKGREEN + "ACTIVE" + bcolors.ENDC
+            else:
+                print "{0} is ".format(host) + bcolors.FAIL + "{0}".format(status[host]) + bcolors.ENDC
+
+        # fail if any host is not active
+        for host in status.keys():
+            if status[host] != "ACTIVE":
+                logging.error("host {0} is not active!".format(host))
+                sys.exit(1)
+
 def search_check(host, role):
     pod = host.split('-')[0]
     dc = host.split('-')[3]
@@ -345,7 +375,7 @@ def search_check(host, role):
     #logging.debug(pod_status)
     
     cust_url = sets[role]['url'] % (pod, host)
-    data = query_to_web(cust_url)
+    data = query_web(cust_url)
     json_data = json.loads(data)
     buddy = json_data['haPeers']
     if 'false' in query_to_hapeer(buddy):
@@ -397,8 +427,8 @@ if __name__ == "__main__":
     
     for host in hosts_lst:       
         role = find_role(host)
-        logging.debug(role)
-        logging.debug(host)
+        logging.debug("role: "+role)
+        logging.debug("host: "+host)
         sets = chks_importer()
         
         if role == "nodeapp":
@@ -408,7 +438,6 @@ if __name__ == "__main__":
             cust_msg = "FFX App on buddy host %s" %(buddy)
             url = application_ping_check(cust_msg, buddy, role)
         elif role == "mq":
-            buddy = buddy_find(host)
-            mq_check(buddy, role)
+            mq_check(host, role)
         elif role =="search":
             search_check(host, role)
