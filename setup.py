@@ -32,7 +32,12 @@ remote_files = ['bin/check_local_port.py',
                 'includes/valid_versions.json',
                 'cptops_sysfiles/bin/system_update.sh',
                 'cptops_sysfiles/bin/system_vendortools_update.sh',
-                'cptops_nagios/bin/nagios_backup.sh']
+                'cptops_nagios/bin/nagios_backup.sh',
+                'decomm/manage_ib.py',
+                'decomm/manage_ilom.py',
+                'decomm/pexpect.py',
+                'decomm/host_shutdown.py',
+                'decomm/serial_check.py']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
@@ -48,7 +53,9 @@ bin_files = ['bin/check_mq_buddy.py',
              'cptops_idbhost/idbhost.py',
              'cptops_nagios/bin/nagios_monitor.py',
              'cptops_nagios/bin/nagios_monitor_single.py',
-             'cptops_nagios/bin/nagios_backup.sh']
+             'cptops_nagios/bin/nagios_backup.sh',
+             'decomm/decomm_idb.py',
+             'decomm/get_RR_logs.py']
 
 auth_files = ['cptops_idbhost/auth/internal_ca.pem']
 
