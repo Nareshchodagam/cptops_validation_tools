@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/opt/rh/python27/root/usr/bin/python2.7
+
 '''
     Title - To check the search buddy host app status
     Author - CPT - cptops@salesforce.com
@@ -38,9 +39,24 @@ def where_am_i():
     logging.debug(short_site)
     return short_site
 
+def katz_password():
+    site = where_am_i()
+    user = pswd = None
+    sys.path.append("/opt/cpt/")
+
+    try:
+        from km.katzmeow import get_creds_from_km_pipe
+        import getpass
+        user = getpass.getuser()
+        pswd, _, _ = get_creds_from_km_pipe(pipe_file=args.encrypted_creds, decrypt_key_file=args.decrypt_key)
+        logging.debug("decoded creds passed by km")
+    except ImportError:
+        logging.error("could not import the km module, will not decode creds passed in by km")
+
+    return site,user,pswd
 
 # idb class instantiate
-def idb_connect(site):
+def idb_connect():
     """
     Initiate connection to idb based on the site/DC name.
 
@@ -50,12 +66,17 @@ def idb_connect(site):
     :rtype:  Instance
 
     """
+    if args.encrypted_creds:
+        site, user, pswd = katz_password()
+    else:
+        site = where_am_i()
+
     try:
         logging.debug('Connecting to CIDB')
         if site == "sfm":
-            idb = Idbhost()
+            idb = Idbhost(user=user, pswd=pswd)
         else:
-            idb = Idbhost(site)
+            idb = Idbhost(site=site, user=user, pswd=pswd)
         return idb
     except:
         print("Unable to connect to idb")
@@ -234,6 +255,8 @@ if __name__ == "__main__":
                              formatter_class=RawTextHelpFormatter)
     parser.add_argument("-H", dest="hosts", required=True, help="The hosts in command line argument")
     parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
+    parser.add_argument("--encrypted_creds", help="Pass creds in via encrpyted named pipe; used by katzmeow")
+    parser.add_argument("--decrypt_key", help="Used only with --encrpyted_creds")
     args = parser.parse_args()
 
     if args.verbose:
@@ -243,8 +266,7 @@ if __name__ == "__main__":
     hostlist = hosts.split(',')
     err_dict = {}
 
-    site = where_am_i()
-    idb = idb_connect(site)
+    idb = idb_connect()
     pod_list, dc = get_site_pod(hostlist)
     pod_status = idb.checkprod(pod_list.keys(), dc)
     logging.debug(pod_list)
