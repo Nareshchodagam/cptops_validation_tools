@@ -40,7 +40,9 @@ remote_files = ['bin/check_local_port.py',
                 'decomm/manage_ilom.py',
                 'decomm/pexpect.py',
                 'decomm/host_shutdown.py',
-                'decomm/serial_check.py']
+                'decomm/serial_check.py',
+                'ssa/edns_role_internal_validation.py',
+                'ssa/inst_role_internal_validation.py']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
@@ -58,7 +60,9 @@ bin_files = ['bin/check_mq_buddy.py',
              'cptops_nagios/bin/nagios_monitor_single.py',
              'cptops_nagios/bin/nagios_backup.sh',
              'decomm/decomm_idb.py',
-             'decomm/get_RR_logs.py']
+             'decomm/get_RR_logs.py',
+             'ssa/inst_role_external_validation.py',
+             'ssa/ns_role_external_validation.py']
 
 auth_files = ['cptops_idbhost/auth/internal_ca.pem']
 
