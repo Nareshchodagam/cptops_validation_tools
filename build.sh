@@ -59,11 +59,13 @@ git clone git@git.soma.salesforce.com:CPT/cptops_sysfiles $WORKSPACE/cptops_sysf
 git clone git@git.soma.salesforce.com:CPT/cptops_gus_base $WORKSPACE/cptops_gus_base -b master
 git clone git@git.soma.salesforce.com:CPT/decomm $WORKSPACE/decomm -b master
 git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds $WORKSPACE/cptops_exec_with_creds -b master
+git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $WORKSPACE/ssa -b master
 
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
 	--verbose \
+        --exclude 'usr' \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
 	setup.py
