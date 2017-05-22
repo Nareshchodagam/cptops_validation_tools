@@ -165,11 +165,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG)
 
     os, ver, stg = platform.linux_distribution()
-    if os == "CentOS" and ver[0] == 7:
-        os_cmd = "systemctl %s %s"
-    else:
-        os_cmd = "service %s %s"
-    
+
     proc_lst = options.procname.split(',')
     for procs in proc_lst:
         if options.extended_proc_name:
