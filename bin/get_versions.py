@@ -10,42 +10,11 @@ from datetime import datetime, date, time, timedelta
 import subprocess
 import pprint
 
-roledict={"app": ["lightcycle-snapshot","mandm-agent","sfdc-base","onboarding", "sfdc-splunk-forwarder"],
+roledict={"app": ["lightcycle-snapshot","mandm-agent","sfdc-base","onboarding", "sfdc-splunk-forwarder", "caas"],
             "dapp": ["lightcycle-snapshot","mandm-agent","sfdc-base","onboarding", "sfdc-splunk-forwarder"],
             "acs": ["lightcycle-snapshot","mandm-agent","sfdc-base", "sfdc-splunk-forwarder"],
             "cbatch": ["lightcycle-snapshot","mandm-agent","sfdc-base", "sfdc-splunk-forwarder"],
             "mq": ["mq-broker", "sfdc-splunk-forwarder"], "sitesproxy": ["sitesproxy", "sfdc-splunk-forwarder"] }
-
-def check_version(app,user):
-    if re.search("sfdc-splunk-forwarder", app):
-        user = 'appmon'
-    home = '/home/' + user
-    current_apps = home + '/current'
-    logging.debug(home)
-    cmdlist = ['ls', '-la', current_apps]
-    apps_output = run_cmd(cmdlist)
-    for l in apps_output.splitlines():
-        if re.search(app, l):
-            logging.debug(l)
-            data = l.split()
-            logging.debug("%s %s" %(data[8],data[10]))
-            if re.match(app, data[8]):
-                ospath,filename = os.path.split(data[10])
-                logging.debug(filename)
-                matching = "(" + app + ".*)_Linux"
-                m = re.search(matching ,filename)
-                try:
-            	    if m.group():
-                        ver = m.group(1) + '.rmf'
-                except Exception as e:
-                    ver = 'unknown'
-    return ver
-    
-def run_cmd(cmdlist):
-    logging.debug(cmdlist)
-    run_cmd = subprocess.Popen(cmdlist, stdout=subprocess.PIPE)
-    out, err = run_cmd.communicate()
-    return out    
 
 def getData(fname):
     with open(fname, 'r') as input_data:
@@ -68,6 +37,20 @@ def parseData(data):
             app_vers[app] = manifest
     return app_vers
 
+def parseDatabyVer(data):
+    installed_software = []
+    app_line = re.compile(r'.*\((.*)\).*\s(.*.rmf$)')
+
+    for l in data:
+       m = app_line.search(l)
+       if m:
+        app_name = m.group(2)
+        ver_name = m.group(1)
+        ret_val = "{0}@{1}".format(app_name.split('_')[0], ver_name)
+        installed_software.append(ret_val)
+    _APPS = "-versions " + ','.join(installed_software)
+    return _APPS
+
 def genManifestData(apps,app_vers):
     app_lst = []
     for app in apps:
@@ -88,6 +71,7 @@ if __name__ == '__main__':
     parser.add_option("-f", "--filename", dest="filename", help="Filename with version data to parse")
     parser.add_option("-o", "--outputname", dest="outputname", help="Filename to output manifest data")
     parser.add_option("-u", "--user", dest="user", default="sfdc", help="User apps are installed as")
+    parser.add_option("--versions", action="store_true", dest="versions", default=False, help="Pull apps by versions")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
     (options, args) = parser.parse_args()
     if options.verbose:
@@ -96,21 +80,29 @@ if __name__ == '__main__':
     app_vers = {}
     output_file = options.outputname
     
-    if options.filename:
+    if options.filename and options.role:
         logging.debug(options.filename)
         data = getData(options.filename)
         app_vers = parseData(data)
         logging.debug(app_vers)
-    
-    if options.role:
         apps = roledict[options.role]
         logging.debug(apps)
         manifest_data = genManifestData(apps,app_vers)
         writeData(output_file,manifest_data)
         
-    if options.applist:
+    if options.filename and options.applist:
+        logging.debug(options.filename)
+        data = getData(options.filename)
+        app_vers = parseData(data)
+        logging.debug(app_vers)
         apps = options.applist.split(",")
         logging.debug(apps)
         manifest_data = genManifestData(apps,app_vers)
         writeData(output_file,manifest_data)
         
+    if options.filename and options.versions:
+        logging.debug(options.filename)
+        data = getData(options.filename)
+        app_vers = parseDatabyVer(data)
+        logging.debug(app_vers)
+        writeData(output_file, app_vers)
