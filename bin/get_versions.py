@@ -1,3 +1,5 @@
+#/usr/bin/python
+
 from optparse import OptionParser
 import base64
 import logging
@@ -48,7 +50,7 @@ def parseDatabyVer(data):
         ver_name = m.group(1)
         ret_val = "{0}@{1}".format(app_name.split('_')[0], ver_name)
         installed_software.append(ret_val)
-    _APPS = "-versions " + ','.join(installed_software)
+    _APPS = ','.join(installed_software)
     return _APPS
 
 def genManifestData(apps,app_vers):
