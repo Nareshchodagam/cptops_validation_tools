@@ -49,6 +49,9 @@ remote_files = ['bin/check_local_port.py',
                 'bin/manage_apps.py',
                 'bin/migrate-to-centos.sh',
                 'bin/rpmdb_check.sh',
+                'bin/restore_storage_config.sh'
+                'bin/save_storage_config.sh'
+                'bin/umountall.sh'
                 'includes/valid_versions.json',
                 'cptops_nagios/bin/nagios_backup.sh',
                 'decomm/manage_ib.py',
