@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 
 from optparse import OptionParser
 import base64
