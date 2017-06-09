@@ -64,6 +64,7 @@ if __name__ == "__main__":
     parser = OptionParser(usage)
     parser.add_option("-H", dest="hosts", help="The hosts in command line argument")
     parser.add_option("-d", dest="datacenter", help="datacenter")
+    parser.add_option("--file", dest="filename", default="batch.list", help="batch filename.")
     parser.add_option("--encrypted_creds",dest="encrypted_creds", help="Pass creds in via encrpyted named pipe; used by katzmeow")
     parser.add_option("--decrypt_key", dest="decrypt_key", help="Used only with --encrpyted_creds")
     (options, args) = parser.parse_args()
@@ -77,8 +78,8 @@ if __name__ == "__main__":
     '''
     Create the batch list
     '''
-        
-    file_batch = open(os.environ['HOME'] + "/batch.list", 'w')
+    
+    file_batch = open(os.environ['HOME'] + "/" + options.filename, 'w')
     file_batch.write("{0},DEVICEROLE,SERIAL_NUMBER\n".format(hoststring))
     site = where_am_i()
     idb = idb_connect(site)   
