@@ -59,6 +59,7 @@ git clone git@git.soma.salesforce.com:CPT/cptops_gus_base $WORKSPACE/cptops_gus_
 git clone git@git.soma.salesforce.com:CPT/decomm $WORKSPACE/decomm -b master
 git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds $WORKSPACE/cptops_exec_with_creds -b master
 git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $WORKSPACE/ssa -b master
+git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $WORKSPACE/sec_patch -b master
 
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
