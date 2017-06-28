@@ -1,3 +1,4 @@
+#!/bin/python
 from setuptools import find_packages
 from setuptools import setup
 
@@ -65,7 +66,8 @@ remote_files = ['bin/check_local_port.py',
                 'decomm/host_shutdown.py',
                 'decomm/serial_check.py',
                 'ssa/edns_role_internal_validation.py',
-                'ssa/inst_role_internal_validation.py']
+                'ssa/inst_role_internal_validation.py',
+                'sec_patch/validate_syslog.sh']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
