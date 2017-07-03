@@ -377,8 +377,8 @@ def search_check(host, role):
     cust_url = sets[role]['url'] % (pod, host)
     data = query_web(cust_url)
     json_data = json.loads(data)
-    buddy = json_data['haPeers']
-    if 'false' in query_to_hapeer(buddy):
+    json_buddy = json_data['haPeers']
+    if 'false' in query_to_hapeer(host):
         if json_buddy:
             buddy_hosts = [host.split(':')[0].split('.')[0] for host in json_buddy]
             logging.debug(buddy_hosts)
@@ -394,7 +394,7 @@ def search_check(host, role):
             print("Looks like we received null from the remote url response")
     else:
         try:
-            print("Search Buddy %s  is up for host %s" % ("".join(json_buddy).split(':')[0], i_host))
+            print("Search Buddy %s  is up for host %s" % ("".join(json_buddy).split(':')[0], host))
         except:
             print("Looks like search buddy is up, but can't figure out the buddy host")
         
