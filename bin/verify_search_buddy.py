@@ -56,27 +56,28 @@ def katz_password():
     return site,user,pswd
 
 # idb class instantiate
-def idb_connect():
+def idb_connect(site):
     """
     Initiate connection to idb based on the site/DC name.
-
     :param site: The site name
     :type site: string
     :return: This function will return a class instance.
     :rtype:  Instance
-
     """
-    if args.encrypted_creds:
-        site, user, pswd = katz_password()
-    else:
-        site = where_am_i()
-
     try:
         logging.debug('Connecting to CIDB')
-        if site == "sfm":
-            idb = Idbhost(user=user, pswd=pswd)
-        else:
-            idb = Idbhost(site=site, user=user, pswd=pswd)
+        user = pswd = None
+        if args.encrypted_creds:
+            sys.path.append("/opt/cpt/")
+            try:
+                from km.katzmeow import get_password_from_km_pipe
+                import getpass
+                user =  getpass.getuser()
+                pswd = get_password_from_km_pipe(pipe_file=args.encrypted_creds, decrypt_key_file=args.decrypt_key)
+                logging.debug("decoded creds passed by km")
+            except ImportError:
+                logging.error("could not import the km module, will not decode creds passed in by km")
+        idb=Idbhost(site=site, user=user, pswd=pswd)
         return idb
     except:
         print("Unable to connect to idb")
@@ -265,8 +266,8 @@ if __name__ == "__main__":
     hosts = args.hosts
     hostlist = hosts.split(',')
     err_dict = {}
-
-    idb = idb_connect()
+    site = where_am_i()
+    idb = idb_connect(site)
     pod_list, dc = get_site_pod(hostlist)
     pod_status = idb.checkprod(pod_list.keys(), dc)
     logging.debug(pod_list)
