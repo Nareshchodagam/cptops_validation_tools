@@ -6,13 +6,13 @@ sleep 30
 PIDFILE="/home/csbroker/cs_request_processor-data/cs_request_processor.pid"
 
 function start_broker {
-su - csbroker -c "cd /home/csbroker/cs_request_processor && bin/cs_processor start"
+su - csbroker -c "cd /home/csbroker/cs_request_processor && bin/cs_processor.sh start"
 echo "CS Broker Processes:        [STARTED]"
 }
 
 if [ -f ${PIDFILE} ] 
   then
-	  #if pidfile exists check the correct process is runnig
+	  #if pidfile exists check the correct process is running
 	  kill -0 `cat ${PIDFILE}`
 	  RETVAL1=$?
 	  if [ ${RETVAL1} -eq 0 ]

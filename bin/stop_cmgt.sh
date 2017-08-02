@@ -5,7 +5,7 @@
 PIDFILE="/home/csbroker/cs_request_processor-data/cs_request_processor.pid"
 
 function stop_broker {
-su - csbroker -c "cd /home/csbroker/cs_request_processor && bin/cs_processor stop"
+su - csbroker -c "cd /home/csbroker/cs_request_processor && bin/cs_processor.sh stop"
 echo "CS Broker Processes:        [STOPPED]"
 }
 

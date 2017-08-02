@@ -5,7 +5,7 @@ PIDFILE="/home/csbroker/cs_request_processor-data/cs_request_processor.pid"
 
 if [ -f ${PIDFILE} ] 
   then
-	  #if pidfile exists check the correct process is runnig
+	  #if pidfile exists check the correct process is running
 	  kill -0 `cat ${PIDFILE}`
 	  RETVAL1=$?
 	  if [ ${RETVAL1} -eq 0 ]
@@ -18,5 +18,5 @@ if [ -f ${PIDFILE} ]
 		  fi
 else
 	#If PIDFILE missing
-   echo "ERROR CS Broker Processes:        [NOT RUNNING]"
+    echo "ERROR CS Broker Processes:        [NOT RUNNING]"
 fi
