@@ -128,6 +128,15 @@ if __name__ == "__main__":
     Valdiate the kernel version
     %prog -k <kernel version>
 
+    Valdiate the sfdc version
+    %prog -s <sfdc version>
+
+    Validate the host needs patching.
+    %prog -s <sfdc version> -f valid_versions.json
+
+    Validate the host has been updated
+    %prog -s <sfdc version> -f valid_versions.json -u
+
     Validate the redhat release
     %prog -r <redhat release>
 
@@ -148,6 +157,7 @@ if __name__ == "__main__":
     """
     parser = OptionParser(usage)
     parser.add_option("-k", dest="kernver", action="store", help="The kernel version host should have")
+    parser.add_option("-s", dest="sfdcver", action="store", help="The SFDC version host should have")
     parser.add_option("-r", dest="releasever", action="store", help="The RH release host should have")
     parser.add_option("-c", dest="check", action="store", help="Check the current or canidate versions")
     parser.add_option("-o", dest="os", action="store", help="OS to check for rhel|centos")
@@ -221,6 +231,22 @@ if __name__ == "__main__":
     elif options.kernver:
         result = get_kernel_ver(options.kernver)
         exit_code(result)
+    elif options.sfdcver:
+        (sfdc_ver, sfdc_rpm) = get_Sfdc_rel(version_data[os_type][os_major][options.sfdcver]['sfdc-release'])
+        if not 'not installed' in sfdc_rpm:
+            if 'sfdc-release' in version_data[os_type][os_major][options.sfdcver]:
+                if sfdc_ver == True:
+                    print('System running correct patch level no need to update')
+                    if not options.updated:
+                        sys.exit(1)
+                    else:
+                        sys.exit(0)
+                else:
+                    print('System not running correct patch level and needs to be updated')
+                    if not options.updated:
+                        sys.exit(0)
+                    else:
+                        sys.exit(1)
     elif options.releasever:
         result = get_release(options.releasever)
         exit_code(result)
