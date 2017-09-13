@@ -2,7 +2,6 @@
 #$Id: validate_syslog.sh 242300 2017-09-13 15:14:12Z rgunawan@SFDC.NET $
 
 ROLE="syslog-ng"
-LATEST_VER="3.5.6"
 SYSTEMCTL=$( command -v systemctl || echo "/bin/systemctl" )
 RPM=$( command -v rpm || echo "/usr/bin/rpm" )
 PGREP=$( command -v pgrep || echo "/usr/bin/pgrep" )
@@ -29,7 +28,7 @@ echo -e "\n### Validation for role ${ROLE} ####\n"
 assert execute "echo \"Check ${ROLE} is running\" && [ $( ${SYSTEMCTL} is-active ${ROLE} ) == 'active' ]" 
 
 # Check for package version
-assert execute "echo \"Check ${ROLE} package version is ${LATEST_VER}\" && [ $( ${RPM} -q --qf "%{VERSION}\n" ${ROLE} ) == \"${LATEST_VER}\" ]" 
+assert execute "echo \"Check ${ROLE} package version is ${LATEST_VER}\" && [ $( ${RPM} -q ${ROLE} ) ]" 
 
 # Check for PID process
 assert execute "echo \"Check ${ROLE} PID process\" && [ $( ${PGREP} ${ROLE} ) -gt 0 ]" 
