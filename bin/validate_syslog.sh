@@ -13,8 +13,8 @@ assert () {
     CMD="$@"
     ${CMD} 
     [[ $EXIT_CODE -ne 0 ]] && \
-	echo '  [FAILED]'  "${CMD}" || \
-	echo '  [PASSED]'  "${CMD}"
+        echo '  [FAILED]'  "${CMD}" || \
+        echo '  [PASSED]'  "${CMD}"
     EXIT_CODES=`expr ${EXIT_CODES} + ${EXIT_CODE}`
 }
 
@@ -24,6 +24,10 @@ execute () {
 }
 
 echo -e "\n### Validation for role ${ROLE} ####\n"
+
+execute "[ $( ${SYSTEMCTL} is-active ${ROLE} ) == 'active' ]"
+[[ ${EXIT_CODE} -ne 0 ]] && { echo "Sleeping for 60s, restarting ${ROLE}"; sleep 60; ${SYSTEMCTL} restart ${ROLE}; EXIT_CODES=0; }
+
 # Check for systemctl status
 assert execute "echo \"Check ${ROLE} is running\" && [ $( ${SYSTEMCTL} is-active ${ROLE} ) == 'active' ]" 
 
@@ -40,3 +44,4 @@ echo -e "\nFailed Checks: ${EXIT_CODES}"
 [[ ${EXIT_CODES} -eq 0 ]] && echo "Validation Result: PASSED" || echo "Validation Result: FAILED"
 
 exit ${EXIT_CODES}
+
