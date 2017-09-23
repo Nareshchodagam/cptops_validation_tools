@@ -17,5 +17,5 @@ if [ ${RETVAL1} -eq 0 ]
 		echo "CSApi Processes:        [RUNNING]" 
 	else
 		# If CSApi is not running, start it
-      	start_csapi
+		start_csapi
 fi
