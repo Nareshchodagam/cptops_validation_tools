@@ -13,14 +13,26 @@ KAT_STATUS=
 #Remove this when katello issues go away
 KAT_BYPASS=true
 SITECODE=`hostname |cut -d. -f1 | awk -F- '{print $NF}'`
-if [ -r /etc/centos-release ]; then
+#read statement below takes VERSION and RELEASE from rpm command and feeds each into its own var (sg)
+read -r RH_VER_MAJOR CO_RELEASE  <<<$(rpm -q --queryformat '%{VERSION} %{RELEASE}' centos-release)
+RH_VER_MINOR=`echo $CO_RELEASE | awk -F. '{print $1}'`
+#here (below) we check for 'not installed' output of rpm command above
+#if no release rpm is found, we fail back to /etc/release file(s)
+if [[ $CO_RELEASE == *"not installed"* ]];then 
+  if [ -r /etc/centos-release ]; then
     RH_VER=`cat /etc/centos-release |awk '{print $3}'`
     RH_VER_MAJOR=`cat /etc/centos-release |awk '{print $3}'|awk -F"." '{print $1}'`
     RH_VER_MINOR=`cat /etc/centos-release |awk '{print $3}'|awk -F"." '{print $2}'`
-elif [ -r /etc/redhat-release ]; then
+    if [ $RH_VER_MAJOR != "6" ]; then
+      RH_VER=`cat /etc/centos-release |awk '{print $4}'`
+      RH_VER_MAJOR=`cat /etc/centos-release |awk '{print $4}'|awk -F"." '{print $1}'`
+      RH_VER_MINOR=`cat /etc/centos-release |awk '{print $4}'|awk -F"." '{print $2}'`
+    fi
+    elif [ -r /etc/redhat-release ]; then
     RH_VER=`cat /etc/redhat-release |awk '{print $7}'`
     RH_VER_MAJOR=`cat /etc/redhat-release |awk '{print $7}'|awk -F"." '{print $1}'`
     RH_VER_MINOR=`cat /etc/redhat-release |awk '{print $7}'|awk -F"." '{print $2}'`
+  fi
 fi
 HOSTFUNC=`hostname | cut -f2 -d- | sed 's/[0-9]$//g'`
 SUDO_USERID=
