@@ -70,7 +70,10 @@ remote_files = ['bin/check_local_port.py',
                 'decomm/serial_check.py',
                 'ssa/edns_role_internal_validation.py',
                 'ssa/inst_role_internal_validation.py',
-                'ssa/netbot_validation.py']
+                'ssa/netbot_validation.py',
+                'sysfiles/files/usr/local/libexec/system_vendortools_update.sh',
+                'sysfiles/files/usr/local/libexec/system_udpate.sh',
+                'sysfiles/files/usr/local/libexec/validate_firmware.py']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
