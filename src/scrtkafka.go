@@ -23,6 +23,12 @@ func main() {
 	Hosts := flag.String("hosts", "", "Hosts to get Cluster Health")
 	flag.Parse()
 
+	// Verify user has passed command line argument
+	if *Hosts == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	hostlist := strings.Split(*Hosts, ",") // Split comma separated string to array
 
 	output := new(healthStatus)
