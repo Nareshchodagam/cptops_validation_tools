@@ -33,10 +33,10 @@ class CheckRemoteUrl(object):
         port = int(port)
         result = sock.connect_ex((hostname, port))
         if result == 0:
-            print("Port is open")
+            print("{} - Port is open".format(port))
             return 0
         else:
-            print("Port is not open")
+            print("{} - Port is not open".format(port))
             return 1
 
     # Class method to build the url from given hostname and port
@@ -108,10 +108,13 @@ def main():
     # Added/Modified To validate Argus Metrics|Alert|MQ JMX/JAVA based Port using Sockets.
     for host in hosts:
         if re.search(r'argusmetrics|argusalert|argusmq|arguscache|argusannotation', host):
+            failed_connect = False
             for port in ports:
                 status = obj.socket_based_port_check(host, port)
                 if status != 0:
-                    obj.exit_status()
+                    failed_connect = True
+            if failed_connect:
+                obj.exit_status()
         else:
             ret_url = obj.build_url(host)
             obj.check_return_code(ret_url)
@@ -131,5 +134,5 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG)
 
     hosts = args.hosts.split(',')
-    port = args.port.split(',')
+    ports = args.port.split(',')
     main()
