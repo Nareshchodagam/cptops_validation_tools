@@ -27,14 +27,14 @@ done
 # Variables
 RUNUSER='/sbin/runuser'
 TNSFILE='/etc/tnsnames.ora'
-USER='oracle'
+USER='sfdc_ops'
 DB_NAME=$(grep -i service_name $TNSFILE | grep -i $DC | awk -F[=\)] "{print \$2}" | tail -1) ; RETVAL_DBNAME=$?
 echo $DC
 
 
 if [ -f ${TNSFILE} ] ; then
     if [ ${RETVAL_DBNAME} -eq 0 ]; then
-        $RUNUSER -l $USER -p -c "tnsping $DB_NAME"
+        $RUNUSER -l $USER -p -c "source .bashrc && tnsping $DB_NAME"
     else
         echo "Can't find DB NAME"
         exit 1
