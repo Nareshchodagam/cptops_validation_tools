@@ -49,7 +49,7 @@ def parseDatabyVer(data):
         app_name = m.group(2)
         ver_name = m.group(1)
         ret_val = "{0}@{1}".format(app_name.split('_')[0], ver_name)
-        if ver_name not in installed_software:
+        if not ret_val in installed_software:
             installed_software.append(ret_val)
     _APPS = ','.join(installed_software)
     return _APPS
