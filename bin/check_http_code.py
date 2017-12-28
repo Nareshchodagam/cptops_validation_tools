@@ -135,4 +135,6 @@ if __name__ == "__main__":
 
     hosts = args.hosts.split(',')
     ports = args.port.split(',')
+    if len(ports) == 1:
+        port = ports[0]
     main()
