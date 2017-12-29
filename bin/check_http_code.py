@@ -107,7 +107,7 @@ def main():
     obj = CheckRemoteUrl()
     # Added/Modified To validate Argus Metrics|Alert|MQ JMX/JAVA based Port using Sockets.
     for host in hosts:
-        if re.search(r'argusmetrics|argusalert|argusmq|arguscache|argusannotation', host):
+        if re.search(r'argusmetrics|argusalert|argusmq|arguscache|argusannotation|argusajna', host):
             failed_connect = False
             for port in ports:
                 status = obj.socket_based_port_check(host, port)
@@ -135,4 +135,6 @@ if __name__ == "__main__":
 
     hosts = args.hosts.split(',')
     ports = args.port.split(',')
+    if len(ports) == 1:
+        port = ports[0]
     main()
