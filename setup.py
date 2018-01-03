@@ -9,7 +9,7 @@ km_dir = '/opt/cpt/km'
 gus_dir = '/opt/cpt/GUS'
 remote_dir = '/opt/cpt/remote'
 
-root_files = ['cptops_exec_with_creds/close_gus_cases.py',
+root_files = ['cptops_exec_with_creds/gus_case_mngr.py',
               'cptops_exec_with_creds/cptops_logicalhost_alerts.py']
 
 remote_files = ['bin/check_local_port.py',
