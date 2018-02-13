@@ -71,9 +71,9 @@ def main():
     
     # generate the json file contents based on the passed argument
     if options.action.lower() == 'enable':
-        content = genContent('true')
-    else:
         content = genContent('false')
+    else:
+        content = genContent('true')
     logging.debug('content: '+content.strip())
     
     # make sure parent dir exists
