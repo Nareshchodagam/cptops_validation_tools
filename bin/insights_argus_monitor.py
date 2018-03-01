@@ -46,7 +46,7 @@ def changeOwner():
         logging.info('changed owner of '+PATH)
 
 def genContent(action):
-    return '{ "patching" : "'+action+'" }\n'
+    return '{ "patching" : '+action+' }\n'
 
 def processOptions():
     parser = argparse.ArgumentParser('Insights-specific script to create/update '+PATH+' file that controls argus monitoring for the host')
