@@ -15,6 +15,8 @@ from multiprocessing import Process, Queue
 from subprocess import Popen, PIPE
 from StringIO import StringIO
 import shlex
+import json
+import unicodedata
 from os import path
 
 
@@ -28,6 +30,37 @@ class HostsCheck(object):
         self.data = []
         self.user_home = path.expanduser('~')
         self.force = force
+
+    # Start Work Item W-4754564
+    def match_os_and_json_kernel(self, bundle, host):
+        """
+        :return:
+        """
+        hostOsQuery = "rpm -q --queryformat '%{VERSION}' centos-release"
+        hostOsCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, hostOsQuery)
+        hostKernelQuery = "uname -r"
+        hostKernelCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, hostKernelQuery)
+        cmdOutOs = shlex.split(hostOsCmd)
+        cmdOutKernel = shlex.split(hostKernelCmd)
+        hostOsMajor, _ = Popen(cmdOutOs, stdout=PIPE, stderr=PIPE).communicate()
+        hostKernel, _ = Popen(cmdOutKernel, stdout=PIPE, stderr=PIPE).communicate()
+
+        path = "/opt/cpt/remote/valid_versions.json"
+        try:
+            with open(path) as data_file:
+                json_data = json.load(data_file)
+                ker = json_data.get('CENTOS').get(hostOsMajor.strip('\n')).get(bundle).get('kernel')
+                kernel = unicodedata.normalize('NFKD', ker).encode('ascii','ignore')
+                if kernel in hostKernel:
+                    print("Host {0} Patched and on latest kernel {1}".format(host, kernel))
+                    return True
+                else:
+                    print("Host {0} Patched but not on latest kernel {1}".format(host, kernel))
+                    return False
+        except Exception as e:
+            print("Ensure presence of path " + path)
+            exit(1)
+    #End
 
     def check_ssh(self, host, p_queue):
         """
@@ -46,7 +79,7 @@ class HostsCheck(object):
                 split_cmd = shlex.split(cmd)
                 p_object = Popen(split_cmd, stdout=PIPE, stderr=PIPE)
                 (out, err) = p_object.communicate()
-                if str(self.bundle) == out.strip('\n'):
+                if (str(self.bundle) == out.strip('\n')) and (self.match_os_and_json_kernel(self.bundle, host) == True): #Work Item W-4754564
                     host_dict[host] = "patched"
                 else:
                     host_dict[host] = "no_patched"
