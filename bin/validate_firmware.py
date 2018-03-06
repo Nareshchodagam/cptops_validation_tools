@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", dest='time_taken', action='store_true', default=True, help="Time taken by firmware process")
     parser.add_argument("-u", dest='update', action='store_true', default=False, help="To update firmware(Before Reboot)")
     parser.add_argument("-c", dest='check', action='store_true', default=False, help="To verify firmware(After Reboot)")
-    parser.add_argument("-a", dest='vintage', default='stable', help="To pass the firmware repo to be consumed like stable or latest")
+    parser.add_argument("-a", dest='vintage', default='stable', help="To pass the firmware repo to be consumed like stable|latest")
 
     args = parser.parse_args()
 
