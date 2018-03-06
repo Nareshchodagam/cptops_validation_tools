@@ -29,7 +29,7 @@ def validate_firmware(vintage):
 
     :return:
     """
-    exit_code = tricorder.check_platform_preferred(state='stable')
+    exit_code = tricorder.check_platform_preferred(state=vintage)
     if exit_code != 0:
         logging.warn("INFO: Firmware is not running on the latest")
         return True
