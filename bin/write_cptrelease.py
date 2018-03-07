@@ -54,7 +54,7 @@ def custom_logger():
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
+    parser = ArgumentParser(prog='write_cptrelease.py', usage='\n%(prog)s --last \n%(prog)s -b 2018.01 -c 012345 ')
     parser.add_argument("--last", "-l", dest="lastbundle", action="store_true", default=False,
                         help="To get last patch Bundle")
     parser.add_argument("-b", dest="bundle", help="Bundle Version")
