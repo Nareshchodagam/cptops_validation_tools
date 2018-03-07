@@ -26,6 +26,15 @@ def check_sudouser():
         logger.error("Sadly you need to run me as root")
         exit(1)
 
+def bundle_info():
+    try:
+        with open(SFDCFILE) as f:
+            f_content = f.readlines()
+        bundle = ".".join(f_content[0].split()[1].split('-')[2:])  # Hack to get last installed OS bundle
+        return bundle
+    except IOError as e:
+        logger.warning(e)
+
 
 def custom_logger():
     """
@@ -54,11 +63,12 @@ def custom_logger():
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(prog='write_cptrelease.py', usage='\n%(prog)s --last \n%(prog)s -b 2018.01 -c 012345 ')
-    parser.add_argument("--last", "-l", dest="lastbundle", action="store_true", default=False,
+    parser = ArgumentParser(prog='write_cptrelease.py', usage='\n%(prog)s --last \n%(prog)s --current -c 012345 ')
+    parser.add_argument("--last", "-l", dest="lastpatchbundle", action="store_true", default=False,
                         help="To get last patch Bundle")
-    parser.add_argument("-b", dest="bundle", help="Bundle Version")
     parser.add_argument("-c", dest="casenumber", help="Case Number")
+    parser.add_argument("--current", dest="current_bundle", action="store_true", default=False,
+                        help="To get last patch Bundle")
     parser.add_argument("--verbose", "-v", action="store_true", dest="verbose", default=False, help="verbosity")
 
     args = parser.parse_args()
@@ -68,21 +78,14 @@ if __name__ == "__main__":
 
     json_data = read_jsonfile(CPTFILE)
 
-    if args.lastbundle:
-        try:
-            with open(SFDCFILE) as f:
-                f_content = f.readlines()
-            last_bundle = ".".join(f_content[0].split()[1].split('-')[2:])  # Hack to get last installed OS bundle
-            json_data['lastPatchBundle'] = last_bundle
-        except IOError as e:
-            logger.warning("Can not open file %s", e)
-            json_data['lastPatchBundle'] = ""
-
+    if args.lastpatchbundle:
+        last_bundle = bundle_info()
+        json_data['lastPatchBundle'] = last_bundle
         json_data['patchingStartTime'] = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
         json_data['patchingOwner'] = environ['SUDO_USER']
 
-    if args.bundle and args.casenumber:
-        json_data['currentPatchBundle'] = args.bundle
+    if args.current_bundle and args.casenumber:
+        json_data['currentPatchBundle'] = bundle_info()
         json_data['patchingEndTime'] = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
         json_data['caseNumber'] = args.casenumber
 
