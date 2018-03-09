@@ -1,4 +1,4 @@
-#!/opt/rh/python27/root/usr/bin/python2.7
+#!/usr/bin/env python
 
 '''
     Title - To check the search buddy host app status
