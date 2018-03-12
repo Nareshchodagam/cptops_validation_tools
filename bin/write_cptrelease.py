@@ -88,6 +88,7 @@ if __name__ == "__main__":
         json_data['currentPatchBundle'] = bundle_info()
         json_data['patchingEndTime'] = datetime.now().strftime("%m-%d-%Y %H:%M:%S")
         json_data['caseNumber'] = args.casenumber
+        json_data['patchingOwner'] = environ['SUDO_USER']
 
     try:
         with open(CPTFILE, 'w') as f:
