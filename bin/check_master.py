@@ -9,6 +9,8 @@ import json
 import pprint
 import os
 import sys
+import re
+import socket
 from argparse import ArgumentParser
 import requests
 
@@ -45,7 +47,7 @@ def create_list(master, slaves, master_list, case_list):
     logging.debug(clust_list)
     with open(master_list, 'w') as master, open(case_list, 'w') as case:
         json.dump(clust_list, master)
-        case.write(clust_list['Slaves'][0])
+        case.write(clust_list['Slaves'][0].split(".")[0])
 
 def update_list(case_list, master_list):
     '''
@@ -68,11 +70,11 @@ def update_list(case_list, master_list):
     fh.close()
     if len(raw_data['Slaves']) != 0:
         fh = open(case_list, 'w')
-        fh.write(raw_data['Slaves'][0])
+        fh.write(raw_data['Slaves'][0].split(".")[0])
         fh.close
     else:
         fh = open(case_list, 'w')
-        fh.write(raw_data['Master'])
+        fh.write(raw_data['Master'].split(".")[0])
         fh.close
 
     return master_list
@@ -82,12 +84,13 @@ def get_current(case_list):
     Function to get the current host.
     :return:
     '''
+    domain = re.findall(r'(\..*)', socket.gethostname())
     fh = open(case_list, 'r')
     curr_host = fh.readline()
-    curr_host = curr_host.rstrip('\n')
+    curr_host = curr_host + str(domain[0])
     fh.close()
 
-    return curr_host
+    return curr_host.rstrip("\n")
 
 def cleanup(case_list, master_list):
     '''
@@ -105,8 +108,8 @@ if __name__ == "__main__":
     parser.add_argument("-H", "--host", dest="host")
     parser.add_argument("-u", "--update", action="store_true", dest="update")
     args = parser.parse_args()
-    case_list = "{}_include".format(args.casenum)
-    master_list = "{}_master".format(args.casenum)
+    case_list = "{}/{}_include".format(os.path.expanduser('~'), args.casenum)
+    master_list = "{}/{}_master".format(os.path.expanduser('~'), args.casenum)
     if args.update:
         filename = update_list(case_list, master_list)
         with open(filename, 'r') as fh:
