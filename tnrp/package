@@ -5,6 +5,7 @@
 # 
 # required argument; defines the version number for the artifact
 VERSION="1.0"
+set -e
 
 # required argument; rpms uploaded to nexus should differ either by version number or time stamp;
 # iteration contains the logic to make an rpm unique;
