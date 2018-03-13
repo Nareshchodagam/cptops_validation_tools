@@ -6,6 +6,7 @@
 # called by the pipeline
 #
 ##############################################
+set -e
 
 # Currently unit test will be perform by CPT therefore
 # this script just need exit with success. 
