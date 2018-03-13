@@ -66,7 +66,7 @@ remote_files = ['bin/check_local_port.py',
                 'bin/insights_disklabel.sh',
                 'bin/ib-passwd-rotation.sh',
                 'bin/umountall.sh',
-                'bin/check_master.py'
+                'bin/check_master.py',
                 'includes/valid_versions.json',
                 'cptops_nagios/bin/nagios_backup.sh',
                 'decomm/manage_ib.py',
