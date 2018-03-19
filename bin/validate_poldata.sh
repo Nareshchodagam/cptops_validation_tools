@@ -4,7 +4,7 @@ function running {
 
 sleep 60
 n=0
-until [ $n -ge 5 ]
+until [ $n -ge 10 ]
 do
   su - ilo-pce -c "/opt/illumio-pce/illumio-pce-ctl status"
   if [ $? -eq 1 ]
@@ -19,7 +19,7 @@ do
   fi
 done
 
-[ "$RETVAL1" -eq 1 ] && echo "${HOSTNAME}: Illumio failed to start in > 5min. Please contact SysSec to troubleshoot"
+[ "$RETVAL1" -eq 1 ] && echo "${HOSTNAME}: Illumio failed to start in > 10mins. Please contact SysSec to troubleshoot"
 
 }
 
