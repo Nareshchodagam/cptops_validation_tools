@@ -52,6 +52,15 @@ then
   exit 1
 fi
 
+
+echo "----- Start CPT Tools TnRP package script -----"
+echo "pwd: $(pwd)"
+echo "TNRP_PRODUCT: $TNRP_PRODUCT"
+echo "TNRP_PIPELINE_NAME: $TNRP_PIPELINE_NAME"
+echo "TNRP_BUILD_ARTIFACTS: $TNRP_BUILD_ARTIFACTS"
+echo "TNRP_WORKSPACE: $TNRP_WORKSPACE"
+echo "WORKSPACE: $WORKSPACE"
+
 #Clone other git repos
 git clone git@git.soma.salesforce.com:CPT/cptops_idbhost $WORKSPACE/cptops_idbhost -b master
 git clone git@git.soma.salesforce.com:CPT/cptops_nagios $WORKSPACE/cptops_nagios -b master
@@ -62,6 +71,9 @@ git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds $WORKSPACE/cpto
 git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $WORKSPACE/ssa -b master
 git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $WORKSPACE/sec_patch -b master
 
+ls -l
+
+echo "STARTING PACKAGING WITH FPM"
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
