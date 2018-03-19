@@ -1,25 +1,30 @@
 #!/bin/bash
-################################
-# template for package script which generates an rpm 
-# package should move all generated rpm’s to the folder path specified in $TNRP_BUILD_ARTIFACTS
-# 
-# required argument; defines the version number for the artifact
-VERSION="1.0"
+###################################################
+# Package script for TnRP which generates an RPM. #
+###################################################
+
+# exit on errors
 set -e
 
-# required argument; rpms uploaded to nexus should differ either by version number or time stamp;
-# iteration contains the logic to make an rpm unique;
-# it should either have a counter to increment the version number or generate a timestamp
+# required argument; defines the version number for the artifact
+VERSION="1.0"
+
+# required argument; rpm should be unique, generate a timestamp
 ITERATION=$(date +"%Y%m%d%H%M%S")
+
+echo "----- Start CPT Tools TnRP package script -----"
+echo "pwd: $(pwd)"
+echo "version: $VERSION"
+echo "iteration: $ITERATION"
 
 # current directory is /opt/pipeline/scripts/<pipeline_name> where the package script will reside in the build host
 cd $(dirname ${0})
-
-#############################################
-# build the RPM package
-#############################################
 pushd ..
+echo "pwd2: $(pwd)"
+echo "lsl: $(ls -l)"
+
+# build the package by running the build script in repo root dir
 ./build.sh -i $ITERATION -v $VERSION
 
-# copy the rpm generated to $TNRP_BUILD_ARTIFACTS(TnRP specified env variable) to be used by the next pipeline segment
+# copy the rpm generated to $TNRP_BUILD_ARTIFACTS (TnRP specified env variable) to be used by the next pipeline segment
 cp *.rpm $TNRP_BUILD_ARTIFACTS
