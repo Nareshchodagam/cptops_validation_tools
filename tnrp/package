@@ -2,9 +2,8 @@
 ###################################################
 # Package script for TnRP which generates an RPM. #
 ###################################################
-
-# exit on errors
 set -e
+echo "----- Start CPT Tools TnRP package script -----"
 
 # required argument; defines the version number for the artifact
 VERSION="1.0"
@@ -12,18 +11,15 @@ VERSION="1.0"
 # required argument; rpm should be unique, generate a timestamp
 ITERATION=$(date +"%Y%m%d%H%M%S")
 
-echo "----- Start CPT Tools TnRP package script -----"
+# cd one level up, out of the tnrp dir to repo root
+TNRP_DIR=$(dirname ${0})
+cd ${TNRP_DIR}/..
+
 echo "pwd: $(pwd)"
 echo "version: $VERSION"
 echo "iteration: $ITERATION"
 
-# current directory is /opt/pipeline/scripts/<pipeline_name> where the package script will reside in the build host
-cd $(dirname ${0})
-pushd ..
-echo "pwd2: $(pwd)"
-echo "lsl: $(ls -l)"
-
-# build the package by running the build script in repo root dir
+# build the package by running the build script
 ./build.sh -i $ITERATION -v $VERSION
 
 # copy the rpm generated to $TNRP_BUILD_ARTIFACTS (TnRP specified env variable) to be used by the next pipeline segment
