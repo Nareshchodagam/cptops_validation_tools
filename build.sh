@@ -75,7 +75,7 @@ fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
 	--verbose \
-  --exclude 'usr' \
+	--exclude 'usr' \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
 	setup.py
