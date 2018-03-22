@@ -1,6 +1,7 @@
 #!/bin/bash
+
 ###########################################################
-# build-rpm.sh
+# build.sh
 # uses fpm - a packaging tool, to wrap up all files in this repo into an rpm
 # takes -i iteration
 #       -v version
@@ -17,9 +18,11 @@
 # For TnRP reference, use https://git.soma.salesforce.com/pipeline/release_pipeline/blob/master/pipeline_config_generator/setup.py
 # You can specify the files to be packaged through 'packages=find_packages(<files to be packaged>)' 
 # You can specify the files to be installed from the package through 'data_files=[ (<destination of the file>, ['file source'])]'
-
 ###########################################################
-cd "$( dirname "${BASH_SOURCE[0]}" )"
+
+# os/env setup should be done in package, don't think we need this here
+# cd "$( dirname "${BASH_SOURCE[0]}" )"
+set -e
 
 iteration='1'
 while getopts "i:v:h" opt; do
@@ -48,25 +51,33 @@ fi
 
 if [ -z "$version" ]
 then
-  echo "-v version  is a required argument"
+  echo "-v version is a required argument"
   exit 1
 fi
 
-#Clone other git repos
-git clone git@git.soma.salesforce.com:CPT/cptops_idbhost $WORKSPACE/cptops_idbhost -b master
-git clone git@git.soma.salesforce.com:CPT/cptops_nagios $WORKSPACE/cptops_nagios -b master
-git clone git@git.soma.salesforce.com:CPT/cptops_gus_base $WORKSPACE/cptops_gus_base -b master
-git clone git@git.soma.salesforce.com:CPT/decomm $WORKSPACE/decomm -b master
-git clone git@git.soma.salesforce.com:CPT/cptops_sysfiles $WORKSPACE/sysfiles -b master
-git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds $WORKSPACE/cptops_exec_with_creds -b master
-git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $WORKSPACE/ssa -b master
-git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $WORKSPACE/sec_patch -b master
 
+echo "----- Start CPT Tools TnRP build script -----"
+HERE=$(pwd)
+echo "pwd: $HERE"
+
+echo "----- cloning required repos -----"
+git clone git@git.soma.salesforce.com:CPT/cptops_idbhost.git $HERE/cptops_idbhost -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_nagios.git $HERE/cptops_nagios -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_gus_base.git $HERE/cptops_gus_base -b master
+git clone git@git.soma.salesforce.com:CPT/decomm.git $HERE/decomm -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_sysfiles.git $HERE/sysfiles -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds.git $HERE/cptops_exec_with_creds -b master
+git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $HERE/ssa -b master
+git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $HERE/sec_patch -b master
+
+echo "----- packaging the rpm with fpm -----"
 fpm -s python -t rpm \
 	-v $version --iteration "$iteration" \
 	--architecture noarch \
 	--verbose \
-        --exclude 'usr' \
+	--exclude 'usr' \
 	-n cpt-tools \
 	--rpm-defattrfile 755 \
 	setup.py
+
+echo "----- End CPT Tools TnRP build script -----"
