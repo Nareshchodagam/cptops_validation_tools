@@ -86,11 +86,12 @@ def get_current(case_list):
     '''
     domain = re.findall(r'(\..*)', socket.gethostname())
     fh = open(case_list, 'r')
-    curr_host = fh.readline()
+    curr_host = fh.readline().rstrip("\n")
     curr_host = curr_host + str(domain[0])
     fh.close()
 
-    return curr_host.rstrip("\n")
+
+    return curr_host
 
 def cleanup(case_list, master_list):
     '''
