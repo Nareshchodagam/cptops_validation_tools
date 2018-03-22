@@ -68,6 +68,7 @@ remote_files = ['bin/check_local_port.py',
                 'bin/umountall.sh',
                 'bin/check_master.py',
                 'bin/check_mount_generic.py',
+                'bin/warden.sh'
                 'includes/valid_versions.json',
                 'cptops_nagios/bin/nagios_backup.sh',
                 'decomm/manage_ib.py',
