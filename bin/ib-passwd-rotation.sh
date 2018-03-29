@@ -18,7 +18,7 @@ INST="ops-inst1-1-$SITE"
 #ADMIN_PW='sun.sun'
 
 # New password to be used (make sure to update password and increment version by one)
-ADMIN_PW='***REMOVED***'
+ADMIN_PW=''
 VERSION=0001
 
 OS=`uname -s`
