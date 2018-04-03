@@ -33,6 +33,11 @@ function verifyrpmdb {
         RPMVERIFY=$?
     fi
 
+    var=($(/bin/rpm --verifydb 2>&1 |grep error))
+    if [ $? -eq 0 ]; then
+	RPMVERIFY=1
+    fi
+
     if [ "$RPMVERIFY" -ne "0" ]; then
         rpmdbremove
         rpmdbcreate
