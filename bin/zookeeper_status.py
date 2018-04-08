@@ -28,6 +28,7 @@ def getStat(host):
         s.send(MESSAGE)
         data = recvall(s)
         s.close()
+        logging.debug(host)
         logging.debug(data)
         return data
     except gaierror:
@@ -56,24 +57,29 @@ if __name__ == '__main__':
     parser.add_option("-H", "--hostlist", dest="hostlist", help="The hostlist for the change")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
     parser.add_option("-b", action="store_true", dest="buildlist", default=False, help="Builds hostlist for Search Zookeeper.")
+    parser.add_option("-r", dest="role", help="Role")
     (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
     hostlist = ['localhost']
     hosts_status = {}
     failure_count = 0
-    if options.buildlist:
+    if options.buildlist and options.role:
         hostlist =[]
         se = re.compile(r'(?<=[shared0|perfeng0]-searchzk)(\d)')
         host = socket.gethostname().split('.')[0]
         head, dc = host.split('-')[0::3]
         host_num = se.search(host)
-        if host_num.group() == "2":
-            for num in range(21, 26):
-                hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
-        elif host_num.group() == "4":
-             for num in range(41, 46):
-                hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
+        if options.role == "smszk":
+            for num in range(1, 6):
+                hostlist.append("sec0-smszk%d-1-%s" % (num, dc))
+        elif options.role == "searchzk":
+            if host_num.group() == "2":
+                for num in range(21, 26):
+                    hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
+            elif host_num.group() == "4":
+                 for num in range(41, 46):
+                    hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
         logging.debug(hostlist)
     if options.hostlist:
         hostlist = options.hostlist.split(',')
