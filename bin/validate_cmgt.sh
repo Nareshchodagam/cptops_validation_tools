@@ -17,6 +17,9 @@ CMGT_PREPROCESSOR_ROOT="/home/csbroker"
 PIDFILE="${CMGT_ROOT}/cs_request_processor-data/cs_request_processor.pid"
 PIDFILE_PREPROCESSOR="${CMGT_PREPROCESSOR_ROOT}/cs_request_preprocessor-data/cs_request_preprocessor.pid"
 
+# This service is active only in PHX, so we can use the DC proxy
+export HTTPS_PROXY=https://public0-proxy1-0-phx.data.sfdc.net:8080/
+
 if [ -f ${PIDFILE} ] 
   then
 	  #if pidfile exists check the correct process is running
