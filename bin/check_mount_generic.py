@@ -62,7 +62,7 @@ if __name__ == "__main__":
         counter = 0
         while (counter != 3):
             if os.path.ismount(args.filesystem):
-                print("{} filesystem is mounted").format(args.filesystem)
+                print " %s filesystem is mounted" % (args.filesystem)
                 sys.exit(0)
             counter += 1
             time.sleep(60)
