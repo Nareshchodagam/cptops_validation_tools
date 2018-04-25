@@ -33,10 +33,10 @@ class CheckRemoteUrl(object):
         port = int(port)
         result = sock.connect_ex((hostname, port))
         if result == 0:
-            print("{} - Port is open".format(port))
+            print("{} - Port is open for {}".format(port, hostname))
             return 0
         else:
-            print("{} - Port is not open".format(port))
+            print("{} - Port is not open for {}".format(port, hostname))
             return 1
 
     # Class method to build the url from given hostname and port
@@ -62,7 +62,7 @@ class CheckRemoteUrl(object):
         elif re.search(r'acs', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
         logging.debug("Built url {0}" .format(url))
-        print("Port is open")
+        print("Port is open for {}".format(hostname))
         return url
 
     # Class method to check the return code from remote url
