@@ -50,15 +50,15 @@ def rejoin_node():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Case Builder Program   ")
+    parser.add_argument("-d", "--drain", dest="drain", action="store_true", help="Drain node.")
     parser.add_argument("-r", "--rejoin", dest="rejoin", action="store_true", help="Rejoin node back to cluster")
     options = parser.parse_args()
 
-    if options.rejoin:
+    response = check_master()
+    if response and options.drain:
+        drain_node()
+    elif response and options.rejoin:
         rejoin_node()
     else:
-        response = check_master()
-        if response:
-            drain_node()
-        else:
-            print "Node is not a worker node. Skipping the drain process..."
-            sys.exit(0)
+        print "Node is not a worker node. Skipping the drain process..."
+        sys.exit(0)
