@@ -64,7 +64,10 @@ if __name__ == '__main__':
     hostlist = ['localhost']
     hosts_status = {}
     failure_count = 0
+<<<<<<< HEAD
     max_allowed_fails = 1
+=======
+>>>>>>> afe6d68a4338f5035b30391334c53c60ff7a0e62
     if options.buildlist and options.role:
         hostlist =[]
         se = re.compile(r'(?<=[shared0|perfeng0]-searchzk)(\d)')
@@ -72,7 +75,10 @@ if __name__ == '__main__':
         head, dc = host.split('-')[0::3]
         host_num = se.search(host)
         if options.role == "smszk":
+<<<<<<< HEAD
             max_allowed_fails = 0
+=======
+>>>>>>> afe6d68a4338f5035b30391334c53c60ff7a0e62
             for num in range(1, 6):
                 hostlist.append("sec0-smszk%d-1-%s" % (num, dc))
         elif options.role == "searchzk":
