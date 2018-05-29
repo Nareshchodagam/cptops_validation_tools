@@ -64,6 +64,7 @@ if __name__ == '__main__':
     hostlist = ['localhost']
     hosts_status = {}
     failure_count = 0
+    max_allowed_fails = 1
     if options.buildlist and options.role:
         hostlist =[]
         se = re.compile(r'(?<=[shared0|perfeng0]-searchzk)(\d)')
@@ -71,6 +72,7 @@ if __name__ == '__main__':
         head, dc = host.split('-')[0::3]
         host_num = se.search(host)
         if options.role == "smszk":
+            max_allowed_fails = 0
             for num in range(1, 6):
                 hostlist.append("sec0-smszk%d-1-%s" % (num, dc))
         elif options.role == "searchzk":
@@ -94,7 +96,7 @@ if __name__ == '__main__':
             #sys.exit(1)
         else:
             print('Zookeeper is running on %s' % h)
-    if failure_count > 1:
+    if failure_count > max_allowed_fails:
         logging.debug("Required nunber of available healthy servers is below threshold. Exiting...")
         sys.exit(1)
     elif failure_count == 1 and len(hostlist) == 1:
