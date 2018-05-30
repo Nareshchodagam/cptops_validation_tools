@@ -75,6 +75,10 @@ if __name__ == '__main__':
             max_allowed_fails = 0
             for num in range(1, 6):
                 hostlist.append("sec0-smszk%d-1-%s" % (num, dc))
+        elif options.role == "smszkdev":
+            max_allowed_fails = 0
+            for num in range(1, 6):
+                hostlist.append("sec0-smszkdev%d-1-%s" % (num, dc))
         elif options.role == "searchzk":
             if host_num.group() == "2":
                 for num in range(21, 26):
