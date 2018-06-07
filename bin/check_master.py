@@ -22,15 +22,21 @@ PP = pprint.PrettyPrinter(indent=2)
 def get_cluster_info():
     '''
     Determine master server for secrets cluster.
+    Sanitize the cluster list to remove unwanted servers.
     :return:
     '''
     slaves = []
-    url = "https://{}:8443/vaultczar/api/1.0/doInternalHealthCheck".format(args.host)
+    hostlist = args.host.split(",")
+    url = "https://{}:8443/vaultczar/api/1.0/doInternalHealthCheck".format(hostlist[0])
     raw_data = requests.get(url, verify=False)
     hostinfo = raw_data.json()
     master = hostinfo['healthchecks'][1]['Master']
     for host in hostinfo['healthchecks'][1]['Slaves']:
         slaves.append(host)
+
+    for host in reversed(slaves):
+        if host.split(".")[0] not in hostlist:
+            slaves.remove(host)
 
     return master, slaves
 
