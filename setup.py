@@ -14,6 +14,7 @@ root_files = ['cptops_exec_with_creds/gus_case_mngr.py',
 
 remote_files = ['bin/check_local_port.py',
                 'bin/check_kernel_update.sh',
+		'bin/check_service.sh',
                 'bin/check_maxfs_desc.py',
                 'bin/ifdown-eth',
                 'bin/verify_if-eth.sh',
