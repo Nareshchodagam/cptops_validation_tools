@@ -61,9 +61,15 @@ class CheckRemoteUrl(object):
         # Added to check remote port for ACS hosts - T-1780845
         elif re.search(r'acs', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
+        # Added to check Health url on synthetics_agent
+        elif re.search(r'syntheticsagent1-1', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}/health".format(hostname, self.domain, port)
+        elif not re.search(r'syntheticsagent1-1', hostname) and re.search(r'syntheticsagent', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}/executor/api/stats".format(hostname, self.domain, port)
         logging.debug("Built url {0}" .format(url))
-        print("Port is open for {}".format(hostname))
+        # print("Port is open for {}".format(hostname))
         return url
+
 
     # Class method to check the return code from remote url
     def check_return_code(self, url):
@@ -77,6 +83,8 @@ class CheckRemoteUrl(object):
             if ret.status_code != 200:
                 print("Could not connect to remote url {0}".format(url))
                 self.err_dict[url] = "ERROR"
+            else:
+                print("Received 200 OK from remote url {0}" .format(url))
         except requests.ConnectionError as e:
             print("Couldn't connect to port {0} on remote url{1}" .format(port, url))
             self.err_dict[url] = "ERROR"
