@@ -72,7 +72,7 @@ class CheckRemoteUrl(object):
 
 
     # Class method to check the return code from remote url
-    def check_return_code(self, url, host):
+    def check_return_code(self, url):
         """
         :param url: This method will take url built from other method and check the response code
         :return: None
@@ -124,7 +124,7 @@ def main():
                 obj.exit_status()
         else:
             ret_url = obj.build_url(host)
-            obj.check_return_code(ret_url, host)
+            obj.check_return_code(ret_url)
             if obj.err_dict:
                 obj.exit_status()
 
