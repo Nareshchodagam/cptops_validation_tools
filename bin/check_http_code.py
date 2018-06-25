@@ -83,6 +83,8 @@ class CheckRemoteUrl(object):
             if ret.status_code != 200:
                 print("Could not connect to remote url {0}".format(url))
                 self.err_dict[url] = "ERROR"
+            else:
+                print("Received 200 OK from remote url {0}" .format(url))
         except requests.ConnectionError as e:
             print("Couldn't connect to port {0} on remote url{1}" .format(port, url))
             self.err_dict[url] = "ERROR"
