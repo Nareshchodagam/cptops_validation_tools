@@ -61,12 +61,18 @@ class CheckRemoteUrl(object):
         # Added to check remote port for ACS hosts - T-1780845
         elif re.search(r'acs', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
+        # Added to check Health url on synthetics_agent
+        elif re.search(r'syntheticsagent1-1', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}/health".format(hostname, self.domain, port)
+        elif not re.search(r'syntheticsagent1-1', hostname) and re.search(r'syntheticsagent', hostname):
+            url = "http://{0}.{1}.sfdc.net:{2}/executor/api/stats".format(hostname, self.domain, port)
         logging.debug("Built url {0}" .format(url))
-        print("Port is open for {}".format(hostname))
+        # print("Port is open for {}".format(hostname))
         return url
 
+
     # Class method to check the return code from remote url
-    def check_return_code(self, url):
+    def check_return_code(self, url, host):
         """
         :param url: This method will take url built from other method and check the response code
         :return: None
@@ -118,7 +124,7 @@ def main():
                 obj.exit_status()
         else:
             ret_url = obj.build_url(host)
-            obj.check_return_code(ret_url)
+            obj.check_return_code(ret_url, host)
             if obj.err_dict:
                 obj.exit_status()
 
