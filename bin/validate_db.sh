@@ -28,7 +28,7 @@ done
 RUNUSER='/sbin/runuser'
 TNSFILE='/etc/tnsnames.ora'
 USER='sfdc_ops'
-DB_NAME=$(grep -i service_name $TNSFILE | grep -i $DC | awk -F[=\)] "{print \$2}" | grep -i NA | tail -1) ; RETVAL_DBNAME=$?
+DB_NAME=$(grep -i service_name $TNSFILE | grep -i $DC | awk -F[=\)] "{print \$2}" | egrep -i 'EU|AP|NA' | tail -1) ; RETVAL_DBNAME=$?
 echo $DC
 
 
