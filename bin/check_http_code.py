@@ -7,9 +7,14 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 import logging
 import sys
 from socket import gethostname, socket, AF_INET, SOCK_STREAM
+try:
+    from requests.adapters import HTTPAdapter
+    from requests.packages.urllib3.util.retry import Retry
+except ImportError as error:
+    logging.error(error)
+
 
 # Function to get the site domain
-
 def host_domain():
     return gethostname().split('.')[1]
 
@@ -39,10 +44,34 @@ class CheckRemoteUrl(object):
             print("{} - Port is not open for {}".format(port, hostname))
             return 1
 
+    @staticmethod
+    def requests_retry_session(retries=3, backoff_factor=3.0, status_forcelist=(500, 502, 504), session=None):
+        """
+        This function will retry(3) on remote API.
+
+        :param retries: Total number of retries to allow.
+        :param backoff_factor: A backoff factor to apply between attempts after the second try
+        :param status_forcelist: A set of integer HTTP status codes that we should force a retry on.
+        :param session:
+        :return:
+        """
+        session = session or requests.Session()
+        retry = Retry(
+            total=retries,
+            read=retries,
+            connect=retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=status_forcelist,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        return session
+
     # Class method to build the url from given hostname and port
-    def build_url(self, hostname):
+    def build_url(self, hostname, port):
         """
         :param hostname: This function will take hostname as argument
+        :param port: API exposed on port
         :return: url
         """
         url = None
@@ -62,14 +91,11 @@ class CheckRemoteUrl(object):
         elif re.search(r'acs', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
         # Added to check Health url on synthetics_agent
-        elif re.search(r'syntheticsagent1-1', hostname):
+        elif re.search(r'syntheticsagent|syntheticsmaster', hostname):
             url = "http://{0}.{1}.sfdc.net:{2}/health".format(hostname, self.domain, port)
-        elif not re.search(r'syntheticsagent1-1', hostname) and re.search(r'syntheticsagent', hostname):
-            url = "http://{0}.{1}.sfdc.net:{2}/executor/api/stats".format(hostname, self.domain, port)
         logging.debug("Built url {0}" .format(url))
         # print("Port is open for {}".format(hostname))
         return url
-
 
     # Class method to check the return code from remote url
     def check_return_code(self, url):
@@ -79,18 +105,24 @@ class CheckRemoteUrl(object):
         """
         try:
             logging.debug("Connecting to url {0}" .format(url))
-            ret = requests.get(url, allow_redirects=True)
+            try:
+                s = requests.Session()
+                ret = self.requests_retry_session(session=s).get(url)
+            except (ImportError, AttributeError) as err:
+                print("Import error {0}, ignoring retry...".format(err))
+                ret = requests.get(url, allow_redirects=True)
             if ret.status_code != 200:
-                print("Could not connect to remote url {0}".format(url))
+                print("Could not connect to remote url {0} ".format(url))
                 self.err_dict[url] = "ERROR"
             else:
-                print("Received 200 OK from remote url {0}" .format(url))
+                print("Received 200 OK from remote url {0} " .format(url))
         except requests.ConnectionError as e:
-            print("Couldn't connect to port {0} on remote url{1}" .format(port, url))
+            print("Couldn't connect to port {0} on remote url {1}" .format(port, url))
             self.err_dict[url] = "ERROR"
 
+    @staticmethod
     # Function to control the exit status
-    def exit_status(self):
+    def exit_status():
         """
         Function to give control to user to exit with status 1 OR 0 in case of any issue
         :return: 
@@ -125,10 +157,12 @@ def main():
             if failed_connect:
                 obj.exit_status()
         else:
-            ret_url = obj.build_url(host)
-            obj.check_return_code(ret_url)
+            for port in ports:
+                ret_url = obj.build_url(host, port)
+                obj.check_return_code(ret_url)
             if obj.err_dict:
                 obj.exit_status()
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="""This code is to check the return code from remote API
