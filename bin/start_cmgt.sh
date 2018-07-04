@@ -31,9 +31,6 @@ echo "CS Preprocessor Processes:        [STARTED]"
 sleep 10
 }
 
-# This service is active only in PHX, so we can use the DC proxy
-export HTTPS_PROXY=https://public0-proxy1-0-phx.data.sfdc.net:8080/
-
 if [ -f ${PIDFILE} ] 
   then
 	  #if pidfile exists check the correct process is running
