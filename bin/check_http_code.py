@@ -92,7 +92,10 @@ class CheckRemoteUrl(object):
             url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
         # Added to check Health url on synthetics_agent
         elif re.search(r'syntheticsagent|syntheticsmaster', hostname):
-            url = "http://{0}.{1}.sfdc.net:{2}/health".format(hostname, self.domain, port)
+            if port == "8086":  # Hack to hit specific endPoint
+                url = "http://{0}.{1}.sfdc.net:{2}/synthtx/main".format(hostname, self.domain, port)
+            else:
+                url = "http://{0}.{1}.sfdc.net:{2}/health".format(hostname, self.domain, port)
         logging.debug("Built url {0}" .format(url))
         # print("Port is open for {}".format(hostname))
         return url
