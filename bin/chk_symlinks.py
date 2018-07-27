@@ -7,10 +7,14 @@ import os
 import shutil
 import sys
 import subprocess
+import platform
 
 BOOT_DIR = "/boot/grub/"
 GRUB_DIR = "/etc/"
 LS_CMD = "ls -ltr /etc/grub.conf"
+
+if platform.linux_distribution()[1].split('.')[0] == "7":
+    sys.exit(0)
 
 if not os.path.islink(GRUB_DIR + "grub.conf"):
     print "%s/grub.conf is not a symlink to %s/grub/conf ...correcting" % (GRUB_DIR, BOOT_DIR)
