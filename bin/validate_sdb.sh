@@ -27,33 +27,33 @@
 myname=$(basename "$0")
 echo "Starting $myname at $HOSTNAME on $(date) ..."
 
-if [[ "$USER" != "sdb" ]]; then
-  echo "Script must be run as 'sdb' user"
-  exit 1
+if [[ "$USER" != "sdb" ]] && [[ "$USER" != "root" ]] ; then
+    echo "Script must be run as 'sdb' or 'root' user"
+    exit 1
 fi
 
 # Location of the sdb ant targets
-SDB_ANT_TARGET_HOME=/home/"${USER?}"/current/sfdc-base/sayonaradb/build
+SDB_ANT_TARGET_HOME=/home/sdb/current/sfdc-base/sayonaradb/build
 # If does not exist, then simply return successfully
 #  since this implies that there is no sdb installed here
 #  and thus this node can be patched by CPT as any patching
 #  will certainly not cause an sdb outage
 cd ${SDB_ANT_TARGET_HOME?} || { echo "Cannot cd to ${SDB_ANT_TARGET_HOME?}"; exit 0; }
-./ant sdbcont.verify > /dev/null 2> /dev/null
+cd ${SDB_ANT_TARGET_HOME?};./ant sdbcont.verify > /dev/null 2> /dev/null
 rc=$?
 
 if [[ $rc != 0 ]]; then
-  echo "ant sdbcont.verify fails"
-  echo "Not suitable for patching"
-  exit 1
+    echo "ant sdbcont.verify fails"
+    echo "Not suitable for patching"
+    exit 1
 fi
 
-./ant sdbcont.standbylive > /dev/null 2> /dev/null
+cd ${SDB_ANT_TARGET_HOME?};./ant sdbcont.standbylive > /dev/null 2> /dev/null
 rc=$?
 if [[ $rc != 0 ]]; then
-  echo "ant sdbcont.standbylive fails"
-  echo "Not suitable for patching"
-  exit 1
+    echo "ant sdbcont.standbylive fails"
+    echo "Not suitable for patching"
+    exit 1
 fi
 
 echo "Suitable for patching"
