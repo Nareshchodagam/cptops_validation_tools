@@ -28,8 +28,8 @@ myname=$(basename "$0")
 echo "Starting $myname at $HOSTNAME on $(date) ..."
 
 if [[ "$USER" != "sdb" ]] && [[ "$USER" != "root" ]] ; then
-    echo "Script must be run as 'sdb' or 'root' user"
-    exit 1
+  echo "Script must be run as 'sdb' or 'root' user"
+  exit 1
 fi
 
 # Location of the sdb ant targets
@@ -43,17 +43,17 @@ cd ${SDB_ANT_TARGET_HOME?};./ant sdbcont.verify > /dev/null 2> /dev/null
 rc=$?
 
 if [[ $rc != 0 ]]; then
-    echo "ant sdbcont.verify fails"
-    echo "Not suitable for patching"
-    exit 1
+  echo "ant sdbcont.verify fails"
+  echo "Not suitable for patching"
+  exit 1
 fi
 
 cd ${SDB_ANT_TARGET_HOME?};./ant sdbcont.standbylive > /dev/null 2> /dev/null
 rc=$?
 if [[ $rc != 0 ]]; then
-    echo "ant sdbcont.standbylive fails"
-    echo "Not suitable for patching"
-    exit 1
+  echo "ant sdbcont.standbylive fails"
+  echo "Not suitable for patching"
+  exit 1
 fi
 
 echo "Suitable for patching"
