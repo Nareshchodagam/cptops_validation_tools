@@ -1,9 +1,16 @@
-#!/bin/bash
-# Return 0 if this node is suitable for CPT patching
-# Return 1 otherwise
+#!/usr/bin/env bash
 #
 # Run this script at a sayonara node as the effective
 # user 'sdb'
+#
+# Arguments: [ verify | stop | start ]
+#
+#
+# verify returns 0 if this node is suitable for patching
+# stop returns 0 if this nodes ./ant sdbcont.stop works
+# start returns 0 if this nodes ./ant sdbcont.start works
+#
+# Note that all commands succeed (return 0) if no sdb installed
 #
 # Suitable for patching means that should this node be rebooted
 # as a result of a CPT delivered OS patch
@@ -23,38 +30,64 @@
 # at least 1 active standby
 # If there is not at least 1 active standby, return 1
 #
-
 myname=$(basename "$0")
-echo "Starting $myname at $HOSTNAME on $(date) ..."
+SDB_ANT_TARGET_HOME=/home/sdb/current/sfdc-base/sayonaradb/build
+
+function verify {
+  local rc
+  ./ant sdbcont.verify > /dev/null 2> /dev/null
+  rc=$?
+  
+  if [[ $rc != 0 ]]; then
+    echo "ant sdbcont.verify fails"
+    echo "Not suitable for patching"
+    return 1
+  fi
+  
+  ./ant sdbcont.standbylive > /dev/null 2> /dev/null
+  rc=$?
+  if [[ $rc != 0 ]]; then
+    echo "ant sdbcont.standbylive fails"
+    echo "Not suitable for patching"
+    return 1
+  fi
+  return 0
+}
+
+function stop {
+  local rc
+  ./ant sdbcont.stop > /dev/null 2> /dev/null
+  rc=$?
+  return $rc
+}
+
+function start {
+  local rc
+  ./ant sdbcont.start > /dev/null 2> /dev/null
+  rc=$?
+  return $rc
+}
+
+echo "Starting $myname $1 at $HOSTNAME on $(date) ..."
 
 if [[ "$USER" != "sdb" ]] && [[ "$USER" != "root" ]] ; then
   echo "Script must be run as 'sdb' or 'root' user"
   exit 1
 fi
 
-# Location of the sdb ant targets
-SDB_ANT_TARGET_HOME=/home/sdb/current/sfdc-base/sayonaradb/build
-# If does not exist, then simply return successfully
-#  since this implies that there is no sdb installed here
-#  and thus this node can be patched by CPT as any patching
-#  will certainly not cause an sdb outage
-cd ${SDB_ANT_TARGET_HOME?} || { echo "Cannot cd to ${SDB_ANT_TARGET_HOME?}"; exit 0; }
-cd ${SDB_ANT_TARGET_HOME?};./ant sdbcont.verify > /dev/null 2> /dev/null
+# Script is a no-op if no sdb container installed
+cd ${SDB_ANT_TARGET_HOME?} 2> /dev/null || { echo "Cannot cd to ${SDB_ANT_TARGET_HOME?}.  Returning 0."; exit 0; }
+
+if [[ $1 == "verify" ]]; then
+  verify
+elif [[ $1 == "stop" ]]; then
+  stop
+elif [[ $1 == "start" ]]; then
+  start
+else
+  false
+fi
 rc=$?
 
-if [[ $rc != 0 ]]; then
-  echo "ant sdbcont.verify fails"
-  echo "Not suitable for patching"
-  exit 1
-fi
-
-cd ${SDB_ANT_TARGET_HOME?};./ant sdbcont.standbylive > /dev/null 2> /dev/null
-rc=$?
-if [[ $rc != 0 ]]; then
-  echo "ant sdbcont.standbylive fails"
-  echo "Not suitable for patching"
-  exit 1
-fi
-
-echo "Suitable for patching"
-exit 0
+echo "$myname $1 returning $rc"
+exit $rc
