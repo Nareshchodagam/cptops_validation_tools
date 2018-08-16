@@ -35,7 +35,7 @@ SDB_ANT_TARGET_HOME=/home/sdb/current/sfdc-base/sayonaradb/build
 
 function verify {
   local rc
-  ./ant sdbcont.verify > /dev/null 2> /dev/null
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
   rc=$?
   
   if [[ $rc != 0 ]]; then
@@ -44,7 +44,7 @@ function verify {
     return 1
   fi
   
-  ./ant sdbcont.standbylive > /dev/null 2> /dev/null
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.standbylive"
   rc=$?
   if [[ $rc != 0 ]]; then
     echo "ant sdbcont.standbylive fails"
@@ -56,22 +56,24 @@ function verify {
 
 function stop {
   local rc
-  ./ant sdbcont.stop > /dev/null 2> /dev/null
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.stop"
   rc=$?
   return $rc
 }
 
 function start {
   local rc
-  ./ant sdbcont.start > /dev/null 2> /dev/null
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.start"
   rc=$?
   return $rc
 }
 
+###########################################################
+
 echo "Starting $myname $1 at $HOSTNAME on $(date) ..."
 
-if [[ "$USER" != "sdb" ]] && [[ "$USER" != "root" ]] ; then
-  echo "Script must be run as 'sdb' or 'root' user"
+if [[ "$USER" != "root" ]] ; then
+  echo "Script must be run as 'root' user, not $USER user"
   exit 1
 fi
 
