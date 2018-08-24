@@ -35,6 +35,17 @@ SDB_ANT_TARGET_HOME=/home/sdb/current/sfdc-base/sayonaradb/build
 
 function verifypost {
   local rc
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;ls .pre_reboot_verify_failed"
+  rc=$?
+  if [[ $rc == 0 ]]; then
+    # if the container wasn't good before the reboot, no need to
+    # check it after
+    echo "skip ant sdbcont.verify as container wasn't up before patching"
+    su - sdb -c "cd $SDB_ANT_TARGET_HOME;rm -f .pre_reboot_verify_failed"
+    rc=$?
+    return $rc
+  fi
+  
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
   rc=$?
   
@@ -53,8 +64,10 @@ function verify {
   rc=$?
   
   if [[ $rc != 0 ]]; then
+    su - sdb -c "cd $SDB_ANT_TARGET_HOME;touch .pre_reboot_verify_failed"
     echo "ant sdbcont.verify fails"
-    echo "Not suitable for patching"
+    echo "Will allow patch to proceed and not verify after the patch"
+    rc=0
     return $rc
   fi
   
