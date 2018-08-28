@@ -3,7 +3,7 @@
 # Run this script at a sayonara node as the effective
 # user 'sdb'
 #
-# Arguments: [ verify | stop | start ]
+# Arguments: [ verify | verifypost | stop | start ]
 #
 #
 # verify returns 0 if this node is suitable for patching
@@ -33,15 +33,42 @@
 myname=$(basename "$0")
 SDB_ANT_TARGET_HOME=/home/sdb/current/sfdc-base/sayonaradb/build
 
+function verifypost {
+  local rc
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;ls .pre_reboot_verify_failed"
+  rc=$?
+  if [[ $rc == 0 ]]; then
+    # if the container wasn't good before the reboot, no need to
+    # check it after
+    echo "skip ant sdbcont.verify as container wasn't up before patching"
+    su - sdb -c "cd $SDB_ANT_TARGET_HOME;rm -f .pre_reboot_verify_failed"
+    rc=$?
+    return $rc
+  fi
+  
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
+  rc=$?
+  
+  if [[ $rc != 0 ]]; then
+    echo "ant sdbcont.verify fails"
+    echo "Post patch validation failed"
+    return $rc
+  fi
+  
+  return 0
+}
+
 function verify {
   local rc
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
   rc=$?
   
   if [[ $rc != 0 ]]; then
+    su - sdb -c "cd $SDB_ANT_TARGET_HOME;touch .pre_reboot_verify_failed"
     echo "ant sdbcont.verify fails"
-    echo "Not suitable for patching"
-    return 1
+    echo "Will allow patch to proceed and not verify after the patch"
+    rc=0
+    return $rc
   fi
   
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.standbylive"
@@ -49,7 +76,7 @@ function verify {
   if [[ $rc != 0 ]]; then
     echo "ant sdbcont.standbylive fails"
     echo "Not suitable for patching"
-    return 1
+    return $rc
   fi
   return 0
 }
@@ -82,6 +109,8 @@ cd ${SDB_ANT_TARGET_HOME?} 2> /dev/null || { echo "Cannot cd to ${SDB_ANT_TARGET
 
 if [[ $1 == "verify" ]]; then
   verify
+elif [[ $1 == "verifypost" ]]; then
+  verifypost
 elif [[ $1 == "stop" ]]; then
   stop
 elif [[ $1 == "start" ]]; then
