@@ -1,9 +1,11 @@
-#!/usr/bin/env python
+#!/opt/sfdc/python27/bin/python
 from optparse import OptionParser
 import logging
 import socket
 import re
 import sys
+import os
+import json
 from _socket import gaierror
 
 def recvall(s):
@@ -45,8 +47,81 @@ def parseData(data):
             logging.debug(d)
             running = True
     return running
-            
-            
+
+def getLeader(data):
+    zkleader = False
+    for d in data.split('\n'):
+        if re.match(r'Mode: leader', d):
+            logging.debug(d)
+            zkleader = True
+    return zkleader
+
+def create_list(case_list, master_list):
+    '''
+    Function to modify the existing hostlist.
+    :return:
+    '''
+    active_host = get_current(case_list)
+    if active_host == "":
+        with open(master_list, 'r') as master, open(case_list, 'w') as case:
+            raw_data = json.load(master)
+            case.write(raw_data['follower'][0])
+        sys.exit(0)
+    else:
+        rebuild_list(case_list, master_list, active_host)
+
+
+def rebuild_list(case_list, master_list, active_host):
+    '''
+
+    :param case_list:
+    :param master_list:
+    :return:
+    '''
+    with open(master_list, 'r') as master:
+        raw_data = json.load(master)
+
+    try:
+        index = raw_data['follower'].index(active_host)
+        raw_data['follower'].pop(index)
+    except ValueError:
+        print "No More servers to process"
+        cleanup(case_list, master_list)
+        sys.exit(0)
+    fh = open(master_list, 'w')
+    json.dump(raw_data, fh)
+    fh.close()
+    if len(raw_data['follower']) != 0:
+        fh = open(case_list, 'w')
+        fh.write(raw_data['follower'][0])
+        fh.close
+    else:
+        fh = open(case_list, 'w')
+        fh.write(raw_data['leader'][0])
+        fh.close
+
+    return master_list
+
+def get_current(case_list):
+    '''
+    Function to get the current host.
+    :return:
+    '''
+    try:
+        fh = open(case_list, 'r')
+        curr_host = fh.readline().rstrip("\n")
+        fh.close()
+    except IOError:
+        curr_host = ""
+    return curr_host
+
+def cleanup(case_list, master_list):
+    '''
+    Remove all files created by program.
+    :return:
+    '''
+    os.remove(case_list)
+    os.remove(master_list)
 
 if __name__ == '__main__':
     usage = """
@@ -57,6 +132,9 @@ if __name__ == '__main__':
     parser.add_option("-H", "--hostlist", dest="hostlist", help="The hostlist for the change")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
     parser.add_option("-b", action="store_true", dest="buildlist", default=False, help="Builds hostlist for Search Zookeeper.")
+    parser.add_option("--byleader", dest="byleader", action="store_true", default="False", help="Patch servers by leader.")
+    parser.add_option("-c", "--case_num", dest="casenum", help="Case number.")
+    parser.add_option("-u", "--update", dest="update", action="store_true", help="Update caselist")
     parser.add_option("-r", dest="role", help="Role")
     (options, args) = parser.parse_args()
     if options.verbose:
@@ -87,7 +165,33 @@ if __name__ == '__main__':
                  for num in range(41, 46):
                     hostlist.append("%s-searchzk%d-1-%s" % (head, num, dc))
         logging.debug(hostlist)
-    if options.hostlist:
+
+    if options.update == True:
+        case_list = "{}/{}_include".format(os.path.expanduser('~'), options.casenum)
+        master_list = "{}/{}_master".format(os.path.expanduser('~'), options.casenum)
+        create_list(case_list, master_list)
+        sys.exit(0)
+
+    if options.hostlist and options.byleader == True:
+        case_list = "{}/{}_include".format(os.path.expanduser('~'), options.casenum)
+        master_list = "{}/{}_master".format(os.path.expanduser('~'), options.casenum)
+        zkcluster={"follower": [], "leader": []}
+        hostlist = options.hostlist.split(',')
+        for h in hostlist:
+            status = getStat(h)
+            zkleader = getLeader(status)
+            if zkleader == True:
+                logging.debug(h)
+                zkcluster['leader'].append(h)
+            else:
+                zkcluster['follower'].append(h)
+        with open(master_list, 'w') as master:
+            data = json.dumps(zkcluster)
+            master.write(data)
+            master.close()
+        create_list(case_list, master_list)
+        sys.exit(0)
+    if options.hostlist and options.leader == False:
         hostlist = options.hostlist.split(',')
     for h in hostlist:
         status = getStat(h)
