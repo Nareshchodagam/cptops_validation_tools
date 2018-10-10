@@ -114,9 +114,10 @@ bin_files = ['bin/check_mq_buddy.py',
              'cptops_nagios/bin/nagiosmultiprocessing.py',
              'decomm/decomm_idb.py',
              'decomm/get_RR_logs.py',
-              'bin/check_master.py',
+             'bin/check_master.py',
              'ssa/inst_role_external_validation.py',
-             'ssa/ns_role_external_validation.py']
+             'ssa/ns_role_external_validation.py',
+             'core/bin/screen_auto.sh']
 
 auth_files = ['cptops_idbhost/auth/internal_ca.pem']
 
