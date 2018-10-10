@@ -67,6 +67,7 @@ git clone git@git.soma.salesforce.com:CPT/cptops_gus_base.git $HERE/cptops_gus_b
 git clone git@git.soma.salesforce.com:CPT/decomm.git $HERE/decomm -b master
 git clone git@git.soma.salesforce.com:CPT/cptops_sysfiles.git $HERE/sysfiles -b master
 git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds.git $HERE/cptops_exec_with_creds -b master
+git clone git@git.soma.salesforce.com:CPT/cptops_core.git $HERE/core -b master
 git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $HERE/ssa -b master
 git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $HERE/sec_patch -b master
 
