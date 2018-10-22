@@ -191,7 +191,7 @@ if __name__ == '__main__':
             master.close()
         create_list(case_list, master_list)
         sys.exit(0)
-    if options.hostlist and options.leader == False:
+    if options.hostlist and options.byleader == False:
         hostlist = options.hostlist.split(',')
     for h in hostlist:
         status = getStat(h)
