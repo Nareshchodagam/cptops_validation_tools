@@ -13,7 +13,7 @@ import subprocess
 import shlex
 import sys
 
-tmpDir='/tmp/'
+tmpDir='~'
 
 def recordStatus(procName, procString):
     proc_cmd = 'ps -ef | egrep -v "grep|python|sudo" | grep "' + procString + '"'
