@@ -28,27 +28,26 @@ def update_clusterconfig(clustername, status):
           + clustername + " -action read | grep  patching_inprogress -A1"
     output = update_iDB(cmd)
     if output:
-        if output:
-            if status and 'false' in output.lower():
-                logger.info("Updating cluster config patching_inprogress true for "
+        if status and 'false' in output.lower():
+            logger.info("Updating cluster config patching_inprogress true for "
                             "cluster {0} ".format(clustername))
-                value = "true"
-            elif not status and 'true' in output.lower():
-                logger.info("Updating cluster config patching_inprogress false for "
+            value = "true"
+        elif not status and 'true' in output.lower():
+            logger.info("Updating cluster config patching_inprogress false for "
                             "cluster {0} ".format(clustername))
-                value = "false"
-            else:
-                logger.info("Cluster config patching_inprgress is already updated for "
+            value = "false"
+        else:
+            logger.info("Cluster config patching_inprgress is already updated for "
                             "cluster {0} ".format(clustername))
-                logger.debug(output)
-                value = "None"
-            if value != "None":
-                cmd = "inventory-action.pl -use_krb_auth -resource " \
-                  "cluster -name " + clustername + " -action update -updateFields " \
+            logger.debug(output)
+            value = "None"
+        if value != "None":
+            cmd = "inventory-action.pl -use_krb_auth -resource " \
+                    "cluster -name " + clustername + " -action update -updateFields " \
                                                    "'clusterConfig.type=all,clusterConfig.key=patching_inprogress," \
                                                    "clusterConfig.value="+ value +"' | grep patching -A1"
-                output = update_iDB(cmd)
-                logger.info(output)
+            output = update_iDB(cmd)
+            logger.info(output)
     else:
         logger.error("cluster config patching_inprogress not found")
 
