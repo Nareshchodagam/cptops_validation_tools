@@ -41,13 +41,14 @@ def update_clusterconfig(clustername, status):
                 logger.info("Cluster config patching_inprgress is already updated for "
                             "cluster {0} ".format(clustername))
                 logger.debug(output)
-                exit(0)
-            cmd = "inventory-action.pl -use_krb_auth -resource " \
+                value = "None"
+            if value != "None":
+                cmd = "inventory-action.pl -use_krb_auth -resource " \
                   "cluster -name " + clustername + " -action update -updateFields " \
                                                    "'clusterConfig.type=all,clusterConfig.key=patching_inprogress," \
                                                    "clusterConfig.value="+ value +"' | grep patching -A1"
-        output = update_iDB(cmd)
-        logger.info(output)
+                output = update_iDB(cmd)
+                logger.info(output)
     else:
         logger.error("cluster config patching_inprogress not found")
 
@@ -71,13 +72,14 @@ def update_hostconfig(host, status):
         else:
             logger.info("Host config disable_host_alerts is already updated for host {0} ".format(host))
             logger.debug(output)
-            exit(0)
-        cmd = "inventory-action.pl -use_krb_auth -resource host -name" \
+            value = "None"
+        if value != "None":
+            cmd = "inventory-action.pl -use_krb_auth -resource host -name" \
               " "+ host +" -action update -updateFields " \
                          "'hostConfig.applicationProfileName=hbase," \
                          "hostConfig.key=disable_host_alerts,hostConfig.value="+ value +"'| grep disable_host_alerts -A1"
-        output = update_iDB(cmd)
-        logger.info(output)
+            output = update_iDB(cmd)
+            logger.info(output)
     else:
         logger.error("host config disable_host_alerts not found")
 
