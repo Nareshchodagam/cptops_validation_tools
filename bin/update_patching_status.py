@@ -40,8 +40,8 @@ def update_clusterconfig(clustername, status):
             logger.info("Cluster config patching_inprgress is already updated for "
                             "cluster {0} ".format(clustername))
             logger.debug(output)
-            value = "None"
-        if value != "None":
+            value = None
+        if value is not None:
             cmd = "inventory-action.pl -use_krb_auth -resource " \
                     "cluster -name " + clustername + " -action update -updateFields " \
                                                    "'clusterConfig.type=all,clusterConfig.key=patching_inprogress," \
@@ -71,8 +71,8 @@ def update_hostconfig(host, status):
         else:
             logger.info("Host config disable_host_alerts is already updated for host {0} ".format(host))
             logger.debug(output)
-            value = "None"
-        if value != "None":
+            value = None
+        if value is not None:
             cmd = "inventory-action.pl -use_krb_auth -resource host -name" \
               " "+ host +" -action update -updateFields " \
                          "'hostConfig.applicationProfileName=hbase," \
