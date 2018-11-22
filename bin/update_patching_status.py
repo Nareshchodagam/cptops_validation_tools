@@ -25,9 +25,9 @@ def update_clusterconfig(clustername, status):
     :return:
     """
     cmd = "inventory-action.pl -use_krb_auth -resource cluster  -name "\
-          + clustername + " -action read | grep  patching_inprogress -A1"
+          + clustername + " -action read | egrep -i 'patching_inprogress|hbaseReleaseStatus' -A1"
     output = update_iDB(cmd)
-    if output:
+    if 'complete' in output.lower():
         if status and 'false' in output.lower():
             logger.info("Updating cluster config patching_inprogress true for "
                             "cluster {0} ".format(clustername))
@@ -37,7 +37,7 @@ def update_clusterconfig(clustername, status):
                             "cluster {0} ".format(clustername))
             value = "false"
         else:
-            logger.info("Cluster config patching_inprgress is already updated for "
+            logger.info("Cluster config patching_inprogress is already updated for "
                             "cluster {0} ".format(clustername))
             logger.debug(output)
             value = None
@@ -48,8 +48,10 @@ def update_clusterconfig(clustername, status):
                                                    "clusterConfig.value="+ value +"' | grep patching -A1"
             output = update_iDB(cmd)
             logger.info(output)
+    elif 'complete' not in output.lower():
+        logger.error("HbaseReleaseStatus is not COMPLETE")
     else:
-        logger.error("cluster config patching_inprogress not found")
+        logger.error("Cluster config HbaseReleaseStatus|patching_inprogress not found")
 
 
 def update_hostconfig(host, status):
