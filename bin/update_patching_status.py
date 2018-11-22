@@ -49,9 +49,11 @@ def update_clusterconfig(clustername, status):
             output = update_iDB(cmd)
             logger.info(output)
     elif 'complete' not in output.lower():
-        logger.error("HbaseReleaseStatus is not COMPLETE")
+        logger.error("HbaseReleaseStatus is not COMPLETE for cluster {0} ".format(clustername))
+        exit(1)
     else:
-        logger.error("Cluster config HbaseReleaseStatus|patching_inprogress not found")
+        logger.error("Cluster config HbaseReleaseStatus|patching_inprogress not found for cluster {0} ".format(clustername))
+        exit(1)
 
 
 def update_hostconfig(host, status):
@@ -82,7 +84,7 @@ def update_hostconfig(host, status):
             output = update_iDB(cmd)
             logger.info(output)
     else:
-        logger.error("host config disable_host_alerts not found")
+        logger.error("host config disable_host_alerts not found for host {0}".format(host))
 
 if __name__ == "__main__":
 
