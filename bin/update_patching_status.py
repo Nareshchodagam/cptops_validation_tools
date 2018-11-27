@@ -53,6 +53,7 @@ def update_clusterconfig(clustername, status):
         exit(1)
     else:
         logger.error("Cluster config HbaseReleaseStatus|patching_inprogress not found for cluster {0} ".format(clustername))
+        logger.error("Contact Bigdata operations")
         exit(1)
 
 
@@ -82,9 +83,11 @@ def update_hostconfig(host, status):
                          "'hostConfig.applicationProfileName=hbase," \
                          "hostConfig.key=disable_host_alerts,hostConfig.value="+ value +"'| grep disable_host_alerts -A1"
             output = update_iDB(cmd)
-            logger.info(output)
     else:
-        logger.error("host config disable_host_alerts not found for host {0}".format(host))
+        value = "true" if status else "false"
+        cmd = "inventory-action.pl -use_krb_auth -resource host -name " + host + " -action create -updateFields 'hostConfig.applicationProfileName=hbase,hostConfig.key=disable_host_alerts,hostConfig.value="+ value +"'| grep disable_host_alerts -A1"
+        output = update_iDB(cmd)
+    logger.info(output)
 
 if __name__ == "__main__":
 
