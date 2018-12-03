@@ -2,9 +2,10 @@
 #imports
 
 from sys import exit
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, CalledProcessError
 from argparse import ArgumentParser
 import logging
+from multiprocessing import Pool, cpu_count
 
 
 def update_iDB(cmd):
@@ -13,9 +14,41 @@ def update_iDB(cmd):
     :param cmd: command to run
     :return:
     """
-    command = Popen([cmd], stdout=PIPE, shell=True)
-    (output, _) = command.communicate()
+    try:
+        command = Popen([cmd], stdout=PIPE, shell=True)
+        (output, err) = command.communicate()
+    except CalledProcessError as error:
+        logger.error(error)
+        exit(1)
     return output
+
+def idb_command(is_cluster, name, action, value):
+    """
+    This function creates idb command
+    :param is_cluster: true if name is cluster or false if name is host
+    :param name: clustername | hostname
+    :param action: read|update|create
+    :param value: true or false
+    :return: idb command
+    """
+    if is_cluster:
+        if action == "read":
+            cmd = "inventory-action.pl -use_krb_auth -resource cluster  -name "\
+             + name + " -action "+ action +" | egrep -i 'patching_inprogress|hbaseReleaseStatus' -A1"
+        else:
+            cmd = "inventory-action.pl -use_krb_auth -resource " \
+                    "cluster -name " + name + " -action "+ action +" -updateFields " \
+                                                   "'clusterConfig.type=all,clusterConfig.key=patching_inprogress," \
+                                                   "clusterConfig.value="+ value +"' | grep patching -A1"
+    else:
+        if action == "read":
+            cmd = "inventory-action.pl -use_krb_auth -resource host -name "+ name +"  -action "+ action +" | grep -w 'disable_host_alerts' -A1"
+        else:
+            cmd = "inventory-action.pl -use_krb_auth -resource host -name" \
+              " " + name + " -action "+ action +" -updateFields " \
+                           "'hostConfig.applicationProfileName=hbase," \
+                           "hostConfig.key=disable_host_alerts,hostConfig.value=" + value + "'| grep disable_host_alerts -A1"
+    return cmd
 
 def update_clusterconfig(clustername, status):
     """
@@ -24,37 +57,39 @@ def update_clusterconfig(clustername, status):
     :param status: value of patching_inprogress
     :return:
     """
-    cmd = "inventory-action.pl -use_krb_auth -resource cluster  -name "\
-          + clustername + " -action read | egrep -i 'patching_inprogress|hbaseReleaseStatus' -A1"
+    is_cluster = True
+    value = None
+    action = "read"
+    cmd = idb_command(is_cluster, clustername, action, value)
     output = update_iDB(cmd)
-    if 'complete' in output.lower():
-        if status and 'false' in output.lower():
-            logger.info("Updating cluster config patching_inprogress true for "
+    if output:
+        if 'complete' in output.lower():
+            if status and 'false' in output.lower():
+                logger.info("Updating cluster config patching_inprogress true for "
                             "cluster {0} ".format(clustername))
-            value = "true"
-        elif not status and 'true' in output.lower():
-            logger.info("Updating cluster config patching_inprogress false for "
+                value = "true"
+            elif not status and 'true' in output.lower():
+                logger.info("Updating cluster config patching_inprogress false for "
                             "cluster {0} ".format(clustername))
-            value = "false"
-        else:
-            logger.info("Cluster config patching_inprogress is already updated for "
+                value = "false"
+            else:
+                logger.info("Cluster config patching_inprogress is already updated for "
                             "cluster {0} ".format(clustername))
-            logger.debug(output)
-            value = None
-        if value is not None:
-            cmd = "inventory-action.pl -use_krb_auth -resource " \
-                    "cluster -name " + clustername + " -action update -updateFields " \
-                                                   "'clusterConfig.type=all,clusterConfig.key=patching_inprogress," \
-                                                   "clusterConfig.value="+ value +"' | grep patching -A1"
-            output = update_iDB(cmd)
-            logger.info(output)
-    elif 'complete' not in output.lower():
-        logger.error("HbaseReleaseStatus is not COMPLETE for cluster {0} ".format(clustername))
-        exit(1)
+                logger.debug(output)
+        elif 'complete' not in output.lower():
+            logger.error("HbaseReleaseStatus is not COMPLETE for cluster {0} ".format(clustername))
+            raise Exception('known exception')
+
     else:
         logger.error("Cluster config HbaseReleaseStatus|patching_inprogress not found for cluster {0} ".format(clustername))
         logger.error("Contact Bigdata operations")
-        exit(1)
+        raise Exception('known exception')
+        # Update idb
+    if value is not None:
+        action = "update"
+        cmd = idb_command(is_cluster, clustername, action, value)
+        output = update_iDB(cmd)
+        logger.info(output)
 
 
 def update_hostconfig(host, status):
@@ -64,9 +99,13 @@ def update_hostconfig(host, status):
     :param status: value of disable_host_alerts
     :return:
     """
-    cmd = "inventory-action.pl -use_krb_auth -resource host -name "+ host +"  -action read | grep -w 'disable_host_alerts' -A1"
+    is_cluster = False
+    value = None
+    action = "read"
+    cmd = idb_command(is_cluster, host, action, value)
     output = update_iDB(cmd)
     if output:
+        action = "update"
         if status and 'false' in output.lower():
             logger.info("Updating host config disable_host_alerts true for host {0} ".format(host))
             value = "true"
@@ -77,26 +116,23 @@ def update_hostconfig(host, status):
             logger.info("Host config disable_host_alerts is already updated for host {0} ".format(host))
             logger.debug(output)
             value = None
-        if value is not None:
-            cmd = "inventory-action.pl -use_krb_auth -resource host -name" \
-              " "+ host +" -action update -updateFields " \
-                         "'hostConfig.applicationProfileName=hbase," \
-                         "hostConfig.key=disable_host_alerts,hostConfig.value="+ value +"'| grep disable_host_alerts -A1"
-            output = update_iDB(cmd)
     else:
         value = "true" if status else "false"
-        cmd = "inventory-action.pl -use_krb_auth -resource host -name " + host + " -action create -updateFields 'hostConfig.applicationProfileName=hbase,hostConfig.key=disable_host_alerts,hostConfig.value="+ value +"'| grep disable_host_alerts -A1"
+        action = "create"
+    # update idb
+    if value is not None:
+        cmd = idb_command(is_cluster, host, action, value)
         output = update_iDB(cmd)
-    logger.info(output)
+        logger.info(output)
 
 if __name__ == "__main__":
 
     parser = ArgumentParser(prog='update_patching_status.py',
-                            usage='\n%(prog)s --start --host|--cluster'
-                                  ' <hostname>|<clustername>\n%(prog)s --end --host <hostname> --cluster <clustername>')
+                            usage='\n%(prog)s --start --host|cluster'
+                                  ' <hostname>|<clustername>\n%(prog)s --host|cluster <hostname>|<clustername>')
     parser.add_argument("--start", "-s", dest="start", action="store_true", default=False,
-                        help="To update patching progress in iDB")
-    parser.add_argument("--host", dest="hostnames", help="HostNames")
+                        help="Update patching progress in iDB")
+    parser.add_argument("--host", dest="hostnames", help="Host name")
     parser.add_argument("--cluster", dest="clusters", help="cluster name")
     parser.add_argument("--verbose", "-v", action="store_true", dest="verbose", default=False, help="verbosity")
 
@@ -108,19 +144,24 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
+    processes = cpu_count()
+    pool = Pool(processes)
     if args.hostnames:
         if not isinstance(args.hostnames, list):
             hosts = args.hostnames.split(',')
         else:
             hosts = args.hostnames
-        for host in hosts:
-            update_hostconfig(host, args.start)
+        _ = [pool.apply(update_hostconfig, args=(host, args.start)) for host in hosts]
     elif args.clusters:
         if not isinstance(args.clusters, list):
             cluster = args.clusters.split(',')
         else:
             cluster = args.clusters
-        for clust in cluster:
-            update_clusterconfig(clust, args.start)
+        try:
+            [pool.apply(update_clusterconfig, args=(clust, args.start)) for clust in cluster]
+        except Exception as error:
+            exit(1)
     else:
         logger.error("hostname or clustername required")
+    pool.close()
+    pool.join()
