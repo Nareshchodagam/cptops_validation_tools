@@ -158,7 +158,7 @@ if __name__ == "__main__":
         else:
             cluster = args.clusters
         try:
-            [pool.apply(update_clusterconfig, args=(clust, args.start)) for clust in cluster]
+            _ = [pool.apply(update_clusterconfig, args=(clust, args.start)) for clust in cluster]
         except Exception as error:
             exit(1)
     else:
