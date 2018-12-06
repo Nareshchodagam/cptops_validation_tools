@@ -3,7 +3,9 @@
 
 sleep 60
 
-MASTER1=$(grep -A3 ^$(grep default_realm /etc/krb5.conf | awk '{print $NF}') /etc/krb5.conf | grep admin_server | awk '{print $NF}')
+KRB_REALM=$(head /etc/sysconfig/krb5kdc | awk '{print $NF}')
+
+MASTER1=$(egrep -A3 "^\s*${KRB_REALM}" /etc/krb5.conf | grep admin_server | awk '{print $NF}')
 MASTER=$(dig ${MASTER1} CNAME +short | sed 's/\.$//')
 
 [ -z "$MASTER" ] && MASTER=${MASTER1}
