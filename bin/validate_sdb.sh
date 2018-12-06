@@ -45,7 +45,12 @@ function verifypost {
     rc=$?
     return $rc
   fi
-  
+ 
+  # Container was good before the reboot, so try to start it  
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.start"
+  sleep 5
+
+  # Now verify it
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
   rc=$?
   
@@ -54,7 +59,7 @@ function verifypost {
     echo "Post patch validation failed"
     return $rc
   fi
-  
+
   return 0
 }
 
