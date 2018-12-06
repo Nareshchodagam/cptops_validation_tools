@@ -62,7 +62,7 @@ def update_clusterconfig(clustername, status):
     action = "read"
     cmd = idb_command(is_cluster, clustername, action, value)
     output = update_iDB(cmd)
-    if output:
+    if ('patching_inprogress' in output.lower() and 'HbaseReleaseStatus' in output.lower()):
         if 'complete' in output.lower():
             if status and 'false' in output.lower():
                 logger.info("Updating cluster config patching_inprogress true for "
@@ -76,11 +76,11 @@ def update_clusterconfig(clustername, status):
                 logger.info("Cluster config patching_inprogress is already updated for "
                             "cluster {0} ".format(clustername))
                 logger.debug(output)
-        elif 'complete' not in output.lower():
+        else:
             logger.error("HbaseReleaseStatus is not COMPLETE for cluster {0} ".format(clustername))
             raise Exception('known exception')
-
     else:
+        logger.debug(output)
         logger.error("Cluster config HbaseReleaseStatus|patching_inprogress not found for cluster {0} ".format(clustername))
         logger.error("Contact Bigdata operations")
         raise Exception('known exception')
