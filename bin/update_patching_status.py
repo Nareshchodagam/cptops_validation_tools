@@ -62,7 +62,7 @@ def update_clusterconfig(clustername, status):
     action = "read"
     cmd = idb_command(is_cluster, clustername, action, value)
     output = update_iDB(cmd)
-    if ('patching_inprogress' in output.lower() and 'HbaseReleaseStatus' in output.lower()):
+    if ('patching_inprogress' in output.lower() and 'hbasereleasestatus' in output.lower()):
         if 'complete' in output.lower():
             if status and 'false' in output.lower():
                 logger.info("Updating cluster config patching_inprogress true for "
