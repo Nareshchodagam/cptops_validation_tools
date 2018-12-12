@@ -5,7 +5,7 @@ function running {
 
 sleep 10
 n=0
-until [ $n -ge 3 ]
+until [ $n -ge 5 ]
 do
  systemctl is-active --quiet seciamsvc
   if [ $? -eq 0 ]
