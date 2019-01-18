@@ -134,8 +134,7 @@ def Updater(item):
     :return:
     """
     #convert string to list
-    string_var = readfile(options.case)
-    string_var = string_var.rstrip()
+    string_var = readfile(options.case).rstrip()
     temp_list = set(string_var.split(','))
     #check if the list contains the item string
     if item in temp_list:
