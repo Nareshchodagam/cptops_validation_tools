@@ -3,7 +3,7 @@
 
 function running {
 
-sleep 10
+sleep 60
 n=0
 until [ $n -ge 5 ]
 do
@@ -15,9 +15,9 @@ do
         exit 0
   else
          RETVAL1=1
-         echo "${HOSTNAME}:SECDS: [DEPLOYED but not RUNNING]. Checking again in 1 min"
+         echo "${HOSTNAME}:SECDS: [DEPLOYED but not RUNNING]. Checking again in 2 min"
          n=$[$n+1]
-         sleep 60
+         sleep 2m
   fi
 done
 
