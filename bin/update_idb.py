@@ -108,7 +108,7 @@ def readfile(case):
     :param case: caseNumber
     :return: contents of host file
     """
-    filename = case + "_include"
+    filename = "~/" + case + "_include"
     with open(filename) as f:
         string_var = f.read()
     return string_var
@@ -120,10 +120,10 @@ def writefile(case, updated_host, downhost):
     :param updated_host: updated host list
     :return: updated host file
     """
-    filename = case + "_include"
+    filename = "~/" + case + "_include"
     with open(filename, 'w') as f:
         f.write(updated_host + "\n")
-    excludefile = case + "_exclude"
+    excludefile = "~/" + case + "_exclude"
     with open(excludefile, 'a') as f:
         f.write(downhost + " - IN_MAINTENANCE\n")
 
