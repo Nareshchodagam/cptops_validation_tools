@@ -46,7 +46,7 @@ def check_ssh(ip):
     """
     result = False
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(2)
+    sock.settimeout(10)
     try:
         sock.connect((ip, 22))
         logger.debug(sock.connect((ip, 22)))
