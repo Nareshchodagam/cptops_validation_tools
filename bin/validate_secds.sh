@@ -28,7 +28,10 @@ exit 1
 
 
 RPM_CHECK=$(rpm -qa | grep secds); RETVAL=$?
-if [ ${RETVAL} -eq 0 ]
+
+GET_Status=$(<~/Put-Status.txt)
+
+if [ ${RETVAL} -eq 0 ] && [ "$GET_Status" != 'NO' ]
         then
         running
 else
