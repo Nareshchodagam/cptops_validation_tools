@@ -38,7 +38,7 @@ assert execute "echo \"Check ${ROLE} package version is ${LATEST_VER}\" && [ $( 
 assert execute "echo \"Check ${ROLE} PID process\" && [ $( ${PGREP} ${ROLE} ) -gt 0 ]" 
 
 # Check if port is listening
-assert execute "echo \"Check ${ROLE} port is listening\" && [ $( ${NETSTAT} -tulpn 2>&1 | grep ':514' | wc -l ) -eq 2 ]" # 514 tcp + udp 
+assert execute "echo \"Check ${ROLE} port is listening\" && [ $( ${NETSTAT} -tulpn 2>&1 | grep ':514' | wc -l ) -ge 2 ]" # 514 tcp + udp 
 
 echo -e "\nFailed Checks: ${EXIT_CODES}"
 [[ ${EXIT_CODES} -eq 0 ]] && echo "Validation Result: PASSED" || echo "Validation Result: FAILED"
