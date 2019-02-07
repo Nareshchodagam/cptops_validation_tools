@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# validate_illumio_pce_service.sh 0.0.1
+# validate_polcore.sh 0.0.2
 # Orlando Castro
 #
 # If PCE does not properly start after reboot, this script will attempt to start PCE up to 3 times.
@@ -86,6 +86,7 @@ validate() {
             exit 0;;
          * )
             echo $?
+            # If CPT needs to add more time for Illumio startup do it here:
             sleep 27;;
       esac
    done
