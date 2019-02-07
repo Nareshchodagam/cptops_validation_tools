@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# validate_polcore.sh 0.0.3
+# validate_polcore.sh 0.0.4
 # Orlando Castro
 #
 # If PCE does not properly start after reboot, this script will attempt to start PCE up to 3 times.
@@ -23,7 +23,7 @@ check_status() {
             echo $?
             echo -e "${LGREEN}######### ${HOSTNAME} has joined the cluster #########${NC}"
             sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'status:' | egrep 'RUNNING' 2> /dev/nul
-            validate;;
+            validate_cluster;;
          * )
             echo $?
             echo -e "${YELLOW}######### ${HOSTNAME}: PCE startup FAILED! Checking again in 10 seconds. Test: $i of 3 #########${NC}"
@@ -47,8 +47,8 @@ start_pce() {
       case $? in
          0 )
             echo $?
-            # We see the pattern! Call validate()
-            validate;;
+            # We see the pattern! Call validate_cluster()
+            validate_cluster;;
          * )
             echo $?
             # If at first you don't succeed, try, try up to 3 times.
@@ -71,7 +71,7 @@ kill_pce() {
    ps auxww | egrep ilo-pc[e] && kill -9 $( ps auxww | egrep ilo-pc[e] | awk '{print $2}' )
 }
 
-validate() {
+validate_cluster() {
    # If we have reached this function, it should be smooth sailing from here on out...
    # Set sleep time according to role
    echo ${HOSTFUNC} | egrep 'poldata' && sleep_duration='54' || sleep_duration='27'
@@ -79,25 +79,43 @@ validate() {
    # Try up to 9 times, but typically 2 tries is enough. We can grant a little extra resilience here...
    for i in $( seq 9 )
    do
-      echo "Validate test ${i} of 9"
+      echo "Cluster validation test: ${i} of 9"
       sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'status:' | egrep 'RUNNING' 2> /dev/nul
       case $? in
          0 )
             echo $?
             sudo -u ${ILOUSER} ${PCE_CTL} cluster-status
-            echo -e "${LGREEN}######### ${HOSTNAME} has successfully joined the cluster #########${NC}"
-            exit 0;;
+            echo -e "${LGREEN}######### ${HOSTNAME} has successfully joined the cluster! #########${NC}"
+            echo ${HOSTFUNC} | egrep 'poldata' && validate_db || exit 0;;
          * )
             echo $?
             # If CPT needs to add more time for Illumio startup, adjust $sleep_duration near the top of this function.
             sleep ${sleep_duration};;
       esac
    done
-   # If validate() is being called, we should never get to this point. Adding below just in case...
+   # If validate_cluster() is being called, we should never get to this point. Adding below just in case...
    echo -e "${YELLOW}######### ${HOSTNAME} had startup issues. Please contact CryptoOps #########${NC}"
    echo -e "${YELLOW}FAILURE OUTPUT:${NC}"
    sudo -u ${ILOUSER} ${PCE_CTL} cluster-status
    exit 1
+}
+
+validate_db() {
+   for i in $( seq 9 )
+   do
+      echo "DB Validation test: ${i} of 9"
+      sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'NOT RUNNING' 2> /dev/nul
+      case $? in
+         0 )
+            echo $?
+            # If CPT needs to add more time for Illumio startup, adjust $sleep_duration near the top of this function.
+            sleep ${sleep_duration};;
+         * )
+            echo $?
+            echo -e "${LGREEN}######### ${HOSTNAME}: DB validation has been completed! #########${NC}"
+            exit 0;;
+      esac
+   done
 }
 
 check_status
