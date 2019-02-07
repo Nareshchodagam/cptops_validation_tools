@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# validate_polcore.sh 0.0.5
+# validate_polcore.sh 0.0.6
 # Orlando Castro
 #
 # If PCE does not properly start after reboot, this script will attempt to start PCE up to 3 times.
@@ -101,6 +101,7 @@ validate_cluster() {
 }
 
 validate_db() {
+   # Check to make sure db related functions in the cluster are running.
    for i in $( seq 9 )
    do
       echo "DB Validation test: ${i} of 9"
@@ -108,7 +109,6 @@ validate_db() {
       case $? in
          0 )
             echo $?
-            # If CPT needs to add more time for Illumio startup, adjust $sleep_duration near the top of this function.
             sleep ${sleep_duration};;
          * )
             echo $?
