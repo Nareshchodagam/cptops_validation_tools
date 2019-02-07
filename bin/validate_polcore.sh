@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# validate_polcore.sh 0.0.4
+# validate_polcore.sh 0.0.5
 # Orlando Castro
 #
 # If PCE does not properly start after reboot, this script will attempt to start PCE up to 3 times.
@@ -116,6 +116,7 @@ validate_db() {
             exit 0;;
       esac
    done
+   exit 0
 }
 
 check_status
