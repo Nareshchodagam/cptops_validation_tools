@@ -94,7 +94,7 @@ validate_cluster() {
          0 )
             echo $?
             sudo -u ${ILOUSER} ${PCE_CTL} cluster-status
-            echo -e "${LGREEN}######### ${HOSTNAME}: PCE status is set to RUNNING! #########${NC}"
+            echo -e "${LGREEN}######### ${HOSTNAME}: PCE cluster status is set to RUNNING! #########${NC}"
             # If this is a poldata host, call validate_db() else exit 0
             echo ${HOSTFUNC} | egrep 'poldata' && validate_db || exit 0;;
          * )
