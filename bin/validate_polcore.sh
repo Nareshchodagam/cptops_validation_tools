@@ -44,13 +44,13 @@ start_pce() {
    for i in $( seq 3 )
    do
       echo "PCE start attempt: ${i} of 3"
-      # We should see this pattern almost immediately after initial startup.
-      # The pattern is somewhat loose on purpose. The goal is to ensure successful patching.
+      # We should see this string almost immediately after initial startup.
+      # The regex is somewhat loose on purpose. The goal is to ensure successful patching.
       sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep NODES | awk -F\: '{print $3}' | egrep '[2-6] of [46]\)'
       case $? in
          0 )
             echo $?
-            # We see the pattern! Call validate_cluster()
+            # Regex match!! Call validate_cluster()
             validate_cluster;;
          * )
             echo $?
