@@ -141,6 +141,7 @@ validate_db() {
    # Any DB services in a "NOT RUNNING" state will eventually start even if this function finishes first.
    ### DB services "NOT RUNNING" will NOT break CaPTain!!! ###
    echo -e "${YELLOW}######### ${HOSTNAME}: DB validation did not complete after 9 passes. This will NOT affect CaPTain... #########${NC}"
+
    # Set an explicit exit 0 to ensure CaPTain does not fail.
    exit 0
 }
