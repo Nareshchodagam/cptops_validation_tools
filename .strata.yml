@@ -1,5 +1,5 @@
 pipeline_template: rpm/Jenkinsfile
-email_reply_to: mgaddy@salesforce.com,sbhatheja@salesforce.com,jdiuwe@salesforce.com,mtunajek@salesforce.com,seth.goldberg@salesforce.com,efaulds@salesforce.com
+email_reply_to: mgaddy@salesforce.com,sbhatheja@salesforce.com,jdiuwe@salesforce.com,mtunajek@salesforce.com,seth.goldberg@salesforce.com
 time_out_mins: 180
 number_of_artifacts_to_keep: 3
 compliance_required: false
@@ -18,4 +18,4 @@ package_generation_command: build_tnrp_in_strata.sh ./tnrp/package
 # We have created and set a yum repo value for you.
 # If you would like to create a new yum repo, or share
 # a yum repo across products, see https://sfdc.co/what-strata-yum-repo
-package_repository: cptops_validation_tools
+package_repository: cpt
