@@ -98,6 +98,7 @@ remote_files = ['bin/check_local_port.py',
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
+             'bin/update_patching_status.py',
              'bin/check_search_buddy.py',
              'bin/verify_hosts.py',
              'bin/verify_ffx_buddy.py',
