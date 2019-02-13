@@ -69,7 +69,7 @@ start_pce() {
             validate_cluster;;
          * )
             echo $?
-            # If at first you don't succeed, try, try up to x times.
+            # If at first you don't succeed, try, try up to 3 times.
             kill_pce
             sudo -u ${ILOUSER} ${PCE_CTL} start
             sleep 18;;
@@ -113,7 +113,7 @@ validate_cluster() {
             sudo -u ${ILOUSER} ${PCE_CTL} cluster-status
             echo -e "${LGREEN}######### ${HOSTNAME}: PCE cluster status is set to RUNNING! #########${NC}"
             # If this is a poldata host, call validate_db() else exit 0
-            echo ${HOSTFUNC} | sed 's/[0-9]//' | egrep 'poldata' && validate_db || exit 0;;
+            echo ${HOSTFUNC} | egrep 'poldata' && validate_db || exit 0;;
          * )
             # Cluster status is not set to RUNNING. Sleep then test again...
             echo $?
