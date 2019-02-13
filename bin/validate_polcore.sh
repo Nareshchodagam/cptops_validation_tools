@@ -28,7 +28,7 @@ check_status() {
       case $? in
          0 )
             echo $?
-            sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'status:' | egrep 'RUNNING' 2> /dev/nul
+            sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'status:' | egrep 'RUNNING' 2> /dev/null
             echo -e "${LGREEN}######### ${HOSTNAME} has joined the cluster! #########${NC}"
             # Since we're bypassing start_pce() and going straight to validate_cluster(), set this flag to 1.
             # In case of a startup anomaly this will allow validate_cluster() to call start_pce() once instead of dying.
@@ -106,7 +106,7 @@ validate_cluster() {
    do
       echo "Cluster validation test: ${i} of 9"
       # Looking for "Cluster status: RUNNING" That indicates a successful startup.
-      sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'status:' | egrep 'RUNNING' 2> /dev/nul
+      sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'status:' | egrep 'RUNNING' 2> /dev/null
       case $? in
          0 )
             echo $?
@@ -142,7 +142,7 @@ validate_db() {
    for i in $( seq 9 )
    do
       echo "DB Validation test: ${i} of 9"
-      sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'NOT RUNNING' 2> /dev/nul
+      sudo -u ${ILOUSER} ${PCE_CTL} cluster-status | egrep 'NOT RUNNING' 2> /dev/null
       case $? in
          0 )
             # String NOT RUNNING found. Sleep, then test again...
