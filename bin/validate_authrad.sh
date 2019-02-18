@@ -16,7 +16,7 @@
 # For stackValidation: release_runner.pl -forced_host hostname -c sudo_cmd -m "./remote_transfer/validate_authrad.sh stackValidation" -threads -auto2 -property "sudo_cmd_line_trunk_fix=1" -comment 'BLOCK 5'
 
 HOSTNAME=`uname -n | cut -d "." -f1`
-SYSTEMCTL=`/usr/bin/systemctl`
+SYSTEMCTL='/usr/bin/systemctl'
 
 ## Service Status
 function status_postgresql () {
@@ -32,25 +32,28 @@ function status_authradiant () {
 
 ## Start Services
 function start_postgresql () {
-  $SYSTEMCTL is-active --quiet postgresql && RETVAL_SQL=0  && echo "POSTGRESQL:[ALREADY RUNNING]" || RETVAL_SQL=1
-if [ $RETVAL_SQL != 0 ]; then $SYSTEMCTL start postgresql && RETVAL_SQL=0 && echo "POSTGRESQL:[STARTED]"; else echo "Unable to start POSTGRESQL service" && exit 1; fi
+$SYSTEMCTL is-active --quiet postgresql && RETVAL_SQL=0 && echo "POSTGRESQL:[ALREADY RUNNING]" && return 0 || RETVAL_SQL=1
+if [ $RETVAL_SQL -ne 0 ]; then $SYSTEMCTL start postgresql && RETVAL_SQL=0 && echo "POSTGRESQL:[STARTED]"; 
+elif [ $RETVAL_SQL == 1 ]; then  echo "Unable to start POSTGRESQL service" && exit 1; fi 
 # IF STATUS_POSTGRESQL is NOT RUNNING then START POSTGRESQL service
 }
 
 function start_radiusd () {
-  $SYSTEMCTL is-active --quiet radiusd && RETVAL_RAD=0 && echo "RADIUSD:[ALREADY RUNNING]" || RETVAL_RAD=1
-if [ $RETVAL_SQL == 0 ] && [ $RETVAL_RAD != 0 ]; then $SYSTEMCTL start radiusd && RETVAL_RAD=0 && echo "RADIUSD:[STARTED]"; else echo "Unable to start RADIUSD service" && exit 1; fi
+$SYSTEMCTL is-active --quiet radiusd && RETVAL_RAD=0 && echo "RADIUSD:[ALREADY RUNNING]" && return 0 || RETVAL_RAD=1
+if [ $RETVAL_SQL == 0 ] && [ $RETVAL_RAD != 0 ]; then $SYSTEMCTL start radiusd && RETVAL_RAD=0 && echo "RADIUSD:[STARTED]"; 
+elif [ $RETVAL_RAD == 1 ]; then  echo "Unable to start RADIUSD service" && exit 1; fi
 # IF STATUS_POSTGRESQL is RUNNING & STATUS_RADIUSD is NOT RUNNING then START RADIUSD service
 }
 
 function start_authradiant () {
-$SYSTEMCTL is-active --quiet authradiant && RETVAL_RADIANT=0 && echo "AUTHRADIANT:[ALREADY RUNNING]" || RETVAL_RADIANT=1
-if [ $RETVAL_SQL == 0 ] && [ $RETVAL_RAD == 0 ] && [ $RETVAL_RADIANT != 0 ]; then $SYSTEMCTL start authradiant && echo "AUTHRADIANT:[STARTED]"; else echo "Unable to start AUTHRADIANT service" && exit 1; fi
+$SYSTEMCTL is-active --quiet authradiant && RETVAL_RADIANT=0 && echo "AUTHRADIANT:[ALREADY RUNNING]" && return 0 || RETVAL_RADIANT=1
+if [ $RETVAL_SQL == 0 ] && [ $RETVAL_RAD == 0 ] && [ $RETVAL_RADIANT != 0 ]; then $SYSTEMCTL start authradiant && echo "AUTHRADIANT:[STARTED]"; 
+elif [ $RETVAL_RADIANT == 1 ]; then  echo "Unable to start AUTHRADIANT service" && exit 1; fi
 # IF STATUS_POSTGRESQL is RUNNING & STATUS_RADIUSD is NOT RUNNING then START AUTHRADIANT service
 }
 
 function authrad_stackValidation () {
- #Authradiant takes a minimum of 60 seconds to do the first health check after it is restarted
+ echo "Authradiant takes a minimum of 60 seconds to do the first health check after it is restarted" 
  sleep 60
  #checking last few lines and also the status of AuthRadiant
  if  `$SYSTEMCTL is-active --quiet authradiant` && `journalctl -u authradiant |tail -n 5 | grep -q 'Healthcheck successful'` ; then
@@ -91,3 +94,4 @@ then
 else
   authrad_$1   #$1 will take values as start|stop|status|stackValidation. example if $1 is status then it will execute function authrad_status.
 fi
+
