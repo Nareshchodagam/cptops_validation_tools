@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# validate_poldata.sh 0.0.9
+# validate_poldata.sh 0.1.0
 # Orlando Castro
 #
 # If PCE does not properly start after reboot, this script will attempt to start PCE up to 3 times.
@@ -90,9 +90,13 @@ start_pce() {
 kill_pce() {
    # Crush! Kill! Destroy!
    echo -e "${YELLOW}######### ${HOSTNAME} FAILED! Killing PCE procs and starting again... #########${NC}"
-   sudo -u ${ILOUSER} ${PCE_CTL} stop
-   sleep 18
-   ps auxww | egrep ilo-pc[e] && kill -9 $( ps auxww | egrep ilo-pc[e] | awk '{print $2}' )
+   # Take no prisoners...
+   while true
+   do
+      sudo -u ${ILOUSER} ${PCE_CTL} stop
+      sleep 18
+      ps auxww | egrep ilo-pc[e] && kill -9 $( ps auxww | egrep ilo-pc[e] | awk '{print $2}' ) || break
+   done
 }
 
 validate_cluster() {
