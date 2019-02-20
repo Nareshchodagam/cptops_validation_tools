@@ -2,7 +2,14 @@
 # Written by Funnel team (fka Ajna Ingestion)
 
 AJNA_REST_STATUS="Not Running";
-MANAGEMENT_PORT=15380
+PROP_FILE=/home/sfdc-ajnaep/current/ajna-rest-endpoint/ajna-rest-endpoint/config/application.properties
+if [ ! -f "$PROP_FILE" ]; then
+	echo "$PROP_FILE doesn't exist"
+	exit -1;
+fi
+
+
+MANAGEMENT_PORT=`grep -m 1 '^management.server.port=' $PROP_FILE | cut -d'=' -f2`
 
 function getStatus {
     check=`curl "http://localhost:$MANAGEMENT_PORT/manage/health" 2>&1 | grep '"status" : "UP"' | wc -l`;
@@ -24,9 +31,8 @@ function exitBasedOnStatus {
     then
         exit 0;
     else
-        exit -1;
+        exit 3;
     fi
 }
 
 status
-
