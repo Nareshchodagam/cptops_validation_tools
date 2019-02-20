@@ -21,6 +21,8 @@ done
 
 if [ "${VALIDATED}" == "TRUE" ]; then
     echo "*** validation for netevents on `hostname` succeeded"
+    exit 0
 else
     echo "*** validation for netevents on `hostname` failed!"
+    exit 1
 fi
