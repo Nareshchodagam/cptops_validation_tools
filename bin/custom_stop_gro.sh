@@ -8,7 +8,7 @@ do
   if [ $? != 0 ]
   then
     echo "failed to stop $MYC container"
-    exit $?
+    exit 1
   fi
   let ACTIVITY=ACTIVITY+1
 done < <( curl --unix-socket /var/run/docker.sock http:/v1.24/containers/json 2>/dev/null \
