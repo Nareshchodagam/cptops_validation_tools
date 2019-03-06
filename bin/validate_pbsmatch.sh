@@ -4,16 +4,18 @@ curlHttp() {
   local url
   url="http://localhost:8080/${1}"
   shift || return # function should fail if we weren't passed at least one argument
-  echo "Calling... curl $url"
-  curl "$url"
+  curl -s "$url"
 }
+echo "Calling... validateDeployment.jsp"
 
-curlHttp validateDeployment.jsp
-if [ $? -eq 0 ]
+result=$(curlHttp validateDeployment.jsp)
+count=$(echo $result | grep -o 'responds as expected' | wc -l)
+
+if [[ $? -eq 0 && ($count -eq 11)]]
 then
-  echo "[Succeed]"
+  echo "PBSMatch validation passed with output: $result"
   exit 0
 else
-  echo "[Failed]"
+  echo "PBSMatch validation failed with output: $result"
   exit 1
 fi
