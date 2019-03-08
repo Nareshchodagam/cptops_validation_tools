@@ -9,6 +9,8 @@ PUPPET_CMD="/bin/puppet agent -t"
 BOOTSTRAPPER_SVCNAME="sitebridge-bootstrapper"
 SYSTEMCTL_CMD="/bin/systemctl"
 SYSTEMCTL_START_CMD="${SYSTEMCTL_CMD} start ${BOOTSTRAPPER_SVCNAME}"
+DOCKER_CMD="/usr/bin/docker"
+CPT_VALIDATOR_CMD="/sitebridge/sitebridge-cpt-validator"
 
 # First check if containerd config file exists. Run puppet to restore it if not
 if [ ! -f ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE} ] && \
@@ -28,12 +30,12 @@ then
     sleep 60
 fi
 
-check_svc_cmd="${SYSTEMCTL_CMD} is-active --quiet ${BOOTSTRAPPER_SVCNAME}"
+check_svc_cmd="${DOCKER_CMD} exec ${BOOTSTRAPPER_SVCNAME} ${CPT_VALIDATOR_CMD}"
 check_svc=`${check_svc_cmd}; echo $?`
 if [ "${check_svc}" == 0 ]
         then
-        echo "$BOOTSTRAPPER_SVCNAME Processes:        [RUNNING]"
+        echo "Sitebridge Processes:              [RUNNING]"
 else
-        echo "ERROR $BOOTSTRAPPER_SVCNAME Processes:        [NOT RUNNING]"
+        echo "ERROR Sitebridge Processes:        [NOT RUNNING]"
         exit 1
 fi
