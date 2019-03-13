@@ -1,3 +1,4 @@
+#!/bin/bash
 # Sitebridge service validation script
 # Cillian Gallagher 01Nov18
 # Chris Woodfield 24Feb19
