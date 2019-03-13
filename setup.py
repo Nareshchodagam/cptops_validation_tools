@@ -167,5 +167,3 @@ setup(
     keywords='cpt tools',
     license='Salesforce Proprietary Code',
 )
-
-#dummy commit
