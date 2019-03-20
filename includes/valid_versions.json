@@ -28,9 +28,9 @@
                     "sfdc-release": "2019.0308"
                 },
                 "candidate": {
-                    "os_version": "6.10",
-                    "kernel": "2.6.32-754.11.1.el6.x86_64",
-                    "sfdc-release": "2019.0306"
+                    "os_version": "7.6",
+                    "kernel": "3.10.0-957.10.1.el7.x86_64",
+                    "sfdc-release": "2019.0308"
                 },
                 "2019.0116": {
                     "os_version": "7.6",
@@ -50,6 +50,11 @@
                 "2019.0308": {
                     "os_version": "7.6",
                     "kernel": "3.10.0-957.5.1.el7.x86_64",
+                    "sfdc-release": "2019.0308"
+                },
+                "2019.0318": {
+                    "os_version": "7.6",
+                    "kernel": "3.10.0-957.10.1.el7.x86_64",
                     "sfdc-release": "2019.0308"
                 }
             },
