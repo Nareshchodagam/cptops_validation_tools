@@ -24,8 +24,8 @@
                 {
                 "current": {
                     "os_version": "7.6",
-                    "kernel": "3.10.0-957.5.1.el7.x86_64",
-                    "sfdc-release": "2019.0308"
+                    "kernel": "3.10.0-957.10.1.el7.x86_64",
+                    "sfdc-release": "2019.0318"
                 },
                 "candidate": {
                     "os_version": "7.6",
@@ -55,7 +55,7 @@
                 "2019.0318": {
                     "os_version": "7.6",
                     "kernel": "3.10.0-957.10.1.el7.x86_64",
-                    "sfdc-release": "2019.0308"
+                    "sfdc-release": "2019.0318"
                 }
             },
             "6":
