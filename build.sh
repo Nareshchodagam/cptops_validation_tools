@@ -82,3 +82,5 @@ fpm -s python -t rpm \
 	setup.py
 
 echo "----- End CPT Tools TnRP build script -----"
+
+echo "dummy commit"
