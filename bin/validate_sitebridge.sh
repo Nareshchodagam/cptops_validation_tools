@@ -2,7 +2,7 @@
 
 # Sitebridge service validation script
 # Cillian Gallagher 01Nov18
-# Chris Woodfield 13Mar19
+# Chris Woodfield 29Mar19
 
 CONTAINERD_CONFIG_PATH_DEPRECATED="/var/run/docker"
 CONTAINERD_CONFIG_PATH_NEW="/etc/containerd"
@@ -50,6 +50,9 @@ DOCKER_CMD="/usr/bin/docker"
 SYSTEMCTL_DOCKER_START_CMD="${SYSTEMCTL_CMD} start docker"
 VALIDATION_WAIT_TIME=180
 CPT_VALIDATOR_CMD="/sitebridge/sitebridge-cpt-validator"
+# Checks the existing bootstrapper image for TnRP vs Strata image.
+DOCKER_OLD_BOOTSTRAPPER_CMD="${DOCKER_CMD} ps --filter='name=${BOOTSTRAPPER_SVCNAME}' --format='{{ .Image }}' | cut -d: -f2 | grep -q -E '^v-.*\$'; echo \$?"
+SYSTEMCTL_IS_ACTIVE_CMD="${SYSTEMCTL_CMD} is-active -q"
 
 
 # First check if containerd config file exists. Restore it if not
@@ -64,7 +67,7 @@ if [[ ! -f ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE} && \
         chown root:root ${CONTAINERD_CONFIG_PATH_DEPRECATED}
         chmod 755 ${CONTAINERD_CONFIG_PATH_DEPRECATED}
     fi
-    echo -e "${CONTAINERD_FILE_TEXT}" >> ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE}
+    echo -e "${CONTAINERD_FILE_TEXT}" > ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE}
 
     # Start docker, then bootstrapper
     echo "Starting up docker..."
@@ -76,12 +79,28 @@ if [[ ! -f ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE} && \
     sleep ${VALIDATION_WAIT_TIME}
 fi
 
-check_svc_cmd="${DOCKER_CMD} exec ${BOOTSTRAPPER_SVCNAME} ${CPT_VALIDATOR_CMD}"
-check_svc=`${check_svc_cmd}; echo $?`
-if [[ "${check_svc}" == 0 ]]
-        then
+# Check for older version of sitebridge-bootstrapper, run simple service check if we don't have
+# a version running the new validator. Since all current builds are on Strata, this is easy to check.
+# (eval is needed so that pipe chars don't get interpreted as command args)
+check_old_rev=`eval "${DOCKER_OLD_BOOTSTRAPPER_CMD}"`
+if [[ ${check_old_rev} == 0 ]]; then
+    echo "Found older revision of sitebridge-bootstrapper, falling back to basic check"
+    check_bootstrapper_svc=`${SYSTEMCTL_CMD} is-active -q ${BOOTSTRAPPER_SVCNAME}; echo $?`
+    if [[ ${check_bootstrapper_svc} == 0 ]]; then
         echo "Sitebridge Processes:              [RUNNING]"
-else
+        exit 0
+    else
         echo "ERROR Sitebridge Processes:        [NOT RUNNING]"
         exit 1
+    fi
+fi
+
+check_svc_cmd="${DOCKER_CMD} exec ${BOOTSTRAPPER_SVCNAME} ${CPT_VALIDATOR_CMD}"
+check_svc=`${check_svc_cmd}; echo $?`
+if [[ "${check_svc}" == 0 ]]; then
+    echo "Sitebridge Processes:              [RUNNING]"
+    exit 0
+else
+    echo "ERROR Sitebridge Processes:        [NOT RUNNING]"
+    exit 1
 fi
