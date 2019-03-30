@@ -69,10 +69,7 @@ if [[ ! -f ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE} && \
     fi
     echo -e "${CONTAINERD_FILE_TEXT}" > ${CONTAINERD_CONFIG_PATH_DEPRECATED}/${CONTAINERD_CONFIG_FILE}
 
-    # Start docker, then bootstrapper
-    echo "Starting up docker..."
-    ${SYSTEMCTL_DOCKER_START_CMD}
-    sleep 5
+    # Start bootstrapper
     echo "Starting up ${BOOTSTRAPPER_SVCNAME}..."
     ${SYSTEMCTL_BOOTSTRAPPER_START_CMD}
     echo "Sleeping for ${VALIDATION_WAIT_TIME}s before validating sitebridge components."
