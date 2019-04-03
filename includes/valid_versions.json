@@ -73,7 +73,7 @@
                 "candidate": {
                     "os_version": "6.10",
                     "kernel": "2.6.32-754.11.1.el6.x86_64",
-                    "sfdc-release": "2019.0322"
+                    "sfdc-release": "2019.0401"
                 },
                 "2019.0116": {
                     "os_version": "6.10",
