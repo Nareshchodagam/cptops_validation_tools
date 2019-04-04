@@ -1,2 +1,5 @@
 .project
 .pydevproject
+# IntelliJ and VSCode
+.idea/
+.vscode/
