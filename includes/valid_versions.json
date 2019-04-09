@@ -25,7 +25,7 @@
                 "current": {
                     "os_version": "7.6",
                     "kernel": "3.10.0-957.10.1.el7.x86_64",
-                    "sfdc-release": "2019.0325"
+                    "sfdc-release": "2019.0401"
                 },
                 "canary": {
                     "os_version": "7.6",
