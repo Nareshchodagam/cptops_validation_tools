@@ -25,12 +25,12 @@
                 "current": {
                     "os_version": "7.6",
                     "kernel": "3.10.0-957.10.1.el7.x86_64",
-                    "sfdc-release": "2019.0401"
+                    "sfdc-release": "2019.0402"
                 },
                 "canary": {
                     "os_version": "7.6",
                     "kernel": "3.10.0-957.10.1.el7.x86_64",
-                    "sfdc-release": "2019.0402"
+                    "sfdc-release": "2019.0410"
                 },
                 "2019.0116": {
                     "os_version": "7.6",
@@ -71,6 +71,11 @@
                     "os_version": "7.6",
                     "kernel": "3.10.0-957.10.1.el7.x86_64",
                     "sfdc-release": "2019.0402"
+                },
+                "2019.0410": {
+                    "os_version": "7.6",
+                    "kernel": "3.10.0-957.10.1.el7.x86_64",
+                    "sfdc-release": "2019.0410"
                 }
             },
             "6":
@@ -82,8 +87,8 @@
                 },
                 "canary": {
                     "os_version": "6.10",
-                    "kernel": "2.6.32-754.11.1.el6.x86_64",
-                    "sfdc-release": "2019.0401"
+                    "kernel": "2.6.32-754.12.1.el6.x86_64",
+                    "sfdc-release": "2019.0410"
                 },
                 "2019.0116": {
                     "os_version": "6.10",
@@ -114,6 +119,11 @@
                     "os_version": "6.10",
                     "kernel": "2.6.32-754.11.1.el6.x86_64",
                     "sfdc-release": "2019.0401"
+                },
+                "2019.0410": {
+                    "os_version": "6.10",
+                    "kernel": "2.6.32-754.12.1.el6.x86_64",
+                    "sfdc-release": "2019.0410"
                 }
             }
     },
