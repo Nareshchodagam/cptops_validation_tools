@@ -41,7 +41,7 @@ class HostsCheck(object):
         """
         host_dict = {}
         socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        orbFile = "/usr/local/libexec/orb-check.py"
+        orbFile = self.user_home+"/remote_transfer/orb-check.py"
 
         try:
             if host:
