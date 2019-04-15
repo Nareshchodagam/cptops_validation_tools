@@ -41,56 +41,30 @@ class HostsCheck(object):
         """
         host_dict = {}
         socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        path = "/opt/cpt/remote/valid_versions.json"
+        orbFile = "/usr/local/libexec/orb-check.py"
+
         try:
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                hostOsQuery = "rpm -q --queryformat '%{VERSION}' centos-release"
-                hostOsCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(
-                    host, hostOsQuery)
-                hostKernelQuery = "uname -r"
-                hostKernelCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(
-                    host, hostKernelQuery)
-                hostBundleQuery = "rpm -q --queryformat '%{VERSION}' sfdc-release"
-                hostBundleCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(
-                    host, hostBundleQuery)
-                cmdOutOs = shlex.split(hostOsCmd)
-                cmdOutKernel = shlex.split(hostKernelCmd)
-                cmdOutBundle = shlex.split(hostBundleCmd)
-                hostOsMajor, _ = Popen(
-                    cmdOutOs, stdout=PIPE, stderr=PIPE).communicate()
-                hostKernel, _ = Popen(
-                    cmdOutKernel, stdout=PIPE, stderr=PIPE).communicate()
-                hostPatchBundle, _ = Popen(
-                    cmdOutBundle, stdout=PIPE, stderr=PIPE).communicate()
+                orbCheckCmd = "python {0} -a {1}".format(orbFile, self.bundle.upper())
+                orbCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, orbCheckCmd)
+                orbCmdOut = Popen(orbCmd, stdout=PIPE, stderr=PIPE, shell=True)
 
-                with open(path, "r") as data_file:
-                    json_data = json.load(data_file)
-                    ker = json_data.get('CENTOS').get(
-                        hostOsMajor.strip('\n')).get(self.bundle).get('kernel')
-                    kernel = unicodedata.normalize(
-                        'NFKD', ker).encode('ascii', 'ignore')
-                    patchb = json_data.get('CENTOS').get(
-                        hostOsMajor.strip('\n')).get(self.bundle).get('sfdc-release')
-                    patchbundle = unicodedata.normalize(
-                        'NFKD', patchb).encode('ascii', 'ignore')
-                    if kernel in hostKernel and patchbundle in hostPatchBundle:
-                        print("Host {0} Patched and on latest kernel {1}".format(
-                            host, kernel))
-                        host_dict[host] = "patched"
-                    elif patchbundle in hostPatchBundle:
-                        print("Host {0} Patched but not on latest kernel {1}".format(
-                            host, kernel))
-                        host_dict[host] = "no_patched"
-                    else:
-                        host_dict[host] = "no_patched"
+                streamdata, err = orbCmdOut.communicate()
+                rc = orbCmdOut.returncode
+
+                if not rc:
+                    host_dict[host] = "patched"
+                else:
+                    host_dict[host] = "no_patched"
+
         except socket.error as error:
             host_dict[host] = "Down"
             print("Error on connect: %s" % error)
             socket_conn.close()
         except IOError as e:
-            print("Ensure presence of path " + path)
+            print("Ensure presence of path " + orbFile)
             exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
