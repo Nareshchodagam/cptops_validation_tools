@@ -100,7 +100,9 @@ remote_files = ['bin/check_local_port.py',
                 'ssa/netbot_validation.py',
                 'sysfiles/files/usr/local/libexec/system_vendortools_update.sh',
                 'sysfiles/files/usr/local/libexec/system_update.sh',
-                'sysfiles/files/usr/local/libexec/validate_firmware.py']
+                'sysfiles/files/usr/local/libexec/validate_firmware.py',
+                'coresystem/files/usr/local/libexec/orb-check.py',
+                'coresystem/files/usr/local/libexec/orb-lib.sh']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
