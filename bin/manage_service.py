@@ -5,8 +5,8 @@
 
 import logging
 import platform
-import os
 import subprocess
+import os as osmodule
 import commands
 from optparse import OptionParser
 import subprocess
@@ -57,16 +57,28 @@ def recordStatus(procName, procString):
 def getStatus(procName):
     logging.debug('Retrieving status for process ' + procName)
     tmpFile = tmpDir + procName + '_status.tmp'
-    try:
-        f = open(tmpFile,'r')
-        svcStatus = f.readline()
-        print('Recorded status for ' + procName + ' is ' + svcStatus)
-        f.close()
-    except:
-        print('Unable to read file: ' + tmpFile)
-        print('The service state must be recorded. Run: ')
-        print('manage_service.py -n ' + procName + ' -r')
-        exit(1)
+    tmpFileExists = osmodule.path.isfile(tmpFile)
+    svcStatus = ""
+    if tmpFileExists:
+        try:
+            f = open(tmpFile,'r')
+            svcStatus = f.readline()
+            print('Recorded status for ' + procName + ' is ' + svcStatus)
+            f.close()
+        except:
+            print('Unable to read file: ' + tmpFile)
+            print('The service state must be recorded. Run: ')
+            print('manage_service.py -n ' + procName + ' -r')
+            exit(1)
+    else:
+        p_cmd = 'ps -ef | egrep -v "grep|python|sudo" | grep "' + procName + '"'
+        p_cmd_op = commands.getoutput(p_cmd)
+        if procName in p_cmd_op:
+            print(procName + " is currently running\n")
+            svcStatus = 'RUNNING'
+        else:
+            print(procName + " is currently NOT running\n")
+            svcStatus = 'NOT_RUNNING'
 
     return svcStatus
 
