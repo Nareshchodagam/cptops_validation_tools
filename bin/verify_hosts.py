@@ -41,17 +41,22 @@ class HostsCheck(object):
         """
         host_dict = {}
         socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        orbFile = self.user_home+"/remote_transfer/orb-check.py"
+        orbFile = "/opt/cpt/remote/orb-check.py"
+        try:
+            fh = open(orbFile, 'r')
+        except IOError:
+            print("Ensure presence of path: "+orbFile)
 
         try:
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                orbCheckCmd = "python {0} -a {1}".format(orbFile, self.bundle.upper())
+                orbCheckCmd = "python -u - -a {1} < {0}".format(orbFile, self.bundle.upper())
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, orbCheckCmd)
                 orbCmdOut = Popen(orbCmd, stdout=PIPE, stderr=PIPE, shell=True)
-
+                
                 streamdata, err = orbCmdOut.communicate()
+                print(err)
                 rc = orbCmdOut.returncode
 
                 if not rc:
@@ -63,9 +68,9 @@ class HostsCheck(object):
             host_dict[host] = "Down"
             print("Error on connect: %s" % error)
             socket_conn.close()
-        except IOError as e:
-            print("Ensure presence of path " + orbFile)
-            exit(1)
+        except Exception as e:
+            print(e)
+	    exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
 
@@ -157,3 +162,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
