@@ -207,7 +207,8 @@ def main():
     group.add_argument("-s", "--status",  action="store_true",
         help="Returns (0) if a host is good (Current, SLA or Valid) or (1) if a host is bad (Stale)")
     #note the const arg is to specify the default value when --action is called - don't confuse with default=X
-    group.add_argument("-a", "--action", const="CURRENT", nargs="?", choices=['CURRENT', 'CANDIDATE', 'UNSTABLE'],
+    group.add_argument("-a", "--action", const="CURRENT", nargs="?",
+                       choices=['CURRENT', 'CANDIDATE', 'UNSTABLE'], type=str.upper,
         help="Returns (0) if a host is already on the selected tag (Current is the default), or (1) if not")
 
     args = parser.parse_args()
