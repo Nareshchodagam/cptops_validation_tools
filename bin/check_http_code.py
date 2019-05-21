@@ -134,19 +134,11 @@ class CheckRemoteUrl(object):
     # Function to control the exit status
     def exit_status():
         """
-        Function to give control to user to exit with status 1 OR 0 in case of any issue
+        Display the error message and exit
         :return: 
         """
-        while True:
-            u_input = raw_input("Do you want to exit with exit code '1' (y|n) ")
-            if u_input == "y":
-                sys.exit(1)
-            elif u_input == "n":
-                sys.exit(0)
-            else:
-                print("Please enter valid choice (y|n) ")
-                continue
-
+        print("check failed, exiting! please ensure that the service is started and re-run this")
+        sys.exit(1)
 
 # Main function to instantiate class and class methods
 def main():
