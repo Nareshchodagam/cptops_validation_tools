@@ -231,7 +231,7 @@ def main():
             print("host is not stale")
             sys.exit(0)
     elif args.action == "CURRENT" or args.action == "CANDIDATE" or args.action == "UNSTABLE":
-        #check if a host is on or on a newer patch level than the patch level specified
+        # check if a host is on or on a newer patch level than the patch level specified
         tag_patch =  re.search("(?<={0}=)\[(.*?)\]".format(args.action), orb_state).group(1)
         tag_patch_dt = datetime.strptime(tag_patch, "%Y.%m%d")
         installed_patch_dt = datetime.strptime(patch, "%Y.%m%d")
@@ -239,21 +239,21 @@ def main():
         if installed_patch_dt == tag_patch_dt:
             print("No action needed")
             print("Installed patch level: {0} matches {1}: {2}".format(patch, args.action, tag_patch))
-            sys.exit(1)
+            sys.exit(0)
         elif installed_patch_dt > tag_patch_dt:
             print("No action needed")
             print("Installed patch level: {0} is newer than {1}: {2}".format(patch, args.action, tag_patch))
-            sys.exit(1)
+            sys.exit(0)
         else:
             print("Action required")
             print("Installed patch level: {0} is older than {1}: {2}".format(patch, args.action, tag_patch))
-            sys.exit(0)
+            sys.exit(1)
     else:
         if args.SLA and args.VALID:
-            #if neither arguments are provided
+            # if neither arguments are provided
             print("No arguments provided, using default definition of SLA<30 days and VALID<60 days ")
             print("----------------------------")
-        #return normal verbose output
+        # return normal verbose output
         print_orb_state()
         valid_bundles_list = valid_bundles(json_out, patch, int(args.VALID))
         print("----------------------------")
