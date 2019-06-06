@@ -77,7 +77,11 @@ class CheckRemoteUrl(object):
         port = kwargs.get('port', None)
         url = None
         if port:
-            if re.search(r'argusws', hostname):
+            if re.search(r'smsapi|smsproxy|smsreplicator', hostname):
+                url = "https://{0}.{1}.sfdc.net:{2}/v1/ping" .format(hostname, self.domain, port)
+            elif re.search(r'smscps', hostname):
+                url = "https://{0}.{1}.sfdc.net:{2}/v2/ping" .format(hostname, self.domain, port)
+            elif re.search(r'argusws', hostname):
                 url = "http://{0}.{1}.sfdc.net:{2}/argusws/help" .format(hostname, self.domain, port)
             elif re.search(r'argusui', hostname):
                 url = "http://{0}.{1}.sfdc.net:{2}/argus" .format(hostname, self.domain, port)
