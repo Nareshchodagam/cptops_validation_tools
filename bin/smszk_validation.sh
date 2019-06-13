@@ -12,6 +12,10 @@ echo "diff time $diffTime"
 
 for i in {1..300}                                                                                                                                                                                                                                                                     
 do
+    if [ ! -f "$statusFile" ]; then
+          echo "File $statusFile not Found!"
+          exit 1
+      fi
     input=`cat $statusFile`
     sleep $i
     echo "Sleeping for $i sec..."
