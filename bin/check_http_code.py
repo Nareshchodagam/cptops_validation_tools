@@ -27,6 +27,7 @@ class CheckRemoteUrl(object):
     def __init__(self):
         self.domain = host_domain()
         self.err_dict = {}
+        self.check_http_content = False
 
     def socket_based_port_check(self, hostname, port):
         """
@@ -79,8 +80,10 @@ class CheckRemoteUrl(object):
         if port:
             if re.search(r'smsapi|smsproxy|smsreplicator', hostname):
                 url = "https://{0}.{1}.sfdc.net:{2}/v1/ping" .format(hostname, self.domain, port)
+                self.check_http_content = True
             elif re.search(r'smscps', hostname):
                 url = "https://{0}.{1}.sfdc.net:{2}/v2/ping" .format(hostname, self.domain, port)
+                self.check_http_content = True
             elif re.search(r'argusws', hostname):
                 url = "http://{0}.{1}.sfdc.net:{2}/argusws/help" .format(hostname, self.domain, port)
             elif re.search(r'argusui', hostname):
@@ -96,7 +99,7 @@ class CheckRemoteUrl(object):
             # Added to check remote port for ACS hosts - T-1780845
             elif re.search(r'acs', hostname):
                 url = "http://{0}.{1}.sfdc.net:{2}/apicursorfile/v/node/status".format(hostname, self.domain, port)
-            # Added to check Health url on synthetics_agent
+                # Added to check Health url on synthetics_agent
             elif re.search(r'syntheticsagent|syntheticsmaster', hostname):
                 if port == "8086":  # Hack to hit specific endPoint
                     url = "http://{0}.{1}.sfdc.net:{2}/synthtx/main".format(hostname, self.domain, port)
@@ -130,6 +133,12 @@ class CheckRemoteUrl(object):
                 self.err_dict[url] = "ERROR"
             else:
                 print("Received 200 OK from remote url {0} " .format(url))
+                if self.check_http_content == True:
+                    if ret.content != "Active":
+                        print("Could not find ACTIVE in response content of remote url {0} ".format(url))
+                        self.err_dict[url] = "ERROR"
+                    else:
+                        print("Successfully found the content as ACTIVE .. {0} ".format(url))
         except requests.ConnectionError as e:
             print("Couldn't connect to on remote url {0}" .format(url))
             self.err_dict[url] = "ERROR"
@@ -139,7 +148,7 @@ class CheckRemoteUrl(object):
     def exit_status():
         """
         Display the error message and exit
-        :return: 
+        :return:
         """
         print("check failed, exiting! please ensure that the service is started and re-run this")
         sys.exit(1)
