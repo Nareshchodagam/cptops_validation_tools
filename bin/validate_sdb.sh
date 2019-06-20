@@ -65,7 +65,7 @@ function verifypost {
 
 function verify {
   local rc
-  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify > .tmp.verify.json"
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify > $SDB_ANT_TARGET_HOME/.tmp.verify.json"
   rc=$?
   
   if [[ $rc != 0 ]]; then
