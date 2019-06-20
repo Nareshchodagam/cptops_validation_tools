@@ -50,7 +50,7 @@ function verifypost {
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.start"
   sleep 5
 
-  # Now verify it
+  # Now verify it, this blocks until container is up
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
   rc=$?
   
@@ -65,17 +65,24 @@ function verifypost {
 
 function verify {
   local rc
-  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify"
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.verify > .tmp.verify.json"
   rc=$?
   
   if [[ $rc != 0 ]]; then
     su - sdb -c "cd $SDB_ANT_TARGET_HOME;touch .pre_reboot_verify_failed"
-    echo "ant sdbcont.verify fails"
+    echo "Container is not online at this node"
     echo "Will allow patch to proceed and not verify after the patch"
     rc=0
     return $rc
   fi
-  
+ 
+  # want to ensure there is a standby to failover to ...
+  # there is an exception ... there are single node hammer 
+  # environments which never have any standby's  
+  grep "'dbName': u'hammer" -c $ANT_TARGET_HOME/.tmp.verify.json
+  if [[ $? -eq 0 ]]; then
+    return 0
+  fi
   su - sdb -c "cd $SDB_ANT_TARGET_HOME;./ant sdbcont.standbylive"
   rc=$?
   if [[ $rc != 0 ]]; then
