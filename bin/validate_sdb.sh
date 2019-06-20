@@ -79,7 +79,7 @@ function verify {
   # want to ensure there is a standby to failover to ...
   # there is an exception ... there are single node hammer 
   # environments which never have any standby's  
-  grep "'dbName': u'hammer" -c $ANT_TARGET_HOME/.tmp.verify.json
+  su - sdb -c "cd $SDB_ANT_TARGET_HOME;cat $SDB_ANT_TARGET_HOME/.tmp.verify.json" | grep "'dbName': u'hammer" -c 
   if [[ $? -eq 0 ]]; then
     return 0
   fi
