@@ -131,7 +131,10 @@ if __name__ == "__main__":
 
     Retreive the last recorded state of a process:
     %prog -n focus -g
-
+    
+    Check the status:
+    %prog -n focus -a
+    
     Start a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/startup.sh -s
 
