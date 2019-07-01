@@ -150,9 +150,14 @@ if __name__ == '__main__':
         head, dc = host.split('-')[0::3]
         host_num = se.search(host)
         if options.role == "smszk":
-            max_allowed_fails = 0
-            for num in range(1, 6):
-                hostlist.append("sec0-smszk%d-1-%s" % (num, dc))
+            if "smszkdev" in host:
+                max_allowed_fails = 0
+                for num in range(1, 6):
+                    hostlist.append("sec0-smszkdev%d-1-%s" % (num, dc))
+            elif "smszk" in host:
+                max_allowed_fails = 0
+                for num in range(1, 6):
+                    hostlist.append("sec0-smszk%d-1-%s" % (num, dc))
         elif options.role == "smszkdev":
             max_allowed_fails = 0
             for num in range(1, 6):
@@ -212,3 +217,4 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         sys.exit(0)
+
