@@ -74,7 +74,6 @@ def serviceStatus(procName):
     status = chkInitState(procName)
     if status == 0:
         print(procName + " is running")
-        exit(0)
     else:
         print(procName + " is not running")
         exit(1)
