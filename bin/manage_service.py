@@ -80,7 +80,10 @@ def serviceStatus(procName):
 
 def chkInitState(procName):
     logging.debug('Checking current status for process ' + procName)
-    proc_initcmd = "service %s status" % procName
+    if "centos" in os.lower() and ver[0] == 7:
+        proc_initcmd = "systemctl status %s" % procName
+    else:
+        proc_initcmd = "service %s status" % procName
     retcode = subprocess.call(shlex.split(proc_initcmd))
 
     return retcode
@@ -207,7 +210,7 @@ if __name__ == "__main__":
         elif options.startsvc and not options.sysinit:
             startService(procname, options.cmd, options.force)
         if options.stopsvc and options.sysinit:
-                if os == "CentOS" and ver[0] == 7:
+                if "centos" in os.lower() and ver[0] == 7:
                    cmd = "systemctl stop %s" % procname
                 else:
                    cmd = "service %s stop" % procname
