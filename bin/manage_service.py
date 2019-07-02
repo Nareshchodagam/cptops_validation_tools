@@ -20,7 +20,7 @@ def recordStatus(procName, procString):
     tmpFile = tmpDir + procName + '_status.tmp'
     logging.debug('Checking for running process' + procName)
     if options.sysinit:
-        if os == "CentOS" and ver[0] == 7:
+        if "centos" in os.lower() and ver[0] == 7:
             proc_initcmd = "systemctl status %s" % procName
         else:
             proc_initcmd = "service %s status" % procName
@@ -202,7 +202,7 @@ if __name__ == "__main__":
             serviceStatus(procname)
 
         if options.startsvc and options.sysinit:
-                if os == "CentOS" and ver[0] == 7:
+                if "centos" in os.lower() and ver[0] == 7:
                    cmd = "systemctl start %s" % procname
                 else:
                    cmd = "service %s start" % procname
