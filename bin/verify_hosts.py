@@ -61,12 +61,13 @@ class HostsCheck(object):
 
                 if not rc:
                     host_dict[host] = "patched"
+                    print("{0} - already patched".format(host))
                 else:
                     host_dict[host] = "no_patched"
 
         except socket.error as error:
             host_dict[host] = "Down"
-            print("Error on connect: %s" % error)
+            print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
             print(e)
