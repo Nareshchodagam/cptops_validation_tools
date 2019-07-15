@@ -19,7 +19,12 @@ else
         echo "${servicename} is now stopped"
         docker_list=$(docker ps | grep slb-iface | awk '{print $1}')
         [[ ! -z "$docker_list" ]] &&  echo ${docker_list} | xargs docker kill || echo "No Containers are available to kill"
-        ifconfig ipvs-iface0 down
+        if $(ifconfig | grep ipvs-iface0)
+            then 
+                ifconfig ipvs-iface0 down
+            else
+                echo "Could not find ipvs-iface0 in host"
+            fi
         exit 0
     else
         exit 3
