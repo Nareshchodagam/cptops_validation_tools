@@ -146,7 +146,7 @@ if __name__ == "__main__":
     parser.add_option("-g", action="store_true", dest="getvendor", default=False, help="Get vendor")
     parser.add_option("-s", action="store_true", dest="setdevice", default=False, help="Set boot device")
     parser.add_option("-d", dest="devicename", help="Device (HDD or PXE)")
-    parser.add_option("-r", action="store_true", dest="racreset", help="reset racadm")
+    parser.add_option("-r", action="store_true", dest="reset", help="reset the console")
 
 
     (options, args) = parser.parse_args()
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     if options.getvendor:
         vendor=getVendor()
 
-    if options.racreset:
+    if options.reset:
         vendor=getVendor()
         if vendor.upper() == "DELL":
             resetConsole()
