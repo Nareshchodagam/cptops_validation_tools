@@ -11,6 +11,7 @@ serviceQuery() {
       echo "${1} is active."
     else
       echo "${1} is deployed but not active. Checking every 5 seconds for a minute before backing out"
+      
       for i in {1..12}
       do
         diff_time=$((60-$i*5))
