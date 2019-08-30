@@ -36,5 +36,5 @@ serviceQuery() {
   fi
 }
 
-serviceQuery zookeeper
-serviceQuery zkHack
+serviceQuery zookeeper.service
+serviceQuery zkHack.service
