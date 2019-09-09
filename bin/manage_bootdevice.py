@@ -77,7 +77,7 @@ def setBootDev(vendor,device):
 
 
     # HP Section
-    elif vendor == "HP":
+    elif vendor in ("HP","HPE"):
         if device.upper() == "PXE":
             type='once'
         else:
