@@ -7,6 +7,7 @@
 import logging
 import os
 import subprocess
+import sys
 from optparse import OptionParser
 
 
@@ -29,7 +30,7 @@ def getVendor():
 
     except:
         print('Unable to identify vendor')
-        os.exit(1)
+        sys.exit(1)
 
 
     print("Vendor identified as: " + vendor)
@@ -97,7 +98,7 @@ def setBootDev(vendor,device):
 
     else:
         print("Unidentified vendor: " + vendor)
-        os.exit(0)
+        sys.exit(0)
 
 def resetConsole():
 
@@ -121,7 +122,7 @@ def resetConsole():
     #validate the reset flag if it is False then System Exit
     if not reset_flag:
         print("Unable to RESET the console, Performing Exit ")
-        os.exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
@@ -165,5 +166,5 @@ if __name__ == "__main__":
         vendor=getVendor()
         if not setBootDev(vendor,options.devicename.upper()):
             print("Unable to set boot device")
-            os.exit(1)
+            sys.exit(1)
 
