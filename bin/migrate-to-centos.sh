@@ -62,11 +62,16 @@ rpm -Uvh $PACKAGES/yum-3.2.29-69.el6.centos.noarch.rpm
 # Disable fastest mirror plugin
 sed -i.bak "s/enabled=1/enabled=0/g" /etc/yum/pluginconf.d/fastestmirror.conf
 
-# Remove all RHEL subscriptions and products, but we're not going to register to Katello in this script
-subscription-manager unregister
-subscription-manager remove --all
-subscription-manager clean
-rm -f /etc/pki/product/*.pem > /dev/null
+# check if subscription-manager exists to avoid a false positive
+if ! [ -x "$(subscription-manager)" ]; then
+  exit 1
+else
+  # Remove all RHEL subscriptions and products, but we're not going to register to Katello in this script
+  subscription-manager unregister
+  subscription-manager remove --all
+  subscription-manager clean
+  rm -f /etc/pki/product/*.pem > /dev/null
+fi
 
 yum -y -c $PATCH_URL clean all
 # remove any existing CentOS repos:
