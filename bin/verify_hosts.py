@@ -51,7 +51,7 @@ class HostsCheck(object):
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                orbCheckCmd = "python -u - -a {1} < {0}".format(orbFile, self.bundle.upper())
+                orbCheckCmd = "python -u - -a {1} < {0}".format(orbFile, self.bundle)
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, orbCheckCmd)
                 orbCmdOut = Popen(orbCmd, stdout=PIPE, stderr=PIPE, shell=True)
                 
