@@ -544,7 +544,7 @@ if __name__ == "__main__":
                     if "status" in info[i].keys():
                         logger.info(hl[i] + " - [" + str(info[i]["id"]) + "] " + str(info[i]["type"]) + " - " + str(info[i]["status"]))
                         if hl[i] in hinfo[i].keys():
-                            logger.info("updating event id as %s for %s" % (hl[i], info[i]["id"]))
+                            logger.info("updating event id as %s for %s" % (info[i]["id"], hl[i]))
                             hinfo[i].values()[0][0]["event"] = info[i]["id"]
                     elif "error" in info[i].keys():
                         logger.info(hl[i] + " - " + info[i]["error"])
