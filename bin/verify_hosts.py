@@ -75,6 +75,34 @@ class HostsCheck(object):
         logging.debug(host_dict)
         p_queue.put(host_dict)
 
+    def check_for_centos6(self, host, p_queue):
+        host_dict = {}
+        socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        try:
+            if host:
+                socket_conn.settimeout(10)
+                socket_conn.connect((host, 22))
+                osCheckCmd = "cat /etc/centos-release |awk '{print $3}'"
+                osCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, osCheckCmd)
+                osCmdOut = Popen(osCmd, stdout=PIPE, stderr=PIPE, shell=True)
+                
+                streamdata, err = osCmdOut.communicate()
+                os = streamdata.split('.')[0]
+                if os == "6":
+                    host_dict[host] = "Centos6"
+                else:
+                    host_dict[host] = "NotCentos6"
+
+        except socket.error as error:
+            host_dict[host] = "Down"
+            print("{0} - Error on connect: {1}".format(host, error))
+            socket_conn.close()
+        except Exception as e:
+            print(e)
+	    exit(1)
+        logging.debug(host_dict)
+        p_queue.put(host_dict)
+
     def write_to_file(self):
         """
         This function is to write files based on host_status.
@@ -86,11 +114,11 @@ class HostsCheck(object):
         in_buffer = StringIO()
         for host_dict in self.data:
             for k, v in host_dict.items():
-                if v == 'no_patched':
+                if v in ('no_patched','Centos6'):
                     in_buffer.write("{0}".format(k) + ',')
                     logging.debug(in_buffer.getvalue())
                 else:
-                    if self.force and v == 'patched':
+                    if self.force and v in ('patched','NotCentos6'):
                         in_buffer.write("{0}".format(k) + ',')
                         logging.debug(in_buffer.getvalue())
                     ex_buffer.write(
@@ -129,6 +157,24 @@ class HostsCheck(object):
         for pick_process in p_list:
             pick_process.join()
             self.data.append(process_q.get())
+        
+    def os_process(self, hosts):
+        """
+        This function will accept hostlist as input and call check_patchset function and store value in
+        shared memory(Queue).
+        :param hosts: A list of hosts
+        :return: None
+        """
+        process_q = Queue()
+        p_list = []
+        for host in hosts:
+            process_inst = Process(target=self.check_for_centos6,
+                                   args=(host, process_q))
+            p_list.append(process_inst)
+            process_inst.start()
+        for pick_process in p_list:
+            pick_process.join()
+            self.data.append(process_q.get())
 
 
 def main():
@@ -139,10 +185,12 @@ def main():
     parser = ArgumentParser(description="""To check if remote hosts are accessible over SSH and are not patched""",
                             usage='%(prog)s -H <host_list> --bundle <bundle_name> --case <case_no>',
                             epilog='python verify_hosts.py -H cs12-search41-1-phx --bundle 2016.09 --case 0012345')
+    parser.add_argument("-M", dest="mhosts",
+                        help="To get the Centos6 hosts only", action="store_true")
+    parser.add_argument("--bundle", dest="bundle",
+                        help="Bundle name")
     parser.add_argument("-H", dest="hosts", required=True,
                         help="The hosts in command line argument")
-    parser.add_argument("--bundle", dest="bundle",
-                        required=True, help="Bundle name")
     parser.add_argument("--case", dest="case",
                         required=True, help="Case number")
     parser.add_argument("--force", dest="force",
@@ -152,15 +200,24 @@ def main():
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
-    bundle = args.bundle
+    if args.bundle:
+        bundle = args.bundle
+    else:
+        bundle = "current"
     hosts = args.hosts.split(',')
     case_no = args.case
     force = args.force
     class_object = HostsCheck(bundle, case_no, force)
-    class_object.process(hosts)
+    if args.mhosts:
+        mhosts=args.hosts.split(',')
+        class_object.os_process(mhosts)
+    else:
+        hosts=args.hosts.split(',')
+        class_object.process(hosts)
     class_object.write_to_file()
     class_object.check_file_empty()
 
 if __name__ == "__main__":
     main()
+
 
