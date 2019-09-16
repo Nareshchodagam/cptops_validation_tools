@@ -731,7 +731,7 @@ def main():
         if not args.host_role:
             logger.error("please provide role with --role.")
             sys.exit(1)
-        role = args.host_role.upper()
+        role = args.host_role
         preserve = args.preserve_data
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
             logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" % (user_home, casenum, user_home, casenum))
@@ -786,7 +786,7 @@ def main():
         if not args.host_role:
             logger.error("please provide role with --role.")
             sys.exit(1)
-        role = args.host_role.upper()
+        role = args.host_role
         if not args.cluster_name:
             logger.error("please provide cluster with --cluster.")
             sys.exit(1)
