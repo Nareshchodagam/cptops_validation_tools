@@ -55,12 +55,35 @@ class Util:
         except IOError:
             logger.error("Error writing to %s" % file_name)
             sys.exit(1)
+    
+    # def _write_to_exclude_file(self, casenum, hostname, reason):
+    #     """
+    #     method that appends the given host to exclude file along with reason why it is excluded
+    #     """
+    #     file_name = "%s/%s_exclude" % (self.user_home, casenum)
+    #     try:
+    #         old_data = ""
+    #         try:
+    #             f = open(file_name, "r")
+    #             old_data = f.readlines()
+    #             f.close()
+    #         except:
+    #             old_data = ""
+    #         new_line = "%s  -   %s" % (hostname, reason)
+    #         final_data = "%s\n%s" % (old_data, new_line)
+    #         f = open(file_name, "w+")
+    #         f.write(final_data)
+    #         f.close()
+    #         return
+    #     except:
+    #         logger.error("Error writing to %s" % file_name)
+    #         sys.exit(1)
 
     def write_to_exclude_file(self, casenum, hostlist):
         """
         method that appends given hostlist to exclude file
         """
-        file_name = "%s/%s_exlcude" % (self.user_home, casenum)
+        file_name = "%s/%s_exclude" % (self.user_home, casenum)
         try:
             old_list = []
             try:
@@ -706,12 +729,12 @@ def main():
         queue.join()
 
         include_list = []
-        exlcude_list = []
+        exclude_list = []
         host_info = []
 
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
-                exlcude_list.append(key)
+                exclude_list.append(key)
                 logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
                 logger.error("%s - unable to fetch cnc information from iDB. Check manually." % key)
                 sys.exit(1)
@@ -719,11 +742,13 @@ def main():
                 include_list.append(key)
                 host_info.append(hosts_processed[key]["info"])
 
-        logger.info("exclude: %s" % ','.join(exlcude_list))
+        logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
         logger.debug(host_info)
         misc.write_to_include_file(casenum, include_list)
-        misc.write_to_exclude_file(casenum, exlcude_list)
+        misc.write_to_exclude_file(casenum, exclude_list)
+        # for e_host in exclude_list:
+        #     misc._write_to_exclude_file(casenum, e_host, "iDBError")
         misc.write_to_hostinfo_file(casenum, host_info)
         misc.write_to_cnc_file(casenum, host_info)
 
