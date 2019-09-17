@@ -56,49 +56,30 @@ class Util:
             logger.error("Error writing to %s" % file_name)
             sys.exit(1)
     
-    # def _write_to_exclude_file(self, casenum, hostname, reason):
-    #     """
-    #     method that appends the given host to exclude file along with reason why it is excluded
-    #     """
-    #     file_name = "%s/%s_exclude" % (self.user_home, casenum)
-    #     try:
-    #         old_data = ""
-    #         try:
-    #             f = open(file_name, "r")
-    #             old_data = f.readlines()
-    #             f.close()
-    #         except:
-    #             old_data = ""
-    #         new_line = "%s  -   %s" % (hostname, reason)
-    #         final_data = "%s\n%s" % (old_data, new_line)
-    #         f = open(file_name, "w+")
-    #         f.write(final_data)
-    #         f.close()
-    #         return
-    #     except:
-    #         logger.error("Error writing to %s" % file_name)
-    #         sys.exit(1)
-
-    def write_to_exclude_file(self, casenum, hostlist):
+    def write_to_exclude_file(self, casenum, hostname, reason):
         """
-        method that appends given hostlist to exclude file
+        method that appends the given host to exclude file along with reason why it is excluded
         """
         file_name = "%s/%s_exclude" % (self.user_home, casenum)
         try:
-            old_list = []
+            old_data = ""
             try:
                 f = open(file_name, "r")
-                old_list = f.readline().rstrip("\n").rstrip(",").split(",")
+                old_data = f.readlines()
                 f.close()
             except:
-                old_list = []
-            final_list = list(set(old_list + hostlist))
+                old_data = ""
+            data = ""
+            for line in old_data:
+                data += line
+            new_line = "%s  -   %s" % (hostname, reason)
+            final_data = "%s\n%s" % (data, new_line)
             f = open(file_name, "w+")
-            f.write(','.join(final_list))
+            f.write(final_data)
             f.close()
             return
-        except IOError:
-            logger.error("Error writing to %s " % file_name)
+        except:
+            logger.error("Error writing to %s" % file_name)
             sys.exit(1)
         
     def write_to_hostinfo_file(self, casenum, hostinfo):
@@ -746,9 +727,8 @@ def main():
         logger.info("include: %s" % ','.join(include_list))
         logger.debug(host_info)
         misc.write_to_include_file(casenum, include_list)
-        misc.write_to_exclude_file(casenum, exclude_list)
-        # for e_host in exclude_list:
-        #     misc._write_to_exclude_file(casenum, e_host, "iDBError")
+        for e_host in exclude_list:
+            misc._write_to_exclude_file(casenum, e_host, "iDBError")
         misc.write_to_hostinfo_file(casenum, host_info)
         misc.write_to_cnc_file(casenum, host_info)
 
