@@ -56,49 +56,30 @@ class Util:
             logger.error("Error writing to %s" % file_name)
             sys.exit(1)
     
-    # def _write_to_exclude_file(self, casenum, hostname, reason):
-    #     """
-    #     method that appends the given host to exclude file along with reason why it is excluded
-    #     """
-    #     file_name = "%s/%s_exclude" % (self.user_home, casenum)
-    #     try:
-    #         old_data = ""
-    #         try:
-    #             f = open(file_name, "r")
-    #             old_data = f.readlines()
-    #             f.close()
-    #         except:
-    #             old_data = ""
-    #         new_line = "%s  -   %s" % (hostname, reason)
-    #         final_data = "%s\n%s" % (old_data, new_line)
-    #         f = open(file_name, "w+")
-    #         f.write(final_data)
-    #         f.close()
-    #         return
-    #     except:
-    #         logger.error("Error writing to %s" % file_name)
-    #         sys.exit(1)
-
-    def write_to_exclude_file(self, casenum, hostlist):
+    def write_to_exclude_file(self, casenum, hostname, reason):
         """
-        method that appends given hostlist to exclude file
+        method that appends the given host to exclude file along with reason why it is excluded
         """
         file_name = "%s/%s_exclude" % (self.user_home, casenum)
         try:
-            old_list = []
+            old_data = ""
             try:
                 f = open(file_name, "r")
-                old_list = f.readline().rstrip("\n").rstrip(",").split(",")
+                old_data = f.readlines()
                 f.close()
             except:
-                old_list = []
-            final_list = list(set(old_list + hostlist))
+                old_data = ""
+            data = ""
+            for line in old_data:
+                data += line
+            new_line = "%s  -   %s" % (hostname, reason)
+            final_data = "%s\n%s" % (data, new_line)
             f = open(file_name, "w+")
-            f.write(','.join(final_list))
+            f.write(final_data)
             f.close()
             return
-        except IOError:
-            logger.error("Error writing to %s " % file_name)
+        except:
+            logger.error("Error writing to %s" % file_name)
             sys.exit(1)
         
     def write_to_hostinfo_file(self, casenum, hostinfo):
@@ -329,10 +310,6 @@ class Migration:
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 serial_number = item.values()[0]["serial_number"]
                 break
-            else:
-                output.setdefault("error", "%s - hostinfo is not found in %s_hostinfo file" % (hostname, casenum))
-                status = "ERROR"
-                return output, status
         
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
@@ -384,10 +361,6 @@ class Migration:
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 serial_number = item.values()[0]["serial_number"]
                 break
-            else:
-                output.setdefault("error", "%s - hostinfo is not found in %s_hostinfo file" % (hostname, casenum))
-                status = "ERROR"
-                return output, status
         
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
@@ -441,10 +414,7 @@ class Migration:
                 serial_number = item.values()[0]["serial_number"]
                 network_domain = item.values()[0]["network_domain"]
                 break
-            else:
-                output.setdefault("error", "%s - hostinfo is not found in %s_hostinfo file" % (hostname, casenum))
-                status = "ERROR"
-                return output, status
+
         host_fqdn = "%s.%s" % (hostname, network_domain)
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
@@ -494,10 +464,6 @@ class Migration:
             if hostname in item.keys():
                 serial_number = item.values()[0]["serial_number"]
                 break
-            else:
-                output.setdefault("error", "%s - hostinfo is not found in %s_hostinfo file" % (hostname, casenum))
-                status = "ERROR"
-                return output, status
         
         verify_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields name" % serial_number
         verify_cmd_response = json.loads(self.exec_cmd(verify_cmd))
@@ -543,10 +509,6 @@ class Migration:
             if hostname in item.keys():
                 serial_number = item.values()[0]["serial_number"]
                 break
-            else:
-                output.setdefault("error", "%s - hostinfo is not found in %s_hostinfo file" % (hostname, casenum))
-                status = "ERROR"
-                return output, status
 
         max_retries = 30
         interval = 60
@@ -603,10 +565,6 @@ class Migration:
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 serial_number = item.values()[0]["serial_number"]
                 break
-            else:
-                output.setdefault("error", "%s - hostinfo is not found in %s_hostinfo file" % (hostname, casenum))
-                status = "ERROR"
-                return output, status
             
         logger.info("%s - %s, %s" % (hostname, serial_number, cnc_api_url))
         rack_status = self.check_rack_status(cnc_api_url)
@@ -731,24 +689,23 @@ def main():
         include_list = []
         exclude_list = []
         host_info = []
-
+        failed = Failse
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 exclude_list.append(key)
-                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
                 logger.error("%s - unable to fetch cnc information from iDB. Check manually." % key)
-                sys.exit(1)
+                failed = True
             elif hosts_processed[key]["status"] == "SUCCESS":
                 include_list.append(key)
                 host_info.append(hosts_processed[key]["info"])
-
+        if failed:
+            sys.exit(1)
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
         logger.debug(host_info)
         misc.write_to_include_file(casenum, include_list)
-        misc.write_to_exclude_file(casenum, exclude_list)
-        # for e_host in exclude_list:
-        #     misc._write_to_exclude_file(casenum, e_host, "iDBError")
+        for e_host in exclude_list:
+            misc.write_to_exclude_file(casenum, e_host, "iDBError")
         misc.write_to_hostinfo_file(casenum, host_info)
         misc.write_to_cnc_file(casenum, host_info)
 
@@ -772,14 +729,16 @@ def main():
             lst = [h, role, preserve]
             queue.put(lst)
         queue.join()
-
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 logger.error(hosts_processed[key]["info"]["error"])
                 logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
-                sys.exit(1)
+                failed = True
             else:
                 logger.info("%s command was successful on %s." % (args.action, key))
+        if failed:
+            sys.exit(1)
 
     elif args.action == "rebuild":
         preserve = args.preserve_data
@@ -797,15 +756,17 @@ def main():
             lst = [h, preserve]
             queue.put(lst)
         queue.join()
-
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 logger.error(hosts_processed[key]["info"]["error"])
                 logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
-                sys.exit(1)
+                failed = True
             else:
                 logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
                 logger.info("%s command was successful on %s." % (args.action, key))
+        if failed:
+            sys.exit(1)
     
     elif args.action == "deploy":
         if not args.host_role:
@@ -835,7 +796,7 @@ def main():
             lst = [h, role, cluster, superpod, preserve]
             queue.put(lst)
         queue.join()
-
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 if "error" in hosts_processed[key]["info"].keys():
@@ -843,10 +804,12 @@ def main():
                 else:
                     logger.error(hosts_processed[key]["info"]["message"])
                 logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
-                sys.exit(1)
+                failed = True
             else:
                 logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
                 logger.info("%s command was successful on %s." % (args.action, key))
+        if failed:
+            sys.exit(1)
     
     elif args.action == "status":
         delay = int(args.delay_in_mins) * 60
@@ -860,16 +823,18 @@ def main():
             lst = [h, delay]
             queue.put(lst)
         queue.join()
-
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] in ["awaiting_deployment", "deployed"]:
                 logger.info("%s successfully processed. Latest status - %s"% (key, hosts_processed[key]["status"]))
             elif "message" in hosts_processed[key]["info"].keys():
                 logger.error("%s - %s. Please troubleshoot." % (key, hosts_processed[key]["info"]["message"]))
-                sys.exit(1)
+                failed = True
             else:
                 logger.error("%s - %s. Please troubleshoot." % (key, hosts_processed[key]["info"]["error"]))
-                sys.exit(1)
+                failed = True
+        if failed:
+            sys.exit(1)
     
     elif args.action == "erasehostname":
         hosts_processed = {}
@@ -881,14 +846,16 @@ def main():
         for h in host_list:
             queue.put(h)
         queue.join()
-        
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
-                sys.exit(1)
+                failed = True
             else:
                 logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
                 logger.info("%s command was successful on %s." % (args.action, key))
+        if failed:
+            sys.exit(1)
         
     elif args.action == "updateopsstatus":
         hosts_processed = {}
@@ -900,14 +867,16 @@ def main():
         for h in host_list:
             queue.put(h)
         queue.join()
-        
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
-                sys.exit(1)
+                failed = True
             else:
                 logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
                 logger.info("%s command was successful on %s." % (args.action, key))
+        if failed:
+            sys.exit(1)
 
 if __name__ == "__main__":
     logger = logging.getLogger()
