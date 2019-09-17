@@ -716,7 +716,6 @@ def main():
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 exclude_list.append(key)
-                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
                 logger.error("%s - unable to fetch cnc information from iDB. Check manually." % key)
                 sys.exit(1)
             elif hosts_processed[key]["status"] == "SUCCESS":
