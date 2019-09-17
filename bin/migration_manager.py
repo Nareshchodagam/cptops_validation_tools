@@ -466,8 +466,8 @@ class Migration:
                 break
         
         verify_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields name" % serial_number
-        verify_cmd_response = json.loads(self.exec_cmd(verify_cmd))
         try:
+            verify_cmd_response = json.loads(self.exec_cmd(verify_cmd))
             hname = verify_cmd_response["data"][0]["name"]
         except ValueError:
             # handles the null values if iDB returns empty
@@ -514,8 +514,8 @@ class Migration:
         interval = 60
         count = 0
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
-        old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
         try:
+            old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
             old_status = old_status_cmd_response["data"][0]["operationalStatus"]
         except ValueError:
             # handles the null values if iDB returns empty
