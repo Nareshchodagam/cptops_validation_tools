@@ -466,8 +466,8 @@ class Migration:
                 break
         
         verify_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields name" % serial_number
-        verify_cmd_response = json.loads(self.exec_cmd(verify_cmd))
         try:
+            verify_cmd_response = json.loads(self.exec_cmd(verify_cmd))
             hname = verify_cmd_response["data"][0]["name"]
         except ValueError:
             # handles the null values if iDB returns empty
@@ -514,8 +514,8 @@ class Migration:
         interval = 60
         count = 0
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
-        old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
         try:
+            old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
             old_status = old_status_cmd_response["data"][0]["operationalStatus"]
         except ValueError:
             # handles the null values if iDB returns empty
@@ -689,7 +689,7 @@ def main():
         include_list = []
         exclude_list = []
         host_info = []
-        failed = Failse
+        failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 exclude_list.append(key)
@@ -698,8 +698,7 @@ def main():
             elif hosts_processed[key]["status"] == "SUCCESS":
                 include_list.append(key)
                 host_info.append(hosts_processed[key]["info"])
-        if failed:
-            sys.exit(1)
+        
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
         logger.debug(host_info)
@@ -708,6 +707,9 @@ def main():
             misc.write_to_exclude_file(casenum, e_host, "iDBError")
         misc.write_to_hostinfo_file(casenum, host_info)
         misc.write_to_cnc_file(casenum, host_info)
+
+        if failed:
+            sys.exit(1)
 
     elif args.action == "image":
         if not args.host_role:
