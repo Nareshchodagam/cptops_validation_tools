@@ -399,6 +399,7 @@ class Migration:
                 output.setdefault("error", image_cmd_response["error"])
                 status = "ERROR"
             else:
+                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
                 event_type = image_cmd_response["type"]
                 event_id = image_cmd_response["id"]
                 event_status = image_cmd_response["status"]
@@ -412,7 +413,7 @@ class Migration:
                         output.setdefault("success", "%s command %s processing on %s" % (event_type, e_status, hostname))
                     elif e_status == "failed":
                         status = "ERROR"
-                        output.setdefault("error", "%s to process %s command on %s due to some error" % (e_status, event_type, hostname))
+                        output.setdefault("error", "%s to process %s command on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
                 else:
                     status = "ERROR"
                     output.setdefault("message", "%s command not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
@@ -450,6 +451,7 @@ class Migration:
                 output.setdefault("error", rebuild_cmd_response["error"])
                 status = "ERROR"
             else:
+                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
                 event_type = rebuild_cmd_response["type"]
                 event_id = rebuild_cmd_response["id"]
                 event_status = rebuild_cmd_response["status"]
@@ -463,7 +465,7 @@ class Migration:
                         output.setdefault("success", "%s command %s processing on %s" % (event_type, e_status, hostname))
                     elif e_status == "failed":
                         status = "ERROR"
-                        output.setdefault("error", "%s to process %s command on %s due to some error" % (e_status, event_type, hostname))
+                        output.setdefault("error", "%s to process %s command on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
                 else:
                     status = "ERROR"
                     output.setdefault("message", "%s command not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
@@ -504,6 +506,7 @@ class Migration:
                 output.setdefault("error", deploy_cmd_response["error"])
                 status = "ERROR"
             else:
+                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
                 event_type = deploy_cmd_response["type"]
                 event_id = deploy_cmd_response["id"]
                 event_status = deploy_cmd_response["status"]
@@ -517,7 +520,7 @@ class Migration:
                         output.setdefault("success", "%s command %s processing on %s" % (event_type, e_status, hostname))
                     elif e_status == "failed":
                         status = "ERROR"
-                        output.setdefault("error", "%s to process %s command on %s due to some error" % (e_status, event_type, hostname))
+                        output.setdefault("error", "%s to process %s command on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
                 else:
                     status = "ERROR"
                     output.setdefault("message", "%s command not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
