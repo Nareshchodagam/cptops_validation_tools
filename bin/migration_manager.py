@@ -132,7 +132,13 @@ class ThreadCncInfo(threading.Thread):
     
     def run(self):
         h = self.queue.get()
+        max_retries = 2
+        count = 0
         result, status = self.mig.get_cnc_info(h, self.casenum)
+        while status == "ERROR" and count != max_retries:
+            logging.info("%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count+1))
+            result, status = self.mig.get_cnc_info(h, self.casenum)
+            count += 1
         self.hosts_processed[h] = {"info": result, "status": status}
         self.queue.task_done()
     
@@ -464,7 +470,7 @@ class Migration:
             if hostname in item.keys():
                 serial_number = item.values()[0]["serial_number"]
                 break
-        
+        hname = ""
         verify_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields name" % serial_number
         try:
             verify_cmd_response = json.loads(self.exec_cmd(verify_cmd))
@@ -642,7 +648,7 @@ def main():
     parser = ArgumentParser(prog='migration_manager.py', usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a image --role <ROLE> [--preserve] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a rebuild [--preserve] \n\t-c casenum -a status --delay <MINS>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus")
     
     parser.add_argument("-c", dest="case", help="case number", required=True)
-    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "image", "deploy", "rebuild", "failhost", "status", "erasehostname", "updateopsstatus"])
+    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "image", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name", help="specify cluster name")
     parser.add_argument("--superpod", dest="superpod_name", help="specify super pod name")
