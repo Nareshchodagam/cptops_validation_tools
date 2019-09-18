@@ -136,7 +136,7 @@ class ThreadCncInfo(threading.Thread):
         count = 0
         result, status = self.mig.get_cnc_info(h, self.casenum)
         while status == "ERROR" and count != max_retries:
-            logging.info("%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count+1))
+            logging.info("%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count+1)))
             result, status = self.mig.get_cnc_info(h, self.casenum)
             count += 1
         self.hosts_processed[h] = {"info": result, "status": status}
