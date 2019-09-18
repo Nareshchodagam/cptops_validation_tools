@@ -852,7 +852,10 @@ def main():
         failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
-                logger.error(hosts_processed[key]["info"]["error"])
+                if "error" in hosts_processed[key]["info"].keys():
+                    logger.error(hosts_processed[key]["info"]["error"])
+                elif "message" in hosts_processed[key]["info"].keys():
+                    logger.error(hosts_processed[key]["info"]["message"])
                 logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
                 failed = True
             else:
@@ -879,7 +882,10 @@ def main():
         failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
-                logger.error(hosts_processed[key]["info"]["error"])
+                if "error" in hosts_processed[key]["info"].keys():
+                    logger.error(hosts_processed[key]["info"]["error"])
+                elif "message" in hosts_processed[key]["info"].keys():
+                    logger.error(hosts_processed[key]["info"]["message"])
                 logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
                 failed = True
             else:
@@ -921,7 +927,7 @@ def main():
             if hosts_processed[key]["status"] == "ERROR":
                 if "error" in hosts_processed[key]["info"].keys():
                     logger.error(hosts_processed[key]["info"]["error"])
-                else:
+                elif "message" in hosts_processed[key]["info"].keys():
                     logger.error(hosts_processed[key]["info"]["message"])
                 logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
                 failed = True
