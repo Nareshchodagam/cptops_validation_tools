@@ -17,6 +17,21 @@ class Util:
 
     def has_valid_kerberos_ticket(self):
         return True if call(['klist', '-s']) == 0 else False
+    
+    def ask_user(self):
+        check = str(raw_input("Do you want to proceed with the execution? (y/n) ")).strip().lower()
+        try:
+            if check[0] == "y":
+                return True
+            elif check[0] == "n":
+                return False
+            else:
+                print("Please enter y or n.")
+                return self.ask_user()
+        except Exception as error:
+            print("Please enter valid input")
+            logger.error(error)
+            return self.ask_user()
 
     def check_file_exists(self, casenum, type=""):
         """
@@ -142,6 +157,21 @@ class ThreadCncInfo(threading.Thread):
         self.hosts_processed[h] = {"info": result, "status": status}
         self.queue.task_done()
     
+
+class ThreadRouteCheck(threading.Thread):
+    def __init__(self, queue, casenum, hosts_processed):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.hosts_processed = hosts_processed
+        self.mig = Migration()
+
+    def run(self):
+        h = self.queue.get()
+        result, status = self.mig.route_check(h, self.casenum)
+        self.hosts_processed[h] = {"info": result, "status": status}
+        self.queue.task_done()
+
 
 class ThreadImaging(threading.Thread):
     def __init__(self, queue, casenum, hosts_processed):
@@ -295,6 +325,47 @@ class Migration:
             logger.debug("Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "rack_position": None, "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
             status = "ERROR"
+        return output, status
+
+    def route_check(self, hostname, casenum):
+        """
+        For a given host, this method checks if the host is reachable via ssh from within cnc
+        """
+        host_info_file = "%s/%s_hostinfo" % (self.user_home, casenum)
+        try:
+            f = open(host_info_file, "r")
+        except IOError:
+            logger.error("%s is not found or inaccessible" % host_info_file)
+        host_info_dict = json.load(f)
+        cnc_api_url = ""
+        rack_position = ""
+        output = {}
+        status = {}
+
+        for item in host_info_dict:
+            if hostname in item.keys():
+                cnc_api_url = item.values()[0]["cnc_api_url"]
+                rack_position = item.values()[0]["rack_position"]
+                break
+        
+        cnc_host = cnc_api_url.split("//")[1].split(":")[0]
+        rack_ip = "192.168.1.%s" % rack_position
+        ssh_opts = "-o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        self.exec_cmd("scp %s %s/rack_port_check.py %s:%s/rack_port_check.py" % (ssh_opts, self.user_home, cnc_host, self.user_home))
+        ssh_cmd = "ssh -4 -t %s %s \"python %s/rack_port_check.py --host %s\"" % (ssh_opts, cnc_host, self.user_home, rack_ip)
+        try:
+            ssh_out = self.exec_cmd(ssh_cmd)
+            out = ssh_out.rstrip()
+            if out == "open":
+                output.setdefault("success", "%s - port 22 is open" % hostname)
+                status = "SUCCESS"
+            else:
+                output.setdefault("error", "%s - no route to host" % hostname)
+                status = "ERROR"
+        except:
+            output.setdefault("error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
+            status = "ERROR"
+        self.exec_cmd("reset")
         return output, status
 
     def trigger_image(self, hostname, casenum, role="", preserve=False):
@@ -648,7 +719,7 @@ def main():
     parser = ArgumentParser(prog='migration_manager.py', usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a image --role <ROLE> [--preserve] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a rebuild [--preserve] \n\t-c casenum -a status --delay <MINS>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus")
     
     parser.add_argument("-c", dest="case", help="case number", required=True)
-    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "image", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
+    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "routecheck", "image", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name", help="specify cluster name")
     parser.add_argument("--superpod", dest="superpod_name", help="specify super pod name")
@@ -715,7 +786,45 @@ def main():
         misc.write_to_cnc_file(casenum, host_info)
 
         if failed:
+            if not misc.ask_user():
+                sys.exit(1)
+
+    elif args.action == "routecheck":
+        if not misc.check_file_exists(casenum, type="include"):
+            logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
             sys.exit(1)
+        hosts_processed = {}
+        queue = Queue.Queue()
+        for i in range(thread_count):
+            t = ThreadRouteCheck(queue, casenum, hosts_processed)
+            t.setDaemon(True)
+            t.start()
+        for h in host_list:
+            queue.put(h)
+        queue.join()
+
+        include_list = []
+        exclude_list = []
+        failed = False
+
+        for key in hosts_processed:
+            if hosts_processed[key]["status"] == "ERROR":
+                exclude_list.append(key)
+                logger.error("%s - no route to host from cnc." % key)
+                failed = True
+            elif hosts_processed[key]["status"] == "SUCCESS":
+                include_list.append(key)
+                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
+        
+        logger.info("exclude: %s" % ','.join(exclude_list))
+        logger.info("include: %s" % ','.join(include_list))
+        misc.write_to_include_file(casenum, include_list)
+        for e_host in exclude_list:
+            misc.write_to_exclude_file(casenum, e_host, "NoRouteToHost")
+        
+        if failed:
+            if not misc.ask_user():
+                sys.exit(1)
 
     elif args.action == "image":
         if not args.host_role:
