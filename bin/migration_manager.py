@@ -351,7 +351,7 @@ class Migration:
         cnc_host = cnc_api_url.split("//")[1].split(":")[0]
         rack_ip = "192.168.1.%s" % rack_position
         ssh_opts = "-o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        self.exec_cmd("scp %s /opt/cpt/bin/rack_port_check.py %s:%s/rack_port_check.py" % (ssh_opts, self.user_home, cnc_host, self.user_home))
+        self.exec_cmd("scp %s /opt/cpt/bin/rack_port_check.py %s:%s/rack_port_check.py" % (ssh_opts, cnc_host, self.user_home))
         ssh_cmd = "ssh -4 -t %s %s \"python %s/rack_port_check.py --host %s\"" % (ssh_opts, cnc_host, self.user_home, rack_ip)
         try:
             ssh_out = self.exec_cmd(ssh_cmd)
