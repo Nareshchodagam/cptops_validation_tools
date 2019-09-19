@@ -104,7 +104,7 @@ class Util:
         file_name = "%s/%s_hostinfo" % (self.user_home, casenum)
         try:
             f = open(file_name, "w+")
-            json.dump(hostinfo, f)
+            json.dump(hostinfo, f, indent=4)
             f.close()
             logger.info("hostinfo is dumped into %s" % file_name)
             return
