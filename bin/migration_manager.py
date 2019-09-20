@@ -589,25 +589,24 @@ class Migration:
             if hostname in item.keys():
                 serial_number = item.values()[0]["serial_number"]
                 break
-
         max_retries = 30
         interval = 60
         count = 0
+        old_status = ""
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
-        try:
-            old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
-            old_status = old_status_cmd_response["data"][0]["operationalStatus"]
-        except ValueError:
-            # handles the null values if iDB returns empty
-            old_status = ""
         while old_status != "PROVISIONING":
             if count == max_retries:
                 output.setdefault("message","iDB status was not changed by puppet to PROVISIONING with in time. Please retry/check manually.")
                 status = "ERROR"
                 break
+            try:
+                old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
+                old_status = old_status_cmd_response["data"][0]["operationalStatus"]
+            except ValueError:
+                # handles the null values if iDB returns empty
+                old_status = ""
             logger.info("%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
             logger.info("Retrying in %s seconds" % interval)
-            old_status = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number))["data"][0]["operationalStatus"]
             if old_status == "PROVISIONING":
                 logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
                 break
