@@ -605,11 +605,15 @@ class Migration:
             except ValueError:
                 # handles the null values if iDB returns empty
                 old_status = ""
-            logger.info("%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
-            logger.info("Retrying in %s seconds" % interval)
             if old_status == "PROVISIONING":
                 logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
                 break
+            if old_status == "ACTIVE":
+                output.setdefault("success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, old_status))
+                status = "SUCCESS"
+                return output, success
+            logger.info("%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
+            logger.info("Retrying in %s seconds" % interval)
             count += 1
         try:
             update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=ACTIVE\"" % serial_number
