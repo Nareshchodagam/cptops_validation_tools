@@ -611,7 +611,7 @@ class Migration:
             if old_status == "ACTIVE":
                 output.setdefault("success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, old_status))
                 status = "SUCCESS"
-                return output, success
+                return output, status
             logger.info("%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
             logger.info("Retrying in %s seconds" % interval)
             count += 1
