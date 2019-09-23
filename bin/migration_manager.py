@@ -614,6 +614,7 @@ class Migration:
                 return output, status
             logger.info("%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
             logger.info("Retrying in %s seconds" % interval)
+            time.sleep(interval)
             count += 1
         try:
             update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=ACTIVE\"" % serial_number
