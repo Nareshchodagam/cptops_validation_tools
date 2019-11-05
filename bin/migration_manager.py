@@ -600,9 +600,9 @@ class Migration:
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
         while old_status != "PROVISIONING":
             if count == max_retries:
-                output.setdefault("message","iDB status was not changed by puppet to PROVISIONING with in time. Please retry/check manually.")
+                output.setdefault("error","iDB status was not changed by puppet to PROVISIONING with in time. Please retry/check manually.")
                 status = "ERROR"
-                break
+                return output, status
             try:
                 old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
                 old_status = old_status_cmd_response["data"][0]["operationalStatus"]
