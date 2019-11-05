@@ -123,7 +123,8 @@ class Util:
             if not cnc_api_url == None:
                 if item.values()[0]["manufacturer"] in ["HP", "HPE"]:
                     cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                    cnc_list.append(cnc_host)
+                    if cnc_host not in cnc_list:
+                        cnc_list.append(cnc_host)
         if not len(cnc_list) > 0:
             dummy = hostinfo[0].values()[0]["cnc_api_url"].split("//")[1].split(".")[0]
             cnc_list.append(dummy)
