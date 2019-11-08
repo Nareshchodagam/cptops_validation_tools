@@ -8,6 +8,10 @@
 
 # modules
 from __future__ import print_function
+import sys, os
+if "/opt/sfdc/python27/lib/python2.7/site-packages" in sys.path:
+    sys.path.remove("/opt/sfdc/python27/lib/python2.7/site-packages")
+import pexpect
 import socket
 from argparse import ArgumentParser
 import logging
@@ -16,9 +20,16 @@ from subprocess import Popen, PIPE
 from StringIO import StringIO
 import shlex
 import json
-import unicodedata
+import unicodedata, re
 from os import path
 
+hostname = socket.gethostname()
+user_name = os.environ.get('USER')
+
+if re.search(r'(sfdc.net)', hostname):
+    sys.path.append("/opt/cpt/km")
+    from katzmeow import get_creds_from_km_pipe
+    import synnerUtil
 
 class HostsCheck(object):
     """
@@ -32,7 +43,7 @@ class HostsCheck(object):
         self.user_home = path.expanduser('~')
         self.force = force
 
-    def check_patchset(self, host, p_queue):
+    def check_patchset(self, host, passwd, otp, p_queue):
         """
             This function takes a host and check if host is alive and patched/not-patched
             :param: Accept hostname
@@ -46,19 +57,28 @@ class HostsCheck(object):
             fh = open(orbFile, 'r')
         except IOError:
             print("Ensure presence of path: "+orbFile)
-
+        rc = None
         try:
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                orbCheckCmd = "python -u - -a {1} < {0}".format(orbFile, self.bundle)
-                orbCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, orbCheckCmd)
-                orbCmdOut = Popen(orbCmd, stdout=PIPE, stderr=PIPE, shell=True)
-                
-                streamdata, err = orbCmdOut.communicate()
-                print(err)
-                rc = orbCmdOut.returncode
-
+                orbCheckCmd = "python /usr/local/libexec/orb-check.py -a {0}".format(self.bundle)
+                orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
+                child = pexpect.spawn(orbCmd)
+                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1):
+                    child.sendline(passwd)
+                if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
+                    child.sendline(otp)
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.sendline(orbCheckCmd)
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                output = str(child.before)
+                child.close()
+                #print(output)
+                if "action required" in output.lower():
+                    rc = True
+                else:
+                    rc = False
                 if not rc:
                     host_dict[host] = "patched"
                     print("{0} - already patched".format(host))
@@ -75,20 +95,28 @@ class HostsCheck(object):
         logging.debug(host_dict)
         p_queue.put(host_dict)
 
-    def check_for_centos6(self, host, p_queue):
+    def check_for_centos6(self, host, passwd, otp, p_queue):
         host_dict = {}
         socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         try:
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                osCheckCmd = "cat /etc/centos-release |awk '{print $3}'"
-                osCmd = "ssh -o StrictHostKeyChecking=no  {0} {1}".format(host, osCheckCmd)
-                osCmdOut = Popen(osCmd, stdout=PIPE, stderr=PIPE, shell=True)
-                
-                streamdata, err = osCmdOut.communicate()
-                os = streamdata.split('.')[0]
-                if os == "6":
+                osCheckCmd = "cat /etc/centos-release"
+                osCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
+                child = pexpect.spawn(osCmd)
+                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1):
+                    child.sendline(passwd)
+                if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
+                    child.sendline(otp)
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.sendline(osCheckCmd)
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                output = str(child.before)
+                child.close()
+                #print(output)
+                os = output.find("CentOS release 6")
+                if os != -1:
                     host_dict[host] = "Centos6"
                 else:
                     host_dict[host] = "NotCentos6"
@@ -140,7 +168,7 @@ class HostsCheck(object):
         if path.getsize(filename) == 0:
             raise SystemExit("File {0} is empty, so quitting".format(filename))
 
-    def process(self, hosts):
+    def process(self, hosts, kpass):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
         shared memory(Queue).
@@ -149,16 +177,17 @@ class HostsCheck(object):
         """
         process_q = Queue()
         p_list = []
+        syn = synnerUtil.Synner()
         for host in hosts:
-            process_inst = Process(target=self.check_patchset,
-                                   args=(host, process_q))
+            otp = syn.get_otp()
+            process_inst = Process(target=self.check_patchset, args=(host, kpass, otp, process_q))
             p_list.append(process_inst)
             process_inst.start()
         for pick_process in p_list:
             pick_process.join()
             self.data.append(process_q.get())
         
-    def os_process(self, hosts):
+    def os_process(self, hosts, kpass):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
         shared memory(Queue).
@@ -167,9 +196,10 @@ class HostsCheck(object):
         """
         process_q = Queue()
         p_list = []
+        syn = synnerUtil.Synner()
         for host in hosts:
-            process_inst = Process(target=self.check_for_centos6,
-                                   args=(host, process_q))
+            otp = syn.get_otp()
+            process_inst = Process(target=self.check_for_centos6, args=(host, kpass, otp, process_q))
             p_list.append(process_inst)
             process_inst.start()
         for pick_process in p_list:
@@ -182,24 +212,28 @@ def main():
     This is main function which will accept the command line argument and pass to the class methods.
     :return:
     """
-    parser = ArgumentParser(description="""To check if remote hosts are accessible over SSH and are not patched""",
-                            usage='%(prog)s -H <host_list> --bundle <bundle_name> --case <case_no>',
-                            epilog='python verify_hosts.py -H cs12-search41-1-phx --bundle 2016.09 --case 0012345')
-    parser.add_argument("-M", dest="mhosts",
-                        help="To get the Centos6 hosts only", action="store_true")
-    parser.add_argument("--bundle", dest="bundle",
-                        help="Bundle name")
-    parser.add_argument("-H", dest="hosts", required=True,
-                        help="The hosts in command line argument")
-    parser.add_argument("--case", dest="case",
-                        required=True, help="Case number")
-    parser.add_argument("--force", dest="force",
-                        action="store_true", help="Case number")
-    parser.add_argument("-v", dest="verbose",
-                        help="For debugging purpose", action="store_true")
+    parser = ArgumentParser(description="""To check if remote hosts are accessible over SSH and are not patched""", usage='%(prog)s -H <host_list> --bundle <bundle_name> --case <case_no>', epilog='python verify_hosts.py -H cs12-search41-1-phx --bundle 2016.09 --case 0012345')
+    parser.add_argument("-M", dest="mhosts", help="To get the Centos6 hosts only", action="store_true")
+    parser.add_argument("--bundle", dest="bundle", help="Bundle name")
+    parser.add_argument("-H", dest="hosts", required=True, help="The hosts in command line argument")
+    parser.add_argument("--case", dest="case", required=True, help="Case number")
+    parser.add_argument("--force", dest="force", action="store_true", help="Case number")
+    parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
+    parser.add_argument("--encrypted_creds", dest="encrypted_creds", help="Pass creds in via encrypted named pipe")
+    parser.add_argument("--decrypt_key", dest="decrypt_key", help="Used with --encrypted_creds description")
     args = parser.parse_args()
+
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+
+    if args.encrypted_creds:
+       try:
+          kpass, username, _ = get_creds_from_km_pipe(pipe_file=args.encrypted_creds,decrypt_key_file=args.decrypt_key)
+          username = username.split('@')[0]
+       except ImportError as e:
+          print("Import failed from GUS module, %s" % e)
+          sys.exit(1)
+
     if args.bundle:
         bundle = args.bundle
     else:
@@ -210,14 +244,12 @@ def main():
     class_object = HostsCheck(bundle, case_no, force)
     if args.mhosts:
         mhosts=args.hosts.split(',')
-        class_object.os_process(mhosts)
+        class_object.os_process(mhosts, kpass)
     else:
         hosts=args.hosts.split(',')
-        class_object.process(hosts)
+        class_object.process(hosts, kpass)
     class_object.write_to_file()
     class_object.check_file_empty()
 
 if __name__ == "__main__":
     main()
-
-
