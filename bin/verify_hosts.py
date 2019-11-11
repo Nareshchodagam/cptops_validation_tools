@@ -11,7 +11,11 @@ from __future__ import print_function
 import sys, os
 if "/opt/sfdc/python27/lib/python2.7/site-packages" in sys.path:
     sys.path.remove("/opt/sfdc/python27/lib/python2.7/site-packages")
-import pexpect
+try:
+    import pexpect
+except:
+    print("ERROR: pexpect module not found/installed")
+    sys.exit(1)
 import socket
 from argparse import ArgumentParser
 import logging
@@ -69,6 +73,9 @@ class HostsCheck(object):
                     child.sendline(passwd)
                 if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
+                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1):
+                    print("ERROR: Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.")
+                    sys.exit(1)
                 child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 child.sendline(orbCheckCmd)
                 child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
@@ -109,6 +116,9 @@ class HostsCheck(object):
                     child.sendline(passwd)
                 if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
+                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1):
+                    print("ERROR: Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.")
+                    sys.exit(1)
                 child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 child.sendline(osCheckCmd)
                 child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
