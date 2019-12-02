@@ -83,7 +83,6 @@ class HostsCheck(object):
                 child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 output = str(child.before)
                 child.close()
-                #print(output)
                 if "action required" in output.lower():
                     rc = True
                 else:
@@ -127,7 +126,6 @@ class HostsCheck(object):
                 child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 output = str(child.before)
                 child.close()
-                #print(output)
                 os = output.find("CentOS release 6")
                 if os != -1:
                     host_dict[host] = "Centos6"
