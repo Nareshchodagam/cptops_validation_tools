@@ -68,17 +68,17 @@ class HostsCheck(object):
                 socket_conn.connect((host, 22))
                 orbCheckCmd = "python /usr/local/libexec/orb-check.py -a {0}".format(self.bundle)
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
-                child = pexpect.spawn(orbCmd)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1):
+                child = pexpect.spawn(orbCmd, timeout=15)
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
                     child.sendline(passwd)
-                if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
+                if child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1):
-                    print("ERROR: Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.")
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1):
+                    print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
                     sys.exit(1)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
                 child.sendline(orbCheckCmd)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
                 output = str(child.before)
                 child.close()
                 #print(output)
@@ -112,16 +112,16 @@ class HostsCheck(object):
                 osCheckCmd = "cat /etc/centos-release"
                 osCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
                 child = pexpect.spawn(osCmd)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1):
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
                     child.sendline(passwd)
-                if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
+                if child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1):
-                    print("ERROR: Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.")
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1):
+                    print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
                     sys.exit(1)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
                 child.sendline(osCheckCmd)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
                 output = str(child.before)
                 child.close()
                 #print(output)
