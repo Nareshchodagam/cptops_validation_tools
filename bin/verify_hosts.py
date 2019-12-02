@@ -35,6 +35,9 @@ if re.search(r'(sfdc.net)', hostname):
     from katzmeow import get_creds_from_km_pipe
     import synnerUtil
 
+class SynnerError(Exception):
+    pass
+
 class HostsCheck(object):
     """
     :param: Class definition which accepts bundle name and case_no as command line arguments and pass to class methods.
@@ -74,11 +77,10 @@ class HostsCheck(object):
                 if child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
                 if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1):
-                    print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
-                    sys.exit(1)
-                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
+                    raise SynnerError
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 child.sendline(orbCheckCmd)
-                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 output = str(child.before)
                 child.close()
                 #print(output)
@@ -91,7 +93,9 @@ class HostsCheck(object):
                     print("{0} - already patched".format(host))
                 else:
                     host_dict[host] = "no_patched"
-
+        except SynnerError:
+            host_dict[host] = "SynnerError"
+            print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
         except socket.error as error:
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
@@ -117,11 +121,10 @@ class HostsCheck(object):
                 if child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
                 if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "Please provide Yubikey OTP.*", pexpect.EOF]) == 1):
-                    print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
-                    sys.exit(1)
-                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
+                    raise SynnerError
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 child.sendline(osCheckCmd)
-                child.expect([pexpect.TIMEOUT, "[#\$] ", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
                 output = str(child.before)
                 child.close()
                 #print(output)
@@ -130,7 +133,9 @@ class HostsCheck(object):
                     host_dict[host] = "Centos6"
                 else:
                     host_dict[host] = "NotCentos6"
-
+        except SynnerError:
+            host_dict[host] = "SynnerError"
+            print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
         except socket.error as error:
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
