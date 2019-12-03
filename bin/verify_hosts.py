@@ -69,7 +69,7 @@ class HostsCheck(object):
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                orbCheckCmd = "python /usr/local/libexec/orb-check.py -a {0}".format(self.bundle)
+                orbCheckCmd = "python /usr/local/libexec/orb-check.py -v {0}".format(self.bundle)
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
                 child = pexpect.spawn(orbCmd, timeout=15)
                 if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
