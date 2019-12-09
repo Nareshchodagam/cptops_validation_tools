@@ -9,6 +9,7 @@
 # modules
 from __future__ import print_function
 import sys, os
+
 if "/opt/sfdc/python27/lib/python2.7/site-packages" in sys.path:
     sys.path.remove("/opt/sfdc/python27/lib/python2.7/site-packages")
 try:
@@ -26,7 +27,7 @@ import shlex
 import json
 import unicodedata, re
 from os import path
-
+import getpass
 hostname = socket.gethostname()
 user_name = os.environ.get('USER')
 
@@ -38,6 +39,11 @@ if re.search(r'(sfdc.net)', hostname):
     except ImportError:
         logging.error("Error: Unable to import synnerUtil module.")
         sys.exit(1)
+
+
+class SynnerError(Exception):
+    pass
+
 
 class HostsCheck(object):
     """
@@ -64,28 +70,25 @@ class HostsCheck(object):
         try:
             fh = open(orbFile, 'r')
         except IOError:
-            print("Ensure presence of path: "+orbFile)
+            print("Ensure presence of path: " + orbFile)
         rc = None
         try:
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                orbCheckCmd = "python /usr/local/libexec/orb-check.py -a {0}".format(self.bundle)
+                orbCheckCmd = "python /usr/local/libexec/orb-check.py -v {0}".format(self.bundle)
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
-                child = pexpect.spawn(orbCmd)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1):
+                child = pexpect.spawn(orbCmd, timeout=10)
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
                     child.sendline(passwd)
-                if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
+                if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1):
-                    print("ERROR: Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.")
-                    sys.exit(1)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) in [1,2]):
+                    raise SynnerError
                 child.sendline(orbCheckCmd)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
                 output = str(child.before)
                 child.close()
-                #print(output)
                 if "action required" in output.lower():
                     rc = True
                 else:
@@ -95,53 +98,57 @@ class HostsCheck(object):
                     print("{0} - already patched".format(host))
                 else:
                     host_dict[host] = "no_patched"
-
+        except SynnerError:
+            host_dict[host] = "SynnerError"
+            print("ERROR: {0} Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
         except socket.error as error:
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
             print(e)
-	    exit(1)
+            exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
 
     def check_for_centos6(self, host, passwd, otp, p_queue):
         host_dict = {}
-        socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
                 osCheckCmd = "cat /etc/centos-release"
                 osCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
-                child = pexpect.spawn(osCmd)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1):
+                child = pexpect.spawn(osCmd, timeout=10)
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
                     child.sendline(passwd)
-                if child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1:
+                if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF]) == 1:
                     child.sendline(otp)
-                if (child.expect([pexpect.TIMEOUT, "Password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, "password:", pexpect.EOF]) == 1) or (child.expect([pexpect.TIMEOUT, ".*OTP.*", pexpect.EOF]) == 1):
-                    print("ERROR: Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.")
-                    sys.exit(1)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF],
+                                 timeout=5) in [1, 2]):
+                    raise SynnerError
                 child.sendline(osCheckCmd)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF])
+                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
                 output = str(child.before)
                 child.close()
-                #print(output)
                 os = output.find("CentOS release 6")
                 if os != -1:
                     host_dict[host] = "Centos6"
                 else:
                     host_dict[host] = "NotCentos6"
-
+        except SynnerError:
+            host_dict[host] = "SynnerError"
+            print(
+                "ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(
+                    host))
         except socket.error as error:
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
             print(e)
-	    exit(1)
+            exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
 
@@ -156,11 +163,11 @@ class HostsCheck(object):
         in_buffer = StringIO()
         for host_dict in self.data:
             for k, v in host_dict.items():
-                if v in ('no_patched','Centos6'):
+                if v in ('no_patched', 'Centos6'):
                     in_buffer.write("{0}".format(k) + ',')
                     logging.debug(in_buffer.getvalue())
                 else:
-                    if self.force and v in ('patched','NotCentos6'):
+                    if self.force and v in ('patched', 'NotCentos6'):
                         in_buffer.write("{0}".format(k) + ',')
                         logging.debug(in_buffer.getvalue())
                     ex_buffer.write(
@@ -200,7 +207,7 @@ class HostsCheck(object):
         for pick_process in p_list:
             pick_process.join()
             self.data.append(process_q.get())
-        
+
     def os_process(self, hosts, kpass):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
@@ -226,7 +233,9 @@ def main():
     This is main function which will accept the command line argument and pass to the class methods.
     :return:
     """
-    parser = ArgumentParser(description="""To check if remote hosts are accessible over SSH and are not patched""", usage='%(prog)s -H <host_list> --bundle <bundle_name> --case <case_no>', epilog='python verify_hosts.py -H cs12-search41-1-phx --bundle 2016.09 --case 0012345')
+    parser = ArgumentParser(description="""To check if remote hosts are accessible over SSH and are not patched""",
+                            usage='%(prog)s -H <host_list> --bundle <bundle_name> --case <case_no>',
+                            epilog='python verify_hosts.py -H cs12-search41-1-phx --bundle 2016.09 --case 0012345')
     parser.add_argument("-M", dest="mhosts", help="To get the Centos6 hosts only", action="store_true")
     parser.add_argument("--bundle", dest="bundle", help="Bundle name")
     parser.add_argument("-H", dest="hosts", required=True, help="The hosts in command line argument")
@@ -241,13 +250,15 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
 
     if args.encrypted_creds:
-       try:
-          kpass, username, _ = get_creds_from_km_pipe(pipe_file=args.encrypted_creds,decrypt_key_file=args.decrypt_key)
-          username = username.split('@')[0]
-       except ImportError as e:
-          print("Import failed from GUS module, %s" % e)
-          sys.exit(1)
-
+        try:
+            kpass, username, _ = get_creds_from_km_pipe(pipe_file=args.encrypted_creds,
+                                                        decrypt_key_file=args.decrypt_key)
+            username = username.split('@')[0]
+        except ImportError as e:
+            print("Import failed from GUS module, %s" % e)
+            sys.exit(1)
+    else :
+        kpass = getpass.getpass("Enter your kerberos password : ")
     if args.bundle:
         bundle = args.bundle
     else:
@@ -257,13 +268,14 @@ def main():
     force = args.force
     class_object = HostsCheck(bundle, case_no, force)
     if args.mhosts:
-        mhosts=args.hosts.split(',')
+        mhosts = args.hosts.split(',')
         class_object.os_process(mhosts, kpass)
     else:
-        hosts=args.hosts.split(',')
+        hosts = args.hosts.split(',')
         class_object.process(hosts, kpass)
     class_object.write_to_file()
     class_object.check_file_empty()
+
 
 if __name__ == "__main__":
     main()
