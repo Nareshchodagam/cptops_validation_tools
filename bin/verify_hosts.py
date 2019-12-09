@@ -33,7 +33,11 @@ user_name = os.environ.get('USER')
 if re.search(r'(sfdc.net)', hostname):
     sys.path.append("/opt/cpt/km")
     from katzmeow import get_creds_from_km_pipe
-    import synnerUtil
+    try:
+        import synnerUtil
+    except ImportError:
+        logging.error("Error: Unable to import synnerUtil module.")
+        sys.exit(1)
 
 class HostsCheck(object):
     """
