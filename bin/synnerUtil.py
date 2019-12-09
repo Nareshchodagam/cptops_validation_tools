@@ -19,12 +19,7 @@ class Synner:
          print("WARNING: synner is not installed under /usr/bin/synner. Any MFA-enabled hosts will not be accessible.")
          print("Returning empty otp")
          return ""
-      count = 3
       cmd = "/opt/synner/synner -action generate"
-      try:
-         otp = pexpect.spawn(cmd)
-         otp.expect("ddd.*")
-         return otp.after
-      except:
-         print("ERROR: OTP %s" % str(otp.before))
-         sys.exit(1)
+      otp = pexpect.spawn(cmd)
+      otp.expect("ddd.*")
+      return otp.after
