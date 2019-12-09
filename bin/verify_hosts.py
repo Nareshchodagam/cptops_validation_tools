@@ -19,15 +19,20 @@ except:
     sys.exit(1)
 import socket
 from argparse import ArgumentParser
-import logging
+import logging, shlex, json, time
 from multiprocessing import Process, Queue
 from subprocess import Popen, PIPE
 from StringIO import StringIO
-import shlex
-import json
 import unicodedata, re
-from os import path
-import getpass
+from os import path, environ
+import getpass, ConfigParser
+
+sys.path.append('/opt/cpt/')
+from GUS.base import Auth
+from GUS.base import Gus
+
+CONFIGDIR = environ['HOME'] + "/.cptops/config"
+config = ConfigParser.ConfigParser()
 hostname = socket.gethostname()
 user_name = os.environ.get('USER')
 
@@ -37,13 +42,17 @@ if re.search(r'(sfdc.net)', hostname):
     try:
         import synnerUtil
     except ImportError:
-        logging.error("Error: Unable to import synnerUtil module.")
+        logging.error("Error: synnerUtil.py is not found under /opt/cpt/bin/. Try updating cpt-tools or get the file from CPT's codebase")
         sys.exit(1)
-
 
 class SynnerError(Exception):
     pass
 
+class GusError(Exception):
+    pass
+
+class AuthError(Exception):
+    pass
 
 class HostsCheck(object):
     """
@@ -56,6 +65,38 @@ class HostsCheck(object):
         self.data = []
         self.user_home = path.expanduser('~')
         self.force = force
+
+    def otp_gen(self):
+        syn = synnerUtil.Synner()
+        retry_count = 3
+        otp = str(syn.get_otp())
+        count = 0
+        while not otp.startswith("ddd"):
+            if count == retry_count:
+                print("Retrying...")
+                raise SynnerError
+                break
+            otp = str(syn.get_otp())
+            count += 1
+        return otp
+
+    def exec_cmd(self, host, kpass, otp, cmd1, cmd2):
+        output = ""
+        child = pexpect.spawn(cmd1, timeout=10)
+        if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
+            child.sendline(kpass)
+        if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) == 1:
+            if not otp:
+                raise GusError
+            else:
+                child.sendline(otp)
+        if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) in [1,2]):
+            raise AuthError
+        child.sendline(cmd2)
+        child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
+        output = str(child.before)
+        child.close()
+        return output
 
     def check_patchset(self, host, passwd, otp, p_queue):
         """
@@ -78,18 +119,9 @@ class HostsCheck(object):
                 socket_conn.connect((host, 22))
                 orbCheckCmd = "python /usr/local/libexec/orb-check.py -v {0}".format(self.bundle)
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
-                child = pexpect.spawn(orbCmd, timeout=10)
-                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
-                    child.sendline(passwd)
-                if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF]) == 1:
-                    child.sendline(otp)
-                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) in [1,2]):
-                    raise SynnerError
-                child.sendline(orbCheckCmd)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
-                output = str(child.before)
-                child.close()
-                if "action required" in output.lower():
+                output = self.exec_cmd(host, passwd, otp, orbCmd, orbCheckCmd)
+                console_out = output.lower() # hack for fool-proof orb-check
+                if ("does not match" in console_out or "action required" in console_out):
                     rc = True
                 else:
                     rc = False
@@ -98,15 +130,27 @@ class HostsCheck(object):
                     print("{0} - already patched".format(host))
                 else:
                     host_dict[host] = "no_patched"
+        except pexpect.EOF:
+            host_dict[host] = "PexpectError"
+            print("ERROR: {0} reached pexpect EOF".format(host))
+        except pexpect.TIMEOUT:
+            host_dict[host] = "PexpectError"
+            print("ERROR: {0} reached pexpect TIMEOUT".format(host))
         except SynnerError:
             host_dict[host] = "SynnerError"
             print("ERROR: {0} Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
+        except GusError:
+            host_dict[host] = "GusNotUpdated"
+            print("ERROR: GUS has stale data about {0}. Host is expecting YubiKey OTP whereas GUS says otherwise.".format(host))
+        except AuthError:
+            host_dict[host] = "AuthError"
+            print("ERROR: Unable to authenticate to host {0}.".format(host))
         except socket.error as error:
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
-            print(e)
+            print("Unexpected error occured.")
             exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
@@ -120,34 +164,34 @@ class HostsCheck(object):
                 socket_conn.connect((host, 22))
                 osCheckCmd = "cat /etc/centos-release"
                 osCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
-                child = pexpect.spawn(osCmd, timeout=10)
-                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
-                    child.sendline(passwd)
-                if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF]) == 1:
-                    child.sendline(otp)
-                if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF],
-                                 timeout=5) in [1, 2]):
-                    raise SynnerError
-                child.sendline(osCheckCmd)
-                child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
-                output = str(child.before)
-                child.close()
-                os = output.find("CentOS release 6")
+                output = self.exec_cmd(host, passwd, otp, orbCmd, orbCheckCmd)
+                console_out = output.lower()
+                os = console_out.find("centos release 6")
                 if os != -1:
                     host_dict[host] = "Centos6"
                 else:
                     host_dict[host] = "NotCentos6"
+        except pexpect.EOF:
+            host_dict[host] = "PexpectError"
+            print("ERROR: {0} reached pexpect EOF".format(host))
+        except pexpect.TIMEOUT:
+            host_dict[host] = "PexpectError"
+            print("ERROR: {0} reached pexpect TIMEOUT".format(host))
         except SynnerError:
             host_dict[host] = "SynnerError"
-            print(
-                "ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(
-                    host))
+            print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
+        except GusError:
+            host_dict[host] = "GusNotUpdated"
+            print("ERROR: GUS has stale data about {0}. Host is expecting YubiKey OTP whereas GUS says otherwise.".format(host))
+        except AuthError:
+            host_dict[host] = "AuthError"
+            print("ERROR: Unable to authenticate to host {0}.".format(host))
         except socket.error as error:
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
-            print(e)
+            print("Unexpected error occured.")
             exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
@@ -189,7 +233,7 @@ class HostsCheck(object):
         if path.getsize(filename) == 0:
             raise SystemExit("File {0} is empty, so quitting".format(filename))
 
-    def process(self, hosts, kpass):
+    def process(self, hosts, mfa_hosts, kpass):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
         shared memory(Queue).
@@ -200,15 +244,26 @@ class HostsCheck(object):
         p_list = []
         syn = synnerUtil.Synner()
         for host in hosts:
-            otp = syn.get_otp()
+            if host in mfa_hosts:
+                try:
+                    otp = self.otp_gen()
+                except Exception:
+                    print("Error: Hostlist contains MFA hosts. Synner is not fully functional in this DC. Exiting.")
+                    sys.exit(1)
+                except SynnerError:
+                    print("Error: Something went wrong with Synner.")
+                    sys.exit(1)
+            else:
+                otp = False
             process_inst = Process(target=self.check_patchset, args=(host, kpass, otp, process_q))
             p_list.append(process_inst)
             process_inst.start()
+            time.sleep(1)
         for pick_process in p_list:
             pick_process.join()
             self.data.append(process_q.get())
 
-    def os_process(self, hosts, kpass):
+    def os_process(self, hosts, mfa_hosts, kpass):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
         shared memory(Queue).
@@ -219,14 +274,65 @@ class HostsCheck(object):
         p_list = []
         syn = synnerUtil.Synner()
         for host in hosts:
-            otp = syn.get_otp()
+            if host in mfa_hosts:
+                try:
+                    otp = self.otp_gen()
+                except SynnerError:
+                    print("Error: Something went wrong with Synner.")
+                    sys.exit(1)
+                except Exception:
+                    print("Error: Hostlist contains MFA hosts. Synner is not fully functional in this DC. Exiting.")
+                    sys.exit(1)
+            else:
+                otp = False
             process_inst = Process(target=self.check_for_centos6, args=(host, kpass, otp, process_q))
             p_list.append(process_inst)
             process_inst.start()
+            time.sleep(1)
         for pick_process in p_list:
             pick_process.join()
             self.data.append(process_q.get())
 
+def mfa_check(session, host_list, gus_conn):
+    """
+    :param session: GUS session dict
+    :type session: dict
+    :param host: Hostname to query
+    :type host: str
+    :param gus_conn: GUS Class Object
+    :return: Tuple of results
+    :rtype: tuple
+    """
+    # host_tuple = "('" + "','".join(host_list) + "')"
+    mfa_hosts = []
+    if len(host_list) == 1:
+        hosts = str("('"+host_list[0]+"')")
+    else:
+        hosts = tuple(host_list)
+    query = "SELECT Host_Name__c,Authentication_Method__c FROM SM_Logical_Host__c WHERE Host_Name__c in {}".format(hosts)
+    result = gus_conn.run_query(query, session)
+    for data in result['records']:
+        auth_method = str(data['Authentication_Method__c']).lower()
+        if (('mfa' in auth_method) or ('kerberos' not in auth_method)):
+            mfa_hosts.append(data['Host_Name__c'])
+    logging.debug("mfa_hosts {}".format(mfa_hosts))
+    return mfa_hosts
+
+def find_proxy(hostname):
+    """
+    This function is to find proxy for internal DCs <W-3758595>
+    :param hostname: hostname
+    :type hostname: str
+    :return: Nothing
+    :rtype: None
+    """
+    site = hostname.split('.')[0].split('-')[3]
+    if re.search(r'sfm|rz1|sfz|crz|crd', site, re.IGNORECASE):
+        environ['https_proxy'] = "http://public-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
+    elif re.search(r'prd|xrd', site, re.IGNORECASE):
+        environ['https_proxy'] = "http://public0-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
+        logging.debug("env variable set for prd host")
+    # logger.debug("setup proxy %s" .format(environ['https_proxy']))
 
 def main():
     """
@@ -251,14 +357,36 @@ def main():
 
     if args.encrypted_creds:
         try:
-            kpass, username, _ = get_creds_from_km_pipe(pipe_file=args.encrypted_creds,
+            kpass, username, gpass = get_creds_from_km_pipe(pipe_file=args.encrypted_creds,
                                                         decrypt_key_file=args.decrypt_key)
             username = username.split('@')[0]
         except ImportError as e:
             print("Import failed from GUS module, %s" % e)
             sys.exit(1)
     else :
-        kpass = getpass.getpass("Enter your kerberos password : ")
+        kpass = getpass.getpass("Enter your kerberos password: ")
+        gpass = getpass.getpass("Enter your GUS password: ")
+    
+    try:
+        config.readfp(open(CONFIGDIR + '/creds.config'))
+    except IOError:
+        logging.error("No creds.config file found")
+        exit(1)
+    try:
+        username = config.get('GUS', 'username')
+        client_id = config.get('GUS', 'client_id')
+        client_secret = config.get('GUS', 'client_secret')
+    except ConfigParser.Error:
+        logging.error('Problem getting username, client_id or client_secret')
+        exit(1)
+
+    find_proxy(hostname)
+    gus_conn = Gus()
+    auth_obj = Auth(username, gpass, client_id, client_secret)
+    session = auth_obj.login()
+    hosts = args.hosts.split(',')
+    mfa_hosts = mfa_check(session, hosts, gus_conn)
+
     if args.bundle:
         bundle = args.bundle
     else:
@@ -269,10 +397,10 @@ def main():
     class_object = HostsCheck(bundle, case_no, force)
     if args.mhosts:
         mhosts = args.hosts.split(',')
-        class_object.os_process(mhosts, kpass)
+        class_object.os_process(mhosts, mfa_hosts, kpass)
     else:
         hosts = args.hosts.split(',')
-        class_object.process(hosts, kpass)
+        class_object.process(hosts, mfa_hosts, kpass)
     class_object.write_to_file()
     class_object.check_file_empty()
 

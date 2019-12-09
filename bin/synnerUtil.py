@@ -21,5 +21,8 @@ class Synner:
          return ""
       cmd = "/opt/synner/synner -action generate"
       otp = pexpect.spawn(cmd)
-      otp.expect("ddd.*")
+      try:
+         otp.expect("ddd.*")
+      except Exception as e:
+         print("Generating synthetic otp failed")
       return otp.after
