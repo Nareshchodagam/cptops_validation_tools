@@ -18,6 +18,7 @@
 # For TnRP reference, use https://git.soma.salesforce.com/pipeline/release_pipeline/blob/master/pipeline_config_generator/setup.py
 # You can specify the files to be packaged through 'packages=find_packages(<files to be packaged>)' 
 # You can specify the files to be installed from the package through 'data_files=[ (<destination of the file>, ['file source'])]'
+#
 ###########################################################
 
 # os/env setup should be done in package, don't think we need this here
@@ -70,6 +71,7 @@ git clone git@git.soma.salesforce.com:CPT/cptops_exec_with_creds.git $HERE/cptop
 git clone git@git.soma.salesforce.com:CPT/cptops_core.git $HERE/core -b master
 git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $HERE/ssa -b master
 git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $HERE/sec_patch -b master
+git clone git@git.soma.salesforce.com:puppet/coresystem.git $HERE/coresystem -b master
 
 echo "----- packaging the rpm with fpm -----"
 fpm -s python -t rpm \
@@ -82,3 +84,5 @@ fpm -s python -t rpm \
 	setup.py
 
 echo "----- End CPT Tools TnRP build script -----"
+
+echo "dummy commit "

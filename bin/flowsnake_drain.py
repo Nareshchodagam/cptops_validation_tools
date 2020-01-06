@@ -22,7 +22,8 @@ def exec_cmd(cmd, description, retries=0, interval_secs=5):
         else:
             print "{} failed".format(description)
             print "{} -> {}".format(cmd, retcode)
-            sys.exit(1)
+            print "Failed with errors but ok to proceed per Flowsnake team."
+            sys.exit(0)
 
 
 def drain_node(description):

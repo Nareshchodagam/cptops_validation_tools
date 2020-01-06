@@ -20,7 +20,7 @@ def recordStatus(procName, procString):
     tmpFile = tmpDir + procName + '_status.tmp'
     logging.debug('Checking for running process' + procName)
     if options.sysinit:
-        if os == "CentOS" and ver[0] == 7:
+        if "centos" in os.lower() and ver[0] == 7:
             proc_initcmd = "systemctl status %s" % procName
         else:
             proc_initcmd = "service %s status" % procName
@@ -70,9 +70,20 @@ def getStatus(procName):
 
     return svcStatus
 
+def serviceStatus(procName):
+    status = chkInitState(procName)
+    if status == 0:
+        print(procName + " is running")
+    else:
+        print(procName + " is not running")
+        exit(1)
+
 def chkInitState(procName):
     logging.debug('Checking current status for process ' + procName)
-    proc_initcmd = "service %s status" % procName
+    if "centos" in os.lower() and ver[0] == 7:
+        proc_initcmd = "systemctl status %s" % procName
+    else:
+        proc_initcmd = "service %s status" % procName
     retcode = subprocess.call(shlex.split(proc_initcmd))
 
     return retcode
@@ -122,7 +133,10 @@ if __name__ == "__main__":
 
     Retreive the last recorded state of a process:
     %prog -n focus -g
-
+    
+    Check the status:
+    %prog -n focus -a
+    
     Start a service:
     %prog -n focus -c /opt/sr-tools/focus/tomcat/bin/startup.sh -s
 
@@ -153,6 +167,7 @@ if __name__ == "__main__":
     parser.add_option("-r", action="store_true", dest="checksvc", default=False, help="Record process state")
     parser.add_option("-i", action="store_true", dest="sysinit", default=False, help="Process is controlled by init.")
     parser.add_option("-g", action="store_true", dest="getstatus", default=False, help="Get last status")
+    parser.add_option("-a", action="store_true", dest="checkstatus", default=False, help="check status")
     parser.add_option("-s", action="store_true", dest="startsvc", default=False, help="Start Process")
     parser.add_option("-k", action="store_true", dest="stopsvc", default=False, help="Stop Process")
     parser.add_option("-n", dest="procname", help="Process Name")
@@ -182,9 +197,12 @@ if __name__ == "__main__":
         if options.getstatus:
             result = getStatus(procname)
             print "RESULT: " + result
-    
+
+        if options.checkstatus:
+            serviceStatus(procname)
+
         if options.startsvc and options.sysinit:
-                if os == "CentOS" and ver[0] == 7:
+                if "centos" in os.lower() and ver[0] == 7:
                    cmd = "systemctl start %s" % procname
                 else:
                    cmd = "service %s start" % procname
@@ -192,7 +210,7 @@ if __name__ == "__main__":
         elif options.startsvc and not options.sysinit:
             startService(procname, options.cmd, options.force)
         if options.stopsvc and options.sysinit:
-                if os == "CentOS" and ver[0] == 7:
+                if "centos" in os.lower() and ver[0] == 7:
                    cmd = "systemctl stop %s" % procname
                 else:
                    cmd = "service %s stop" % procname
