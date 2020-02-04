@@ -121,14 +121,27 @@ class HostsCheck(object):
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
                 output = self.exec_cmd(host, passwd, otp, orbCmd, orbCheckCmd)
                 console_out = output.lower() # hack for fool-proof orb-check
-                if ("does not match" in console_out or "action required" in console_out):
+                if ("does not match" in console_out or "reboot required" in console_out or "action required" in console_out):
                     rc = True
+                elif ("unrecognized arguments" in console_out or "ValueError" in console_out):
+                    rc = True
+                    flag = True
+                elif ("No such file or directory" in console_out):
+                    rc = False
+                    flag = True
                 else:
                     rc = False
+                    flag = False
                 if not rc:
-                    host_dict[host] = "patched"
-                    print("{0} - already patched".format(host))
+                    if flag:
+                        host_dict[host] = "ORBCheckMissing"
+                        print("orb-check.py is missing on {0}. Run puppet manually.".format(host))
+                    else:
+                        host_dict[host] = "patched"
+                        print("{0} - already patched".format(host))
                 else:
+                    if flag:
+                        print("Unable to determine to the current patch bundle on {0} due to old version of orb-check.py.".format(host))
                     host_dict[host] = "no_patched"
         except pexpect.EOF:
             host_dict[host] = "PexpectError"
@@ -164,7 +177,7 @@ class HostsCheck(object):
                 socket_conn.connect((host, 22))
                 osCheckCmd = "cat /etc/centos-release"
                 osCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
-                output = self.exec_cmd(host, passwd, otp, orbCmd, orbCheckCmd)
+                output = self.exec_cmd(host, passwd, otp, osCmd, osCheckCmd)
                 console_out = output.lower()
                 os = console_out.find("centos release 6")
                 if os != -1:
@@ -313,7 +326,7 @@ def mfa_check(session, host_list, gus_conn):
     result = gus_conn.run_query(query, session)
     for data in result['records']:
         auth_method = str(data['Authentication_Method__c']).lower()
-        if (('mfa' in auth_method) or ('kerberos' not in auth_method)):
+        if ('mfa' in auth_method):
             mfa_hosts.append(data['Host_Name__c'])
     logging.debug("mfa_hosts {}".format(mfa_hosts))
     return mfa_hosts
