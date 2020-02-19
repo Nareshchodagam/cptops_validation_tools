@@ -9,6 +9,6 @@ then
 echo "No ongoing Data restore , continue patching"
 exit 0
 else 
-echo "Looks like Data restore is inprogress on this host , contact SiteReliability "
+echo "SFDC JAVA process is running, looks like Data restore is inprogress on this host , please halt patching on this host. Contact Service Owner."
 exit 1
 fi
