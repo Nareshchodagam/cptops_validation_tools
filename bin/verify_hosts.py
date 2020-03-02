@@ -341,9 +341,9 @@ def find_proxy(hostname):
     :rtype: None
     """
     site = hostname.split('.')[0].split('-')[3]
-    if re.search(r'sfm|rz1|sfz|crz|crd', site, re.IGNORECASE):
+    if re.search(r'rz1|crz|crd', site, re.IGNORECASE):
         environ['https_proxy'] = "http://public-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
-    elif re.search(r'prd|xrd', site, re.IGNORECASE):
+    else:
         environ['https_proxy'] = "http://public0-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
         logging.debug("env variable set for prd host")
     # logger.debug("setup proxy %s" .format(environ['https_proxy']))
