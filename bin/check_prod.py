@@ -113,8 +113,11 @@ if __name__ == '__main__':
         except ImportError:
             logging.error("could not import the km module, will not decode creds passed in by km")
     idb=Idbhost(site=site, user=user, pswd=pswd)
-    # Get the active pods in a site 
-    data = idb.sp_data(site, 'ACTIVE', 'pod')
+    # Get the active pods in a site
+    if 'ACS' in options.instances:
+        data = idb.sp_data(site, 'ACTIVE', 'ACS')
+    else:
+        data = idb.sp_data(site, 'ACTIVE', 'pod')
     pod_details = idb.spcl_grp
     logging.debug(pod_details)
     if options.instances and options.loc:
