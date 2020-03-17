@@ -341,7 +341,7 @@ def find_proxy(hostname):
     :rtype: None
     """
     site = hostname.split('.')[0].split('-')[3]
-    if re.search(r'rz1|crz|crd', site, re.IGNORECASE):
+    if re.search(r'rz1|crz|crd|chx|wax', site, re.IGNORECASE):
         environ['https_proxy'] = "http://public-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
     else:
         environ['https_proxy'] = "http://public0-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
