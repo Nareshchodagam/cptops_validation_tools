@@ -98,7 +98,7 @@ class HostsCheck(object):
         child.close()
         return output
 
-    def check_patchset(self, host, passwd, otp, p_queue):
+    def check_patchset(self, host, passwd, otp, p_queue, session, gus_conn):
         """
             This function takes a host and check if host is alive and patched/not-patched
             :param: Accept hostname
@@ -113,6 +113,14 @@ class HostsCheck(object):
         except IOError:
             print("Ensure presence of path: " + orbFile)
         rc = None
+
+        lh_details = gus_conn.get_logical_host_id(session, host)
+        try:
+            host_id = lh_details['records'][0]['Id']
+            logging.debug("Logical Host {0} Id is {1} ".format(host, host_id))
+        except IndexError:
+            logging.error("Error occured while fetching details for host {0}".format(host))
+            
         try:
             if host:
                 socket_conn.settimeout(10)
@@ -151,26 +159,47 @@ class HostsCheck(object):
             host_dict[host] = "PexpectError"
             print("ERROR: {0} reached pexpect TIMEOUT".format(host))
         except SynnerError:
+            self.update_patching_lh(session, gus_conn, host, host_id, "AuthIssue.SSH")
             host_dict[host] = "SynnerError"
             print("ERROR: {0} Waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
         except GusError:
             host_dict[host] = "GusNotUpdated"
             print("ERROR: GUS has stale data about {0}. Host is expecting YubiKey OTP whereas GUS says otherwise.".format(host))
         except AuthError:
+            self.update_patching_lh(session, gus_conn, host, host_id, "AuthIssue.Kerberos")
             host_dict[host] = "AuthError"
             print("ERROR: Unable to authenticate to host {0}.".format(host))
         except socket.error as error:
+            self.update_patching_lh(session, gus_conn, host, host_id, "HostDown.PrePatch")
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
-            print("Unexpected error occured.")
+            print("Unexpected error occured: " + str(e))
             exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
 
-    def check_for_centos6(self, host, passwd, otp, p_queue):
+    def update_patching_lh(self, session, gus_conn, host, host_id, patch_issue):
+        payload = {
+            'Patch_Issue__c': patch_issue
+        }
+        ret = gus_conn.update_patching_lh(session, payload, host_id)
+        if ret.status_code == 204:
+            logging.info("Updated GUS Logical_host field for host {0} ".format(host))
+        else:
+            logging.error("Update to GUS failed for host {0} ".format(host))
+
+    def check_for_centos6(self, host, passwd, otp, p_queue, session, gus_conn):
         host_dict = {}
+
+        lh_details = gus_conn.get_logical_host_id(session, host)
+        try:
+            host_id = lh_details['records'][0]['Id']
+            logging.debug("Logical Host {0} Id is {1} ".format(host, host_id))
+        except IndexError:
+            logging.error("Error occured while fetching details for host {0}".format(host))
+
         socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             if host:
@@ -192,15 +221,18 @@ class HostsCheck(object):
             host_dict[host] = "PexpectError"
             print("ERROR: {0} reached pexpect TIMEOUT".format(host))
         except SynnerError:
+            self.update_patching_lh(session, gus_conn, host, host_id, "AuthIssue.SSH")
             host_dict[host] = "SynnerError"
             print("ERROR: {0} waiting at password/OTP prompt. Either previous password or OTP were not accepted. Please try again.".format(host))
         except GusError:
             host_dict[host] = "GusNotUpdated"
             print("ERROR: GUS has stale data about {0}. Host is expecting YubiKey OTP whereas GUS says otherwise.".format(host))
         except AuthError:
+            self.update_patching_lh(session, gus_conn, host, host_id, "AuthIssue.Kerberos")
             host_dict[host] = "AuthError"
             print("ERROR: Unable to authenticate to host {0}.".format(host))
         except socket.error as error:
+            self.update_patching_lh(session, gus_conn, host, host_id, "HostDown.PrePatch")
             host_dict[host] = "Down"
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
@@ -247,7 +279,7 @@ class HostsCheck(object):
         if path.getsize(filename) == 0:
             raise SystemExit("File {0} is empty, so quitting".format(filename))
 
-    def process(self, hosts, mfa_hosts, kpass):
+    def process(self, hosts, mfa_hosts, kpass, session, gus_conn):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
         shared memory(Queue).
@@ -269,7 +301,7 @@ class HostsCheck(object):
                     sys.exit(1)
             else:
                 otp = False
-            process_inst = Process(target=self.check_patchset, args=(host, kpass, otp, process_q))
+            process_inst = Process(target=self.check_patchset, args=(host, kpass, otp, process_q, session, gus_conn))
             p_list.append(process_inst)
             process_inst.start()
             time.sleep(1)
@@ -277,7 +309,7 @@ class HostsCheck(object):
             pick_process.join()
             self.data.append(process_q.get())
 
-    def os_process(self, hosts, mfa_hosts, kpass):
+    def os_process(self, hosts, mfa_hosts, kpass, session, gus_conn):
         """
         This function will accept hostlist as input and call check_patchset function and store value in
         shared memory(Queue).
@@ -299,7 +331,7 @@ class HostsCheck(object):
                     sys.exit(1)
             else:
                 otp = False
-            process_inst = Process(target=self.check_for_centos6, args=(host, kpass, otp, process_q))
+            process_inst = Process(target=self.check_for_centos6, args=(host, kpass, otp, process_q, session, gus_conn))
             p_list.append(process_inst)
             process_inst.start()
             time.sleep(1)
@@ -371,8 +403,7 @@ def main():
 
     if args.encrypted_creds:
         try:
-            kpass, username, gpass = get_creds_from_km_pipe(pipe_file=args.encrypted_creds,
-                                                        decrypt_key_file=args.decrypt_key)
+            kpass, username, gpass = get_creds_from_km_pipe(pipe_file=args.encrypted_creds, decrypt_key_file=args.decrypt_key)
             username = username.split('@')[0]
         except ImportError as e:
             print("Import failed from GUS module, %s" % e)
@@ -411,10 +442,10 @@ def main():
     class_object = HostsCheck(bundle, case_no, force)
     if args.mhosts:
         mhosts = args.hosts.split(',')
-        class_object.os_process(mhosts, mfa_hosts, kpass)
+        class_object.os_process(mhosts, mfa_hosts, kpass, session, gus_conn)
     else:
         hosts = args.hosts.split(',')
-        class_object.process(hosts, mfa_hosts, kpass)
+        class_object.process(hosts, mfa_hosts, kpass, session, gus_conn)
     class_object.write_to_file()
     class_object.check_file_empty()
 

@@ -6,8 +6,32 @@ import time
 import sys
 import threading
 import Queue
+import re
 
+if "/opt/sfdc/python27/lib/python2.7/site-packages" in sys.path:
+    sys.path.remove("/opt/sfdc/python27/lib/python2.7/site-packages")
 
+from os import path, environ
+import getpass
+import ConfigParser
+
+sys.path.append('/opt/cpt/')
+from GUS.base import Auth
+from GUS.base import Gus
+
+CONFIGDIR = environ['HOME'] + "/.cptops/config"
+config = ConfigParser.ConfigParser()
+hostname = socket.gethostname()
+user_name = os.environ.get('USER')
+
+if re.search(r'(sfdc.net)', hostname):
+    sys.path.append("/opt/cpt/km")
+    from katzmeow import get_creds_from_km_pipe
+    try:
+        import synnerUtil
+    except ImportError:
+        logging.error("Error: synnerUtil.py is not found under /opt/cpt/bin/. Try updating cpt-tools or get the file from CPT's codebase")
+        sys.exit(1)
 
 class ThreadHosts(threading.Thread):
     """Threaded check hosts sshable"""
@@ -66,6 +90,26 @@ def check_host_up(host,ncount):
     print("System %s is up. Able to connect" % host)
     return result
 
+def update_patching_lh(host, session, gus_conn):
+    lh_details = gus_conn.get_logical_host_id(session, host)
+
+    try:
+        host_id = lh_details['records'][0]['Id']
+        logging.debug("Logical Host {0} Id is {1} ".format(host, host_id))
+    except IndexError:
+        logging.error("Error occured while fetching details for host {0}".format(host))
+
+    payload = {
+        'Patch_Issue__c': "HostDown.PostPatch"
+    }
+
+    ret = gus_conn.update_patching_lh(session, payload, host_id)
+    if ret.status_code == 204:
+        logging.info("Updated GUS Logical_host field for host {0} ".format(host))
+    else:
+        logging.error("Update to GUS failed for host {0} ".format(host))
+
+
 if __name__ == "__main__":
     usage = """
     This code will check if a host is sshable for reconnection during automated work.
@@ -75,22 +119,48 @@ if __name__ == "__main__":
     %prog -l=H shared-nfs1-1-was,shared-nfs1-2-was
     """
     parser = OptionParser(usage)
-    parser.add_option("-H", "--hostlist", dest="hostlist",
-                        help="The comma seperated list of hosts to check")
-    parser.add_option("-d", "--delay", dest="delay", default=120, type='int',
-                        help="The pause to delay while host reboots")
-    parser.add_option("-c", "--ncount", dest="ncount", default=60, type='int',
-                        help="The pause to delay host n*10")
+    parser.add_option("-H", "--hostlist", dest="hostlist", help="The comma seperated list of hosts to check")
+    parser.add_option("-d", "--delay", dest="delay", default=120, type='int', help="The pause to delay while host reboots")
+    parser.add_option("-c", "--ncount", dest="ncount", default=30, type='int', help="The pause to delay host n*10")
     parser.add_option("-v", action="store_true", dest="verbose", help="verbosity")
+    parser.add_option("--encrypted_creds", dest="encrypted_creds", help="Pass creds in via encrypted named pipe")
+    parser.add_option("--decrypt_key", dest="decrypt_key", help="Used with --encrypted_creds description")
     (options, args) = parser.parse_args()
-
-
 
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
+
+    if options.encrypted_creds:
+        try:
+            _, username, gpass = get_creds_from_km_pipe(pipe_file=options.encrypted_creds, decrypt_key_file=options.decrypt_key)
+            username = username.split('@')[0]
+        except ImportError as e:
+            print("Import failed from GUS module, %s" % e)
+            sys.exit(1)
+    else :
+        #kpass = getpass.getpass("Enter your kerberos password: ")
+        gpass = getpass.getpass("Enter your GUS password: ")
+
     if options.hostlist is None:
         print(usage)
         sys.exit()
+
+    try:
+        config.readfp(open(CONFIGDIR + '/creds.config'))
+    except IOError:
+        logging.error("No creds.config file found")
+        sys.exit(1)
+    try:
+        username = config.get('GUS', 'username')
+        client_id = config.get('GUS', 'client_id')
+        client_secret = config.get('GUS', 'client_secret')
+    except ConfigParser.Error:
+        logging.error('Problem getting username, client_id or client_secret')
+        sys.exit(1)
+
+    gus_conn = Gus()
+    auth_obj = Auth(username, gpass, client_id, client_secret)
+    session = auth_obj.login()
 
     if options.hostlist:
         hosts_completed = {}
@@ -107,10 +177,14 @@ if __name__ == "__main__":
 
         queue.join()
 
+        flag = False
         logging.debug(hosts_completed)
         for key in hosts_completed:
             if hosts_completed[key] == False:
-                print('Error with one of the hosts')
-                print(hosts_completed)
-                sys.exit(1)
+                update_patching_lh(key, session, gus_conn)
+                flag = True
+        
         print(hosts_completed)
+        if flag:
+            print('Error with one of the hosts')
+            sys.exit(1)
