@@ -294,8 +294,8 @@ class ThreadStatusCheck(threading.Thread):
         self.mig = Migration()
     
     def run(self):
-        host, delay = self.queue.get()
-        result, status = self.mig.check_status(host, self.casenum, delay)
+        host, delay, prev_cmd = self.queue.get()
+        result, status = self.mig.check_status(host, self.casenum, delay, prev_cmd)
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
@@ -709,7 +709,7 @@ class Migration:
             output.setdefault("error", "%s - an error occurred while processing the request" % hostname)
         return output, status
 
-    def check_status(self, hostname, casenum, delay):
+    def check_status(self, hostname, casenum, delay, prev_cmd):
         """
         For a given host, this method checks for the status changes in racktastic
         """
@@ -746,9 +746,17 @@ class Migration:
                 status_cmd_response = json.loads(self.exec_cmd(status_cmd))
                 status = status_cmd_response["state"]
                 logger.info("%s - %s" % (hostname, status))
-                if status in ["awaiting_deployment", "deployed"]:
+                if prev_cmd in ["image", "rebuild"] and status == "awaiting_deployment":
                     result = True
-                    output.setdefault("success", "%s processed successfully. latest status - %s" % (hostname, status))
+                    output.setdefault("success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                    break
+                elif prev_cmd == "deploy" and status == "deployed":
+                    result = True
+                    output.setdefault("success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                    break
+                elif prev_cmd == "fail" and status == "failed":
+                    result = True
+                    output.setdefault("success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
                     break
                 logger.info("Retrying in %s seconds " % (poll_interval))
                 time.sleep(poll_interval)
@@ -801,16 +809,17 @@ def main():
     This is main method which will accept the command line argument and pass to the class methods.
     """
 
-    parser = ArgumentParser(prog='migration_manager.py', usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status --delay <MINS>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus")
+    parser = ArgumentParser(prog='migration_manager.py', usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus")
     
     parser.add_argument("-c", dest="case", help="case number", required=True)
-    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "routecheck", "image", "fail" "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
+    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name", help="specify cluster name")
     parser.add_argument("--superpod", dest="superpod_name", help="specify super pod name")
     parser.add_argument("--disk_config", dest="disk_config", help="specify disk config e.g stage1v0|fastcache2", default="stage1v0")
     parser.add_argument("--preserve", dest="preserve_data", action="store_true", help="include this to preserve data", default=False)
     parser.add_argument("--delay", dest="delay_in_mins", type=int, default=10, help="specify delay in minutes")
+    parser.add_argument("--previous", dest="prev_action", help="specify previous racktastic command perfomred", choices=["image", "deploy", "rebuild", "fail"])
     parser.add_argument("-v", dest="verbose", action="store_true", help="verbose output", default=False)
 
     args = parser.parse_args()
@@ -1054,6 +1063,9 @@ def main():
             sys.exit(1)
     
     elif args.action == "status":
+        if not args.prev_action:
+            logger.error("please provide previous racktastic action performed using --previous.")
+            sys.exit(1)
         delay = int(args.delay_in_mins) * 60
         hosts_processed = {}
         queue = Queue.Queue()
@@ -1062,20 +1074,25 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            lst = [h, delay]
+            lst = [h, delay, args.prev_action]
             queue.put(lst)
         queue.join()
         failed = False
+        expected_status = ""
+        if args.prev_action in ["image", "rebuild"]:
+            expected_status = "awaiting_deployment"
+        elif args.prev_action == "deploy":
+            expected_status = "deployed"
+        elif args.prev_action == "fail":
+            expected_status == "failed"
         for key in hosts_processed:
-            if hosts_processed[key]["status"] in ["awaiting_deployment", "deployed"]:
-                logger.info("%s successfully processed. Latest status - %s" % (key, hosts_processed[key]["status"]))
-            elif hosts_processed[key]["status"] in ["failed"]:
-                logger.warning("%s is in %s state. Please proceed at your own risk." % (key, hosts_processed[key]["status"]))
+            if hosts_processed[key]["status"] == expected_status:
+                logger.info("%s successfully processed. Latest status after %s command - %s" % (key, args.prev_action, hosts_processed[key]["status"]))
             elif "message" in hosts_processed[key]["info"].keys():
-                logger.error("%s - %s. Please troubleshoot." % (key, hosts_processed[key]["info"]["message"]))
+                logger.error("%s command on %s - %s. Please troubleshoot." % (args.prev_action, key, hosts_processed[key]["info"]["message"]))
                 failed = True
-            else:
-                logger.error("%s - %s. Please troubleshoot." % (key, hosts_processed[key]["info"]["error"]))
+            elif "error" in hosts_processed[key]["info"].keys():
+                logger.error("%s command on %s - %s. Please troubleshoot." % (args.prev_action, key, hosts_processed[key]["info"]["error"]))
                 failed = True
         if failed:
             sys.exit(1)

@@ -123,6 +123,7 @@ class HostsCheck(object):
                 console_out = output.lower() # hack for fool-proof orb-check
                 if ("does not match" in console_out or "reboot required" in console_out or "action required" in console_out):
                     rc = True
+                    flag = False
                 elif ("unrecognized arguments" in console_out or "ValueError" in console_out):
                     rc = True
                     flag = True
@@ -204,7 +205,7 @@ class HostsCheck(object):
             print("{0} - Error on connect: {1}".format(host, error))
             socket_conn.close()
         except Exception as e:
-            print("Unexpected error occured.")
+            print("Unexpected error occured: " + str(e))
             exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
@@ -340,9 +341,9 @@ def find_proxy(hostname):
     :rtype: None
     """
     site = hostname.split('.')[0].split('-')[3]
-    if re.search(r'sfm|rz1|sfz|crz|crd', site, re.IGNORECASE):
+    if re.search(r'rz1|crz|crd|chx|wax', site, re.IGNORECASE):
         environ['https_proxy'] = "http://public-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
-    elif re.search(r'prd|xrd', site, re.IGNORECASE):
+    else:
         environ['https_proxy'] = "http://public0-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
         logging.debug("env variable set for prd host")
     # logger.debug("setup proxy %s" .format(environ['https_proxy']))
