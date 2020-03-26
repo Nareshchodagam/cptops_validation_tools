@@ -3,7 +3,7 @@
 # This script is used to check if any Data is being restored using this server.
 # 
 #
-ps -ef | grep -i java |grep -v grep >/dev/null 2>&1
+ps -fu sfdc | grep -v UID >/dev/null 2>&1
 if [ $? -ne 0 ]
 then 
 echo "No ongoing Data restore , continue patching"
