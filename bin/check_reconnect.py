@@ -91,6 +91,22 @@ def check_host_up(host,ncount):
     print("System %s is up. Able to connect" % host)
     return result
 
+def find_proxy(hostname):
+    """
+    This function is to find proxy for internal DCs <W-3758595>
+    :param hostname: hostname
+    :type hostname: str
+    :return: Nothing
+    :rtype: None
+    """
+    site = hostname.split('.')[0].split('-')[3]
+    if re.search(r'rz1|crz|crd|chx|wax', site, re.IGNORECASE):
+        environ['https_proxy'] = "http://public-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
+    else:
+        environ['https_proxy'] = "http://public0-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
+        logging.debug("env variable set for prd host")
+    # logger.debug("setup proxy %s" .format(environ['https_proxy']))
+
 def update_patching_lh(host, session, gus_conn):
     lh_details = gus_conn.get_logical_host_id(session, host)
 
@@ -163,6 +179,7 @@ if __name__ == "__main__":
         logging.error('Problem getting username, client_id or client_secret')
         sys.exit(1)
 
+    find_proxy(hostname)
     gus_conn = Gus()
     auth_obj = Auth(username, gpass, client_id, client_secret)
     session = auth_obj.login()
