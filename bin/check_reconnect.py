@@ -23,7 +23,7 @@ from GUS.base import Gus
 CONFIGDIR = environ['HOME'] + "/.cptops/config"
 config = ConfigParser.ConfigParser()
 hostname = socket.gethostname()
-user_name = os.environ.get('USER')
+user_name = environ.get('USER')
 
 if re.search(r'(sfdc.net)', hostname):
     sys.path.append("/opt/cpt/km")
