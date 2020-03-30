@@ -7,6 +7,7 @@ import sys
 import threading
 import Queue
 import re
+from datetime import datetime
 
 if "/opt/sfdc/python27/lib/python2.7/site-packages" in sys.path:
     sys.path.remove("/opt/sfdc/python27/lib/python2.7/site-packages")
@@ -99,8 +100,12 @@ def update_patching_lh(host, session, gus_conn):
     except IndexError:
         logging.error("Error occured while fetching details for host {0}".format(host))
 
+    now = datetime.now()
+    dt_string = now.strftime("%d/%m/%Y-%H:%M:%S")
+    patch_issue_full = "{};HostDown.PostPatch".format(str(dt_string))
+
     payload = {
-        'Patch_Issue__c': "HostDown.PostPatch"
+        'Patch_Issue__c': patch_issue_full
     }
 
     ret = gus_conn.update_patching_lh(session, payload, host_id)

@@ -26,6 +26,7 @@ from StringIO import StringIO
 import unicodedata, re
 from os import path, environ
 import getpass, ConfigParser
+from datetime import datetime
 
 sys.path.append('/opt/cpt/')
 from GUS.base import Auth
@@ -181,8 +182,12 @@ class HostsCheck(object):
         p_queue.put(host_dict)
 
     def update_patching_lh(self, session, gus_conn, host, host_id, patch_issue):
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y-%H:%M:%S")
+        patch_issue_full = "{};{}".format(str(dt_string), patch_issue)
+        
         payload = {
-            'Patch_Issue__c': patch_issue
+            'Patch_Issue__c': patch_issue_full
         }
         ret = gus_conn.update_patching_lh(session, payload, host_id)
         if ret.status_code == 204:
