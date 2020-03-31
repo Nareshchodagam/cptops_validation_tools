@@ -183,9 +183,9 @@ class HostsCheck(object):
 
     def update_patching_lh(self, session, gus_conn, host, host_id, patch_issue):
         now = datetime.now()
-        dt_string = now.strftime("%d/%m/%Y-%H:%M:%S")
+        dt_string = now.strftime("%d/%m/%Y")
         patch_issue_full = "{};{}".format(str(dt_string), patch_issue)
-        
+
         payload = {
             'Patch_Issue__c': patch_issue_full
         }

@@ -117,7 +117,7 @@ def update_patching_lh(host, session, gus_conn):
         logging.error("Error occured while fetching details for host {0}".format(host))
 
     now = datetime.now()
-    dt_string = now.strftime("%d/%m/%Y-%H:%M:%S")
+    dt_string = now.strftime("%d/%m/%Y")
     patch_issue_full = "{};HostDown.PostPatch".format(str(dt_string))
 
     payload = {
