@@ -9,6 +9,7 @@ import threading
 import Queue
 import json
 import time
+import requests
 
 
 class Util:
@@ -17,21 +18,6 @@ class Util:
 
     def has_valid_kerberos_ticket(self):
         return True if call(['klist', '-s']) == 0 else False
-    
-    def ask_user(self):
-        check = str(raw_input("Do you want to proceed with the execution? (y/n) ")).strip().lower()
-        try:
-            if check[0] == "y":
-                return True
-            elif check[0] == "n":
-                return False
-            else:
-                print("Please enter y or n.")
-                return self.ask_user()
-        except Exception as error:
-            print("Please enter valid input")
-            logger.error(error)
-            return self.ask_user()
 
     def check_file_exists(self, casenum, type=""):
         """
@@ -369,26 +355,29 @@ class Migration:
             if hostname in item.keys():
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 rack_position = item.values()[0]["rack_position"]
+                serial_number = item.values()[0]["serial_number"]
                 break
-        
+
         cnc_host = cnc_api_url.split("//")[1].split(":")[0]
-        rack_ip = "192.168.1.%s" % rack_position
-        ssh_opts = "-o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        self.exec_cmd("scp %s /opt/cpt/bin/rack_port_check.py %s:%s/rack_port_check.py" % (ssh_opts, cnc_host, self.user_home))
-        ssh_cmd = "ssh -4 -t %s %s \"python %s/rack_port_check.py --host %s\"" % (ssh_opts, cnc_host, self.user_home, rack_ip)
+        route_check_url = cnc_api_url + "diagnostic/bmc/" + serial_number
         try:
-            ssh_out = self.exec_cmd(ssh_cmd)
-            out = ssh_out.rstrip()
-            if out == "open":
-                output.setdefault("success", "%s - port 22 is open" % hostname)
+            response = requests.get(route_check_url)
+            if not response.status_code == 200:
+                raise Exception
+            result = response.json()
+            accessible = result["accessible"]
+            authenticable = result["authenticatable"]
+
+            if accessible == True and authenticable == True:
+                output.setdefault("success", "%s - Route check passed and IB console is accessible" % hostname)
                 status = "SUCCESS"
             else:
-                output.setdefault("error", "%s - no route to host" % hostname)
+                output.setdefault("error", "%s - No route to host console from CNC" % hostname)
                 status = "ERROR"
         except:
             output.setdefault("error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
             status = "ERROR"
-        self.exec_cmd("reset")
+
         return output, status
 
     def trigger_image(self, hostname, casenum, role="", preserve=False, disk_config=""):
@@ -761,6 +750,8 @@ class Migration:
                 logger.info("Retrying in %s seconds " % (poll_interval))
                 time.sleep(poll_interval)
                 count += 1
+                if prev_cmd in ["image", "rebuild"] and count > 10:
+                    logger.info("%s might be stuck at awaiting_checkin. Please check in console" % hostname)
                 if count == retry_count:
                     logger.info("%s status didn't change in expected time. Please retry" % hostname)
                     output.setdefault("message", "unable to process %s in time." % hostname)
@@ -793,12 +784,16 @@ class Migration:
 
     def check_rack_status(self, cnc_api_url):
         cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-        rack_stat_cmd = "curl -s --connect-timeout 10 --request GET " + cnc_api_url + "status"
+        rack_status_url = cnc_api_url + "status"
         try:
-            rack_stat = json.loads(self.exec_cmd(rack_stat_cmd))
-            rack_status = rack_stat["rack"]["state"]
-            logger.debug("Rack Status of %s - %s" % (cnc_host, rack_status))
-            return rack_status
+            response = requests.get(rack_status_url, timeout=10)
+            if not response.status_code == 200:
+                raise Exception
+            else:
+                result = response.json()
+                rack_status = result["rack"]["state"]
+                logger.debug("Rack Status of %s - %s" % (cnc_host, rack_status))
+                return rack_status
         except:
             logger.error("The rack status of %s could not be fetched in time. Exiting." % cnc_host)
             return "timed out"
@@ -882,10 +877,6 @@ def main():
         misc.write_to_hostinfo_file(casenum, host_info)
         misc.write_to_cnc_file(casenum, host_info)
 
-        if failed:
-            if not misc.ask_user():
-                sys.exit(1)
-
     elif args.action == "routecheck":
         if not misc.check_file_exists(casenum, type="include"):
             logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
@@ -918,10 +909,6 @@ def main():
         misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "NoRouteToHost")
-        
-        if failed:
-            if not misc.ask_user():
-                sys.exit(1)
 
     elif args.action == "image":
         if not args.host_role:
