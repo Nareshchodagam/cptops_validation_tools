@@ -761,6 +761,8 @@ class Migration:
                 logger.info("Retrying in %s seconds " % (poll_interval))
                 time.sleep(poll_interval)
                 count += 1
+                if prev_cmd in ["image", "rebuild"] and count > 10:
+                    logger.info("%s might be stuck at awaiting_checkin. Please check in console" % hostname)
                 if count == retry_count:
                     logger.info("%s status didn't change in expected time. Please retry" % hostname)
                     output.setdefault("message", "unable to process %s in time." % hostname)
