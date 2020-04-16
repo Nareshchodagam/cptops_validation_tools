@@ -207,6 +207,9 @@ class HostsCheck(object):
             logging.debug("Logical Host {0} Id is {1} ".format(host, host_id))
         except IndexError:
             logging.error("Error occured while fetching details for host {0}".format(host))
+            host_dict[host] = "LHNotFound"
+            p_queue.put(host_dict)
+            return
 
         socket_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
