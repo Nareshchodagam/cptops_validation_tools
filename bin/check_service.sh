@@ -48,13 +48,5 @@ case "$1" in
         else
             /sbin/status gomon
         fi
-        # the above gomon status check exits 0 whether or not gomon is running...
-        # so, no point checking the exit code.  of informational value only
-
-        if [ $OS_VERSION -eq 7 ]; then
-            /usr/bin/systemctl status cms-ant
-        else
-            /sbin/service cms-ant status
-        fi
     ;;
 esac
