@@ -41,12 +41,6 @@ case "$1" in
         if [ $ERR -ne 0 ]; then
             exit $ERR
         fi
-
-        if [ $OS_VERSION -eq 7 ]; then
-            /usr/bin/systemctl start cms-ant
-        else
-            /sbin/service cms-ant start
-        fi
     ;;
     'status')
         if [ $OS_VERSION -eq 7 ]; then
