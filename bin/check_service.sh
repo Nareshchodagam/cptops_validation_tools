@@ -16,16 +16,6 @@ case "$1" in
                 /sbin/stop gomon
             fi
         fi
-        ERR=$?
-        if [ $ERR -ne 0 ]; then
-            exit $ERR
-        fi
-
-        if [ $OS_VERSION -eq 7 ]; then
-            /usr/bin/systemctl stop cms-ant
-        else
-            /sbin/service cms-ant stop
-        fi
     ;;
     'start')
         if [ $PROCESS_CHECK -gt 0 ]; then
@@ -36,10 +26,6 @@ case "$1" in
             else
                 /sbin/start gomon
             fi
-        fi
-        ERR=$?
-        if [ $ERR -ne 0 ]; then
-            exit $ERR
         fi
     ;;
     'status')
