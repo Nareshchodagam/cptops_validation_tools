@@ -166,5 +166,6 @@ if __name__ == "__main__":
         vendor=getVendor()
         if not setBootDev(vendor,options.devicename.upper()):
             print("Unable to set boot device")
-            sys.exit(1)
+            # print error, exit anyway.  This will help with CaPTain.
+            sys.exit(0)
 
