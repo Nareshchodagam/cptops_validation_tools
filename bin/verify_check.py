@@ -351,6 +351,12 @@ def mq_check(host, role):
         status = parse_web(data, pod)
         logging.debug(status)
         
+        url2 = sets[role]['url2'] % (pod)
+        data2   = query_web(url2)
+        pattern = re.compile('(.*\|.*)')
+        status2 = pattern.findall(data2)[0].split("|")[0]
+        logging.debug(status2)
+
         # print the pod health status
         print("{0} pod {1} mq broker health:".format(dc, pod))
         for host in status.keys():
@@ -358,6 +364,13 @@ def mq_check(host, role):
                 print "{0} is ".format(host) + bcolors.OKGREEN + "ACTIVE" + bcolors.ENDC
             else:
                 print "{0} is ".format(host) + bcolors.FAIL + "{0}".format(status[host]) + bcolors.ENDC
+
+        if status2.upper() != "SUCCESS":
+            logging.error("End to End check is not successful for the URL : \n {}".format(url2))
+            sys.exit(1)
+        else:
+            print "End to End check (below url) is "+ bcolors.OKGREEN + "SUCCESS" + bcolors.ENDC
+            print url2
 
         # fail if any host is not active
         for host in status.keys():
