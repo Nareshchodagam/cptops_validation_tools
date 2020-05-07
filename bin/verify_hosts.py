@@ -124,6 +124,15 @@ class HostsCheck(object):
             host_dict[host] = "LHNotFound"
             p_queue.put(host_dict)
             return
+
+        rma = self.check_host_open_rma(session, gus_conn, host)
+        if not rma == None:
+            logging.info("Host {} has open RMA - {}".format(host, rma))
+            host_dict[host] = "RMA #{}".format(rma)
+            self.update_patching_lh(session, gus_conn, host, host_id, "HostRMA.{}".format(rma))
+            logging.debug(host_dict)
+            p_queue.put(host_dict)
+            return
             
         try:
             if host:
@@ -183,6 +192,20 @@ class HostsCheck(object):
             exit(1)
         logging.debug(host_dict)
         p_queue.put(host_dict)
+
+    def check_host_open_rma(self, session, gus_conn, host):
+        # RMA GUS Record Type - 012B000000009fDIAQ
+        query = "SELECT Case_Record__c FROM SM_Case_Asset_Connector__c WHERE Case_RecordType__c = '012B000000009fD' AND Host_Name__c = '{}'".format(host)
+        result = gus_conn.run_query(query, session)
+        rma = None
+        for data in result['records']:
+            rma_case_id = str(data['Case_Record__c'])
+            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed' AND Status != 'Return to Service')".format(rma_case_id)
+            res = gus_conn.run_query(q, session)
+            if len(res['records']) > 0:
+                for d in res['records']:
+                    rma = d['CaseNumber']
+        return rma
 
     def update_patching_lh(self, session, gus_conn, host, host_id, patch_issue):
         now = datetime.now()
