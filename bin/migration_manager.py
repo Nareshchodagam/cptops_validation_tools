@@ -13,6 +13,7 @@ import requests
 
 
 class Util:
+
     def __init__(self):
         self.user_home = path.expanduser("~")
 
@@ -42,7 +43,7 @@ class Util:
         except:
             logger.error("%s is not readable" % file_name)
             return
-    
+
     def write_to_include_file(self, casenum, hostlist):
         """
         method that writes given hostlist to include file
@@ -56,7 +57,7 @@ class Util:
         except IOError:
             logger.error("Error writing to %s" % file_name)
             sys.exit(1)
-    
+
     def write_to_exclude_file(self, casenum, hostname, reason):
         """
         method that appends the given host to exclude file along with reason why it is excluded
@@ -82,7 +83,7 @@ class Util:
         except:
             logger.error("Error writing to %s" % file_name)
             sys.exit(1)
-        
+
     def write_to_hostinfo_file(self, casenum, hostinfo):
         """
         method that writes hostinfo to hostinfo file
@@ -97,7 +98,7 @@ class Util:
         except IOError:
             logger.error("Error writing hostinfo to %s " % file_name)
             sys.exit(1)
-    
+
     def write_to_cnc_file(self, casenum, hostinfo):
         """
         method that identifies hp hosts and writes respective cnc's to cnc file
@@ -112,7 +113,8 @@ class Util:
                     if cnc_host not in cnc_list:
                         cnc_list.append(cnc_host)
         if not len(cnc_list) > 0:
-            dummy = hostinfo[0].values()[0]["cnc_api_url"].split("//")[1].split(".")[0]
+            dummy = hostinfo[0].values()[0]["cnc_api_url"].split(
+                "//")[1].split(".")[0]
             cnc_list.append(dummy)
         try:
             f = open(file_name, "w+")
@@ -125,27 +127,30 @@ class Util:
 
 
 class ThreadCncInfo(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
         self.casenum = casenum
         self.hosts_processed = hosts_processed
         self.mig = Migration()
-    
+
     def run(self):
         h = self.queue.get()
         max_retries = 2
         count = 0
         result, status = self.mig.get_cnc_info(h, self.casenum)
         while status == "ERROR" and count != max_retries:
-            logger.info("%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count+1)))
+            logger.info(
+                "%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count + 1)))
             result, status = self.mig.get_cnc_info(h, self.casenum)
             count += 1
         self.hosts_processed[h] = {"info": result, "status": status}
         self.queue.task_done()
-    
+
 
 class ThreadRouteCheck(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
@@ -161,6 +166,7 @@ class ThreadRouteCheck(threading.Thread):
 
 
 class ThreadImaging(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
@@ -172,17 +178,22 @@ class ThreadImaging(threading.Thread):
         host, role, preserve, disk_config = self.queue.get()
         max_retries = 2
         count = 0
-        logger.info("Triggering image command on %s. Will be retrying for a maximum of %s times if failed" % (host, max_retries))
-        result, status = self.mig.trigger_image(host, self.casenum, role=role, preserve=preserve, disk_config=disk_config)
+        logger.info("Triggering image command on %s. Will be retrying for a maximum of %s times if failed" % (
+            host, max_retries))
+        result, status = self.mig.trigger_image(
+            host, self.casenum, role=role, preserve=preserve, disk_config=disk_config)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
-            logger.info("Retry #%s image command on %s as it's failed in previous attempt" % (count, host))
-            result, status = self.mig.trigger_image(host, self.casenum, role=role, preserve=preserve, disk_config=disk_config)
+            logger.info(
+                "Retry #%s image command on %s as it's failed in previous attempt" % (count, host))
+            result, status = self.mig.trigger_image(
+                host, self.casenum, role=role, preserve=preserve, disk_config=disk_config)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
 
 class ThreadFailHost(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
@@ -194,10 +205,12 @@ class ThreadFailHost(threading.Thread):
         host = self.queue.get()
         max_retries = 2
         count = 0
-        logger.info("Triggering fail_host command on %s. Will be retrying for a maximum of %s times if failed" % (host, max_retries))
+        logger.info("Triggering fail_host command on %s. Will be retrying for a maximum of %s times if failed" % (
+            host, max_retries))
         result, status = self.mig.fail_host(host, self.casenum)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
-            logger.info("Retry #%s fail_host command on %s as it's failed in previous attempt" % (count, host))
+            logger.info(
+                "Retry #%s fail_host command on %s as it's failed in previous attempt" % (count, host))
             result, status = self.mig.fail_host(host, self.casenum)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
@@ -205,28 +218,34 @@ class ThreadFailHost(threading.Thread):
 
 
 class ThreadRebuilding(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
         self.casenum = casenum
         self.hosts_processed = hosts_processed
         self.mig = Migration()
-    
+
     def run(self):
         host, preserve, disk_config = self.queue.get()
         max_retries = 2
         count = 0
-        logger.info("Triggering rebuild_failed_host command on %s. Will be retrying for a maximum of %s times if failed" % (host, max_retries))
-        result, status = self.mig.rebuild_failed_host(host, self.casenum, preserve=preserve, disk_config=disk_config)
+        logger.info("Triggering rebuild_failed_host command on %s. Will be retrying for a maximum of %s times if failed" % (
+            host, max_retries))
+        result, status = self.mig.rebuild_failed_host(
+            host, self.casenum, preserve=preserve, disk_config=disk_config)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
-            logger.info("Retry #%s rebuild_failed_host command on %s as it's failed in previous attempt" % (count, host))
-            result, status = self.mig.rebuild_failed_host(host, self.casenum, preserve=preserve, disk_config=disk_config)
+            logger.info(
+                "Retry #%s rebuild_failed_host command on %s as it's failed in previous attempt" % (count, host))
+            result, status = self.mig.rebuild_failed_host(
+                host, self.casenum, preserve=preserve, disk_config=disk_config)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
-    
+
 class ThreadDeploy(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
@@ -236,19 +255,21 @@ class ThreadDeploy(threading.Thread):
 
     def run(self):
         host, role, cluster, superpod, preserve = self.queue.get()
-        result, status = self.mig.trigger_deploy(host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve)
+        result, status = self.mig.trigger_deploy(
+            host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve)
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
 
 class ThreadEraseHostName(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
         self.casenum = casenum
         self.hosts_processed = hosts_processed
         self.mig = Migration()
-    
+
     def run(self):
         host = self.queue.get()
         result, status = self.mig.erase_hostname(host, self.casenum)
@@ -257,36 +278,49 @@ class ThreadEraseHostName(threading.Thread):
 
 
 class ThreadUpdateOpsStatus(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
         self.casenum = casenum
         self.hosts_processed = hosts_processed
         self.mig = Migration()
-    
+
     def run(self):
-        host = self.queue.get()
-        result, status = self.mig.update_idb_status(host, self.casenum)
+        max_retries = 2
+        count = 0
+        host, idb_status = self.queue.get()
+        result, status = self.mig.update_idb_status(
+            host, self.casenum, idb_status=idb_status)
+        while status == "ERROR" and "error" in result.keys() and count != max_retries:
+            logger.info(
+                "Retry #%s updateopsstatus command on %s as it's failed in previous attempt" % (count, host))
+            result, status = self.mig.update_idb_status(
+                host, self.casenum, idb_status=idb_status)
+            count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
 
 class ThreadStatusCheck(threading.Thread):
+
     def __init__(self, queue, casenum, hosts_processed):
         threading.Thread.__init__(self)
         self.queue = queue
         self.casenum = casenum
         self.hosts_processed = hosts_processed
         self.mig = Migration()
-    
+
     def run(self):
         host, delay, prev_cmd = self.queue.get()
-        result, status = self.mig.check_status(host, self.casenum, delay, prev_cmd)
+        result, status = self.mig.check_status(
+            host, self.casenum, delay, prev_cmd)
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
 
 class Migration:
+
     def __init__(self):
         self.user_home = path.expanduser("~")
 
@@ -307,32 +341,43 @@ class Migration:
         output = {}
         status = "SUCCESS"
         try:
-            ci_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource hostconfig -action read -host.name " + hostname + " -fields key,value -key apiUrl"))
-            sn_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource host -action read -name " + hostname + " -fields serialNumber"))
-            rp_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource hostconfig -action read -host.name " + hostname + " -fields key,value -key rackUPos"))
-            cc_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type"))
-            sm_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields manufacturer"))
+            ci_dict = json.loads(self.exec_cmd(
+                "inventory-action.pl -q -use_krb_auth -resource hostconfig -action read -host.name " + hostname + " -fields key,value -key apiUrl"))
+            sn_dict = json.loads(self.exec_cmd(
+                "inventory-action.pl -q -use_krb_auth -resource host -action read -name " + hostname + " -fields serialNumber"))
+            rp_dict = json.loads(self.exec_cmd(
+                "inventory-action.pl -q -use_krb_auth -resource hostconfig -action read -host.name " + hostname + " -fields key,value -key rackUPos"))
+            cc_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " +
+                                               hostname + " -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type"))
+            sm_dict = json.loads(self.exec_cmd(
+                "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields manufacturer"))
             logger.info("Got info for %s from iDB" % hostname)
             cnc_api_url = str(ci_dict["data"][0]["value"])
             serial_number = str(sn_dict["data"][0]["serialNumber"])
             rack_position = str(rp_dict["data"][0]["value"])
             manufacturer = str(sm_dict["data"][0]["manufacturer"])
             network_domain = "ops.sfdc.net"
-            cluster_configs_list = list(cc_dict["data"][0]["cluster"]["clusterConfigs"])
+            cluster_configs_list = list(
+                cc_dict["data"][0]["cluster"]["clusterConfigs"])
             for i in cluster_configs_list:
                 if "network-domain" in i.values():
                     network_domain = i["value"]
                     if network_domain == None or network_domain == "":
                         network_domain = "ops.sfdc.net"
-            output.setdefault(str(hostname), {"cnc_api_url": cnc_api_url, "serial_number": serial_number, "rack_position": rack_position, "network_domain": network_domain, "manufacturer": manufacturer, "event": None})
+            output.setdefault(str(hostname), {"cnc_api_url": cnc_api_url, "serial_number": serial_number,
+                                              "rack_position": rack_position, "network_domain": network_domain, "manufacturer": manufacturer, "event": None})
             status = "SUCCESS"
         except ValueError:
-            logger.debug("Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
-            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
+            logger.debug(
+                "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
+            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None,
+                                              "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
             status = "ERROR"
         except:
-            logger.debug("Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
-            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
+            logger.debug(
+                "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
+            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None,
+                                              "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
             status = "ERROR"
         return output, status
 
@@ -369,13 +414,16 @@ class Migration:
             authenticable = result["authenticatable"]
 
             if accessible == True and authenticable == True:
-                output.setdefault("success", "%s - Route check passed and IB console is accessible" % hostname)
+                output.setdefault(
+                    "success", "%s - Route check passed and IB console is accessible" % hostname)
                 status = "SUCCESS"
             else:
-                output.setdefault("error", "%s - No route to host console from CNC" % hostname)
+                output.setdefault(
+                    "error", "%s - No route to host console from CNC" % hostname)
                 status = "ERROR"
         except:
-            output.setdefault("error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
+            output.setdefault(
+                "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
             status = "ERROR"
 
         return output, status
@@ -400,13 +448,15 @@ class Migration:
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 serial_number = item.values()[0]["serial_number"]
                 break
-        
+
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
-            output.setdefault("error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
+            output.setdefault(
+                "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
             return output, "ERROR"
         else:
-            image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
+            image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (
+                cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
             logger.info("Image command - %s", image_cmd)
             image_cmd_response = json.loads(self.exec_cmd(image_cmd))
             if "error" in image_cmd_response.keys():
@@ -417,20 +467,24 @@ class Migration:
                 event_type = image_cmd_response["type"]
                 event_id = image_cmd_response["id"]
                 event_status = image_cmd_response["status"]
-                logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
+                logger.info("%s - [%s] %s -- %s" %
+                            (hostname, event_id, event_type, event_status))
                 event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
                 e_result, e_status = self.check_event_status(event_api_url)
                 logger.info("%s - %s" % (hostname, e_status))
                 if e_result == True:
                     if e_status == "completed":
                         status = "SUCCESS"
-                        output.setdefault("success", "%s event %s processing on %s" % (event_type, e_status, hostname))
+                        output.setdefault("success", "%s event %s processing on %s" % (
+                            event_type, e_status, hostname))
                     elif e_status == "failed":
                         status = "ERROR"
-                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
+                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                            e_status, event_type, hostname, cnc_host, serial_number))
                 else:
                     status = "ERROR"
-                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
+                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                        event_type, hostname, event_api_url))
         return output, status
 
     def fail_host(self, hostname, casenum):
@@ -455,9 +509,11 @@ class Migration:
                 break
 
         rack_status = self.check_rack_status(cnc_api_url)
-        logger.info("%s currently in %s status. Just to tell you that I told you so later." % (hostname, rack_status))
+        logger.info("%s currently in %s status. Just to tell you that I told you so later." % (
+            hostname, rack_status))
 
-        fail_host_cmd = "curl -s --request POST %sevent -d '{\"type\": \"fail_host\", \"serial_number\":\"%s\"}'" % (cnc_api_url, serial_number)
+        fail_host_cmd = "curl -s --request POST %sevent -d '{\"type\": \"fail_host\", \"serial_number\":\"%s\"}'" % (
+            cnc_api_url, serial_number)
         logger.info("fail_host - %s", fail_host_cmd)
         fail_host_cmd_response = json.loads(self.exec_cmd(fail_host_cmd))
         if "error" in fail_host_cmd_response.keys():
@@ -468,20 +524,24 @@ class Migration:
             event_type = fail_host_cmd_response["type"]
             event_id = fail_host_cmd_response["id"]
             event_status = fail_host_cmd_response["status"]
-            logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
+            logger.info("%s - [%s] %s -- %s" %
+                        (hostname, event_id, event_type, event_status))
             event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
             e_result, e_status = self.check_event_status(event_api_url)
             logger.info("%s - %s" % (hostname, e_status))
             if e_result == True:
                 if e_status == "completed":
                     status = "SUCCESS"
-                    output.setdefault("success", "%s event %s processing on %s" % (event_type, e_status, hostname))
+                    output.setdefault("success", "%s event %s processing on %s" % (
+                        event_type, e_status, hostname))
                 elif e_status == "failed":
                     status = "ERROR"
-                    output.setdefault("error", "%s to process %s event on %s due to some error. \n CNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
+                    output.setdefault("error", "%s to process %s event on %s due to some error. \n CNC Host - %s\nSerial Number - %s" % (
+                        e_status, event_type, hostname, cnc_host, serial_number))
             else:
                 status = "ERROR"
-                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
+                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                    event_type, hostname, event_api_url))
         return output, status
 
     def rebuild_failed_host(self, hostname, casenum, preserve=False, disk_config=""):
@@ -504,13 +564,15 @@ class Migration:
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 serial_number = item.values()[0]["serial_number"]
                 break
-        
+
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
-            output.setdefault("error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
+            output.setdefault(
+                "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
             return output, "ERROR"
         else:
-            rebuild_cmd = "curl -s --request POST %sevent -d '{\"type\":\"rebuild_failed_host\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (cnc_api_url, serial_number, str(preserve).lower(), disk_config)
+            rebuild_cmd = "curl -s --request POST %sevent -d '{\"type\":\"rebuild_failed_host\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (
+                cnc_api_url, serial_number, str(preserve).lower(), disk_config)
             logger.info("rebuild command - %s ", rebuild_cmd)
             rebuild_cmd_response = json.loads(self.exec_cmd(rebuild_cmd))
             if "error" in rebuild_cmd_response.keys():
@@ -521,20 +583,24 @@ class Migration:
                 event_type = rebuild_cmd_response["type"]
                 event_id = rebuild_cmd_response["id"]
                 event_status = rebuild_cmd_response["status"]
-                logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
+                logger.info("%s - [%s] %s -- %s" %
+                            (hostname, event_id, event_type, event_status))
                 event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
                 e_result, e_status = self.check_event_status(event_api_url)
                 logger.info("%s - %s" % (hostname, e_status))
                 if e_result == True:
                     if e_status == "completed":
                         status = "SUCCESS"
-                        output.setdefault("success", "%s event %s processing on %s" % (event_type, e_status, hostname))
+                        output.setdefault("success", "%s event %s processing on %s" % (
+                            event_type, e_status, hostname))
                     elif e_status == "failed":
                         status = "ERROR"
-                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
+                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                            e_status, event_type, hostname, cnc_host, serial_number))
                 else:
                     status = "ERROR"
-                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
+                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                        event_type, hostname, event_api_url))
         return output, status
 
     def trigger_deploy(self, hostname, casenum, role="", cluster="", superpod="", preserve=False):
@@ -563,10 +629,12 @@ class Migration:
         host_fqdn = "%s.%s" % (hostname, network_domain)
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
-            output.setdefault("error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
+            output.setdefault(
+                "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
             return output, "ERROR"
         else:
-            deploy_cmd = "curl -s --request POST %sevent -d '{\"type\":\"deploy\",\"serial_number\":\"%s\",\"message\":{\"inventory_idb_cluster_name\":\"%s\",\"inventory_idb_superpod_name\":\"%s\",\"default_hostname\":\"%s\",\"host_role\":\"%s\", \"preserve\":\"%s\"}}'" % (cnc_api_url, serial_number, cluster, superpod, host_fqdn, role, str(preserve).lower())
+            deploy_cmd = "curl -s --request POST %sevent -d '{\"type\":\"deploy\",\"serial_number\":\"%s\",\"message\":{\"inventory_idb_cluster_name\":\"%s\",\"inventory_idb_superpod_name\":\"%s\",\"default_hostname\":\"%s\",\"host_role\":\"%s\", \"preserve\":\"%s\"}}'" % (
+                cnc_api_url, serial_number, cluster, superpod, host_fqdn, role, str(preserve).lower())
             logger.info("Deploy command - %s", deploy_cmd)
             deploy_cmd_response = json.loads(self.exec_cmd(deploy_cmd))
             if "error" in deploy_cmd_response.keys():
@@ -577,22 +645,26 @@ class Migration:
                 event_type = deploy_cmd_response["type"]
                 event_id = deploy_cmd_response["id"]
                 event_status = deploy_cmd_response["status"]
-                logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
+                logger.info("%s - [%s] %s -- %s" %
+                            (hostname, event_id, event_type, event_status))
                 event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
                 e_result, e_status = self.check_event_status(event_api_url)
                 logger.info("%s - %s" % (hostname, e_status))
                 if e_result == True:
                     if e_status == "completed":
                         status = "SUCCESS"
-                        output.setdefault("success", "%s event %s processing on %s" % (event_type, e_status, hostname))
+                        output.setdefault("success", "%s event %s processing on %s" % (
+                            event_type, e_status, hostname))
                     elif e_status == "failed":
                         status = "ERROR"
-                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (e_status, event_type, hostname, cnc_host, serial_number))
+                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                            e_status, event_type, hostname, cnc_host, serial_number))
                 else:
                     status = "ERROR"
-                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (event_type, hostname, event_api_url))
+                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                        event_type, hostname, event_api_url))
         return output, status
-    
+
     def erase_hostname(self, hostname, casenum):
         """
         For a given host, this method erases the hostname in iDB in order to deploy
@@ -604,7 +676,7 @@ class Migration:
             logger.error("%s is not found or inaccessible" % host_info_file)
         host_info_dict = json.load(f)
         serial_number = ""
-        
+
         output = {}
         status = None
         for item in host_info_dict:
@@ -620,7 +692,8 @@ class Migration:
             # handles the null values if iDB returns empty
             hname == ""
         if hname == None:
-            output.setdefault("success", "hostname is already null in iDB for host %s" % hostname)
+            output.setdefault(
+                "success", "hostname is already null in iDB for host %s" % hostname)
             status = "SUCCESS"
         else:
             try:
@@ -629,19 +702,22 @@ class Migration:
                 logger.debug("%s - payload sent to erase" % hostname)
                 verify_cmd2_response = json.loads(self.exec_cmd(verify_cmd))
                 if verify_cmd2_response["data"][0]["name"] == None:
-                    output.setdefault("success", "%s hostname erased successfully" % hostname)
+                    output.setdefault(
+                        "success", "%s hostname erased successfully" % hostname)
                     status = "SUCCESS"
                 else:
-                    output.setdefault("error", "unable to erase hostname for %s due to some error" % hostname)
+                    output.setdefault(
+                        "error", "unable to erase hostname for %s due to some error" % hostname)
                     status = "ERROR"
             except:
-                output.setdefault("error", "%s - an error occured while processing the request" % hostname)
+                output.setdefault(
+                    "error", "%s - an error occured while processing the request" % hostname)
                 status = "ERROR"
         return output, status
 
-    def update_idb_status(self, hostname, casenum):
+    def update_idb_status(self, hostname, casenum, idb_status="ACTIVE"):
         """
-        For a given host, this method updates the iDB status to ACTIVE given that the host is in PROVISIONING status
+        For a given host, this method updates the host operatiioinal status in iDB with provided status
         """
         host_info_file = "%s/%s_hostinfo" % (self.user_home, casenum)
         try:
@@ -656,46 +732,61 @@ class Migration:
             if hostname in item.keys():
                 serial_number = item.values()[0]["serial_number"]
                 break
+
         max_retries = 30
         interval = 60
         count = 0
         old_status = ""
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
-        while old_status != "PROVISIONING":
-            if count == max_retries:
-                output.setdefault("error","iDB status was not changed by puppet to PROVISIONING with in time. Please retry/check manually.")
-                status = "ERROR"
-                return output, status
-            try:
-                old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
-                old_status = old_status_cmd_response["data"][0]["operationalStatus"]
-            except ValueError:
-                # handles the null values if iDB returns empty
-                old_status = ""
-            if old_status == "PROVISIONING":
-                logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
-                break
-            if old_status == "ACTIVE":
-                output.setdefault("success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, old_status))
-                status = "SUCCESS"
-                return output, status
-            logger.info("%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
-            logger.info("Retrying in %s seconds" % interval)
-            time.sleep(interval)
-            count += 1
+        if idb_status != "IN_MAINTENANCE":
+            while old_status != "PROVISIONING":
+                if count == max_retries:
+                    output.setdefault(
+                        "error", "iDB status was not changed by puppet to PROVISIONING within time. Please retry/check manually.")
+                    status = "ERROR"
+                    return output, status
+                try:
+                    old_status_cmd_response = json.loads(
+                        self.exec_cmd(old_status_cmd))
+                    old_status = old_status_cmd_response[
+                        "data"][0]["operationalStatus"]
+                except ValueError:
+                    # handles the null values if iDB returns empty
+                    old_status = ""
+                if old_status == "PROVISIONING":
+                    logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (
+                        hostname, old_status))
+                    break
+                if old_status == "ACTIVE":
+                    output.setdefault(
+                        "success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, old_status))
+                    status = "SUCCESS"
+                    return output, status
+                logger.info(
+                    "%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
+                logger.info("Retrying in %s seconds" % interval)
+                time.sleep(interval)
+                count += 1
         try:
-            update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=ACTIVE\"" % serial_number
+            update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=%s\"" % (
+                serial_number, idb_status)
             self.exec_cmd(update_cmd)
-            logger.debug("%s - payload sent to update iDB status to ACTIVE" % hostname)
-            new_status = json.loads(self.exec_cmd(old_status_cmd))["data"][0]["operationalStatus"]
-            if new_status == "ACTIVE":
-                output.setdefault("success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
+            logger.debug("%s - payload sent to update iDB status to %s" %
+                         (hostname, idb_status))
+            new_status = json.loads(self.exec_cmd(old_status_cmd))[
+                "data"][0]["operationalStatus"]
+            if new_status == idb_status:
+                output.setdefault(
+                    "success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
                 status = "SUCCESS"
             else:
-                output.setdefault("error", "%s - failed to change iDB Status to 'ACTIVE' <> '%s'" % (hostname, new_status))
+                output.setdefault(
+                    "error", "%s - failed to change iDB Status to '%s' <> '%s'" % (hostname, idb_status, new_status))
                 status = "ERROR"
         except:
-            output.setdefault("error", "%s - an error occurred while processing the request" % hostname)
+            output.setdefault(
+                "error", "%s - an error occurred while processing the request" % hostname)
+            status = "ERROR"
         return output, status
 
     def check_status(self, hostname, casenum, delay, prev_cmd):
@@ -716,11 +807,12 @@ class Migration:
                 cnc_api_url = item.values()[0]["cnc_api_url"]
                 serial_number = item.values()[0]["serial_number"]
                 break
-            
+
         logger.info("%s - %s, %s" % (hostname, serial_number, cnc_api_url))
         rack_status = self.check_rack_status(cnc_api_url)
         if not rack_status in ["ready"]:
-            output.setdefault("error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
+            output.setdefault(
+                "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
             return output, "Rack - %s" % rack_status
         else:
             poll_interval = 60
@@ -731,34 +823,41 @@ class Migration:
             logger.info("Pausing %s seconds for the status to change" % delay)
             time.sleep(delay)
             while result != True:
-                status_cmd = "curl -s --request GET %shost/%s" % (cnc_api_url, serial_number)
+                status_cmd = "curl -s --request GET %shost/%s" % (
+                    cnc_api_url, serial_number)
                 status_cmd_response = json.loads(self.exec_cmd(status_cmd))
                 status = status_cmd_response["state"]
                 logger.info("%s - %s" % (hostname, status))
                 if prev_cmd in ["image", "rebuild"] and status == "awaiting_deployment":
                     result = True
-                    output.setdefault("success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                    output.setdefault(
+                        "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
                     break
                 elif prev_cmd == "deploy" and status == "deployed":
                     result = True
-                    output.setdefault("success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                    output.setdefault(
+                        "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
                     break
                 elif prev_cmd == "fail" and status == "failed":
                     result = True
-                    output.setdefault("success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                    output.setdefault(
+                        "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
                     break
                 logger.info("Retrying in %s seconds " % (poll_interval))
                 time.sleep(poll_interval)
                 count += 1
                 if prev_cmd in ["image", "rebuild"] and count > 10:
-                    logger.info("%s might be stuck at awaiting_checkin. Please check in console" % hostname)
+                    logger.info(
+                        "%s might be stuck at awaiting_checkin. Please check in console" % hostname)
                 if count == retry_count:
-                    logger.info("%s status didn't change in expected time. Please retry" % hostname)
-                    output.setdefault("message", "unable to process %s in time." % hostname)
+                    logger.info(
+                        "%s status didn't change in expected time. Please retry" % hostname)
+                    output.setdefault(
+                        "message", "unable to process %s in time." % hostname)
                     result = False
                     break
             return output, status
-    
+
     def check_event_status(self, event_api_url):
         delay = 60
         poll_interval = 30
@@ -769,15 +868,18 @@ class Migration:
         logger.info("Pausing %s seconds for the event status to change" % delay)
         time.sleep(delay)
         while result != True:
-            status = json.loads(self.exec_cmd("curl -s --request GET %s" % event_api_url))["status"]
+            status = json.loads(self.exec_cmd(
+                "curl -s --request GET %s" % event_api_url))["status"]
             if status in ["completed", "failed"]:
                 result = True
                 break
-            logger.info("%s - %s\nRetrying in %s seconds " % (event_api_url, status, poll_interval))
+            logger.info("%s - %s\nRetrying in %s seconds " %
+                        (event_api_url, status, poll_interval))
             time.sleep(poll_interval)
             count += 1
             if count == retry_count:
-                logger.info("Event status does not match desired status - 'completed' <> '%s'" % status)
+                logger.info(
+                    "Event status does not match desired status - 'completed' <> '%s'" % status)
                 result = False
                 break
         return result, status
@@ -792,10 +894,12 @@ class Migration:
             else:
                 result = response.json()
                 rack_status = result["rack"]["state"]
-                logger.debug("Rack Status of %s - %s" % (cnc_host, rack_status))
+                logger.debug("Rack Status of %s - %s" %
+                             (cnc_host, rack_status))
                 return rack_status
         except:
-            logger.error("The rack status of %s could not be fetched in time. Exiting." % cnc_host)
+            logger.error(
+                "The rack status of %s could not be fetched in time. Exiting." % cnc_host)
             return "timed out"
 
 
@@ -804,18 +908,29 @@ def main():
     This is main method which will accept the command line argument and pass to the class methods.
     """
 
-    parser = ArgumentParser(prog='migration_manager.py', usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus")
-    
+    parser = ArgumentParser(prog='migration_manager.py',
+                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
+
     parser.add_argument("-c", dest="case", help="case number", required=True)
-    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=["cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
+    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=[
+                        "cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
-    parser.add_argument("--cluster", dest="cluster_name", help="specify cluster name")
-    parser.add_argument("--superpod", dest="superpod_name", help="specify super pod name")
-    parser.add_argument("--disk_config", dest="disk_config", help="specify disk config e.g stage1v0|fastcache2", default="stage1v0")
-    parser.add_argument("--preserve", dest="preserve_data", action="store_true", help="include this to preserve data", default=False)
-    parser.add_argument("--delay", dest="delay_in_mins", type=int, default=10, help="specify delay in minutes")
-    parser.add_argument("--previous", dest="prev_action", help="specify previous racktastic command perfomred", choices=["image", "deploy", "rebuild", "fail"])
-    parser.add_argument("-v", dest="verbose", action="store_true", help="verbose output", default=False)
+    parser.add_argument("--cluster", dest="cluster_name",
+                        help="specify cluster name")
+    parser.add_argument("--superpod", dest="superpod_name",
+                        help="specify super pod name")
+    parser.add_argument("--disk_config", dest="disk_config",
+                        help="specify disk config e.g stage1v0|fastcache2", default="stage1v0")
+    parser.add_argument("--preserve", dest="preserve_data", action="store_true",
+                        help="include this to preserve data", default=False)
+    parser.add_argument("--delay", dest="delay_in_mins",
+                        type=int, default=10, help="specify delay in minutes")
+    parser.add_argument("--previous", dest="prev_action", help="specify previous racktastic command perfomred",
+                        choices=["image", "deploy", "rebuild", "fail"])
+    parser.add_argument("--status", dest="idb_status", help="specify idb status", choices=[
+                        'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'])
+    parser.add_argument("-v", dest="verbose", action="store_true",
+                        help="verbose output", default=False)
 
     args = parser.parse_args()
 
@@ -837,15 +952,16 @@ def main():
     # action = str(args.action)
 
     host_list = misc.read_hostlist_from_file(casenum, type="include")
-    thread_count = len(host_list) # number of parallel threads 
+    thread_count = len(host_list)  # number of parallel threads
 
     if args.action == "cncinfo":
         if not misc.check_file_exists(casenum, type="include"):
-            logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
+            logger.error("%s/%s_include file not found or inaccessible" %
+                         (user_home, casenum))
             sys.exit(1)
         hosts_processed = {}
         queue = Queue.Queue()
-        
+
         for i in range(thread_count):
             logger.debug("thread - %d", i)
             t = ThreadCncInfo(queue, casenum, hosts_processed)
@@ -862,12 +978,13 @@ def main():
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 exclude_list.append(key)
-                logger.error("%s - unable to fetch cnc information from iDB. Check manually." % key)
+                logger.error(
+                    "%s - unable to fetch cnc information from iDB. Check manually." % key)
                 failed = True
             elif hosts_processed[key]["status"] == "SUCCESS":
                 include_list.append(key)
                 host_info.append(hosts_processed[key]["info"])
-        
+
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
         logger.debug(host_info)
@@ -879,7 +996,8 @@ def main():
 
     elif args.action == "routecheck":
         if not misc.check_file_exists(casenum, type="include"):
-            logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
+            logger.error("%s/%s_include file not found or inaccessible" %
+                         (user_home, casenum))
             sys.exit(1)
         hosts_processed = {}
         queue = Queue.Queue()
@@ -902,8 +1020,9 @@ def main():
                 failed = True
             elif hosts_processed[key]["status"] == "SUCCESS":
                 include_list.append(key)
-                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
-        
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
         misc.write_to_include_file(casenum, include_list)
@@ -918,7 +1037,8 @@ def main():
         preserve = args.preserve_data
         disk_config = args.disk_config
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
-            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" % (user_home, casenum, user_home, casenum))
+            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
+                         (user_home, casenum, user_home, casenum))
             sys.exit(1)
 
         hosts_processed = {}
@@ -938,18 +1058,21 @@ def main():
                     logger.error(hosts_processed[key]["info"]["error"])
                 elif "message" in hosts_processed[key]["info"].keys():
                     logger.error(hosts_processed[key]["info"]["message"])
-                logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
+                logger.error("Error processing %s with %s command. Please troubleshoot." % (
+                    key, args.action))
                 failed = True
             else:
-                logger.info("%s command was successful on %s." % (args.action, key))
+                logger.info("%s command was successful on %s." %
+                            (args.action, key))
         if failed:
             sys.exit(1)
 
     elif args.action == "fail":
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
-            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" % (user_home, casenum, user_home, casenum))
+            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
+                         (user_home, casenum, user_home, casenum))
             sys.exit(1)
-        
+
         hosts_processed = {}
         queue = Queue.Queue()
         for i in range(thread_count):
@@ -966,11 +1089,14 @@ def main():
                     logger.error(hosts_processed[key]["info"]["error"])
                 elif "message" in hosts_processed[key]["info"].keys():
                     logger.error(hosts_processed[key]["info"]["message"])
-                logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
+                logger.error("Error processing %s with %s command. Please troubleshoot." % (
+                    key, args.action))
                 failed = True
             else:
-                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." % (args.action, key))
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+                logger.info("%s command was successful on %s." %
+                            (args.action, key))
         if failed:
             sys.exit(1)
 
@@ -978,9 +1104,10 @@ def main():
         preserve = args.preserve_data
         disk_config = args.disk_config
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
-            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" % (user_home, casenum, user_home, casenum))
+            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
+                         (user_home, casenum, user_home, casenum))
             sys.exit(1)
-        
+
         hosts_processed = {}
         queue = Queue.Queue()
         for i in range(thread_count):
@@ -998,14 +1125,17 @@ def main():
                     logger.error(hosts_processed[key]["info"]["error"])
                 elif "message" in hosts_processed[key]["info"].keys():
                     logger.error(hosts_processed[key]["info"]["message"])
-                logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
+                logger.error("Error processing %s with %s command. Please troubleshoot." % (
+                    key, args.action))
                 failed = True
             else:
-                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." % (args.action, key))
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+                logger.info("%s command was successful on %s." %
+                            (args.action, key))
         if failed:
             sys.exit(1)
-    
+
     elif args.action == "deploy":
         if not args.host_role:
             logger.error("please provide role with --role.")
@@ -1021,9 +1151,10 @@ def main():
         superpod = args.superpod_name.upper()
         preserve = args.preserve_data
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
-            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" % (user_home, casenum, user_home, casenum))
+            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
+                         (user_home, casenum, user_home, casenum))
             sys.exit(1)
-        
+
         hosts_processed = {}
         queue = Queue.Queue()
         for i in range(thread_count):
@@ -1041,17 +1172,21 @@ def main():
                     logger.error(hosts_processed[key]["info"]["error"])
                 elif "message" in hosts_processed[key]["info"].keys():
                     logger.error(hosts_processed[key]["info"]["message"])
-                logger.error("Error processing %s with %s command. Please troubleshoot." % (key, args.action))
+                logger.error("Error processing %s with %s command. Please troubleshoot." % (
+                    key, args.action))
                 failed = True
             else:
-                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." % (args.action, key))
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+                logger.info("%s command was successful on %s." %
+                            (args.action, key))
         if failed:
             sys.exit(1)
-    
+
     elif args.action == "status":
         if not args.prev_action:
-            logger.error("please provide previous racktastic action performed using --previous.")
+            logger.error(
+                "please provide previous racktastic action performed using --previous.")
             sys.exit(1)
         delay = int(args.delay_in_mins) * 60
         hosts_processed = {}
@@ -1074,16 +1209,19 @@ def main():
             expected_status == "failed"
         for key in hosts_processed:
             if hosts_processed[key]["status"] == expected_status:
-                logger.info("%s successfully processed. Latest status after %s command - %s" % (key, args.prev_action, hosts_processed[key]["status"]))
+                logger.info("%s successfully processed. Latest status after %s command - %s" %
+                            (key, args.prev_action, hosts_processed[key]["status"]))
             elif "message" in hosts_processed[key]["info"].keys():
-                logger.error("%s command on %s - %s. Please troubleshoot." % (args.prev_action, key, hosts_processed[key]["info"]["message"]))
+                logger.error("%s command on %s - %s. Please troubleshoot." %
+                             (args.prev_action, key, hosts_processed[key]["info"]["message"]))
                 failed = True
             elif "error" in hosts_processed[key]["info"].keys():
-                logger.error("%s command on %s - %s. Please troubleshoot." % (args.prev_action, key, hosts_processed[key]["info"]["error"]))
+                logger.error("%s command on %s - %s. Please troubleshoot." %
+                             (args.prev_action, key, hosts_processed[key]["info"]["error"]))
                 failed = True
         if failed:
             sys.exit(1)
-    
+
     elif args.action == "erasehostname":
         hosts_processed = {}
         queue = Queue.Queue()
@@ -1097,15 +1235,19 @@ def main():
         failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
-                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
+                logger.error("%s - %s" %
+                             (key, hosts_processed[key]["info"]["error"]))
                 failed = True
             else:
-                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." % (args.action, key))
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+                logger.info("%s command was successful on %s." %
+                            (args.action, key))
         if failed:
             sys.exit(1)
-        
+
     elif args.action == "updateopsstatus":
+        idb_status = str(args.idb_status).upper()
         hosts_processed = {}
         queue = Queue.Queue()
         for i in range(thread_count):
@@ -1113,16 +1255,20 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            queue.put(h)
+            lst = [h, idb_status]
+            queue.put(lst)
         queue.join()
         failed = False
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
-                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
+                logger.error("%s - %s" %
+                             (key, hosts_processed[key]["info"]["error"]))
                 failed = True
             else:
-                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." % (args.action, key))
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+                logger.info("%s command was successful on %s." %
+                            (args.action, key))
         if failed:
             sys.exit(1)
 
