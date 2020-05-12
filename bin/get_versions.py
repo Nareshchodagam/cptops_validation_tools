@@ -41,18 +41,45 @@ def parseData(data):
 
 def parseDatabyVer(data):
     installed_software = []
-    app_line = re.compile(r'.*\((.*)\).*\s(.*.rmf$)')
-
+    app_line = re.compile(r'.*\s(.*-.*-.*-.*).*\((.*)\).*\s(.*.rmf$)')
+    all_hosts ={}
+    all_apps = {}
     for l in data:
        m = app_line.search(l)
        if m:
-        app_name = m.group(2)
-        ver_name = m.group(1)
-        ret_val = "{0}@{1}".format(app_name.split('_')[0], ver_name)
+        hostname = m.group(1)
+        app_name = m.group(3).split('_')[0]
+        ver_name = m.group(2)
+        ret_val = "{0}@{1}".format(app_name, ver_name)
         if not ret_val in installed_software:
             installed_software.append(ret_val)
+        if hostname not in all_hosts.keys():
+            all_hosts[hostname]={app_name:ver_name}
+        else:
+            all_hosts[hostname][app_name]= ver_name
+
+        if app_name not in all_apps.keys():
+            all_apps[app_name]=[ver_name]
+        else:
+            all_apps[app_name].append(ver_name)
+
     _APPS = ','.join(installed_software)
-    return _APPS
+
+    multiple_versions = False
+    for app,versions in all_apps.items():
+        if len(set(versions)) != 1:
+            print("The product {0} has {1} versions : ".format(app,len(set(versions)),set(versions)))
+            multiple_versions = True
+
+    if multiple_versions:
+        for k, v in all_hosts.items():
+            print(k, v)
+        print("Multiple app versions exist in the hosts.")
+        print("Remove the hosts with different version from the include file manually and re-run from get version numbers step")
+        exit(1)
+    else:
+        print(_APPS)
+        return _APPS
 
 def genManifestData(apps,app_vers):
     app_lst = []
