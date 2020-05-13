@@ -928,7 +928,7 @@ def main():
     parser.add_argument("--previous", dest="prev_action", help="specify previous racktastic command perfomred",
                         choices=["image", "deploy", "rebuild", "fail"])
     parser.add_argument("--status", dest="idb_status", help="specify idb status", choices=[
-                        'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'])
+                        'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
 
