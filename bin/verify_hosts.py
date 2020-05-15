@@ -94,7 +94,7 @@ class HostsCheck(object):
         if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) in [1,2]):
             raise AuthError
         child.sendline(cmd2)
-        child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
+        child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=6)
         output = str(child.before)
         child.close()
         return output
@@ -145,10 +145,10 @@ class HostsCheck(object):
                 if ("does not match" in console_out or "reboot required" in console_out or "action required" in console_out):
                     rc = True
                     flag = False
-                elif ("unrecognized arguments" in console_out or "ValueError" in console_out):
+                elif ("unrecognized arguments" in console_out or "valueerror" in console_out):
                     rc = True
                     flag = True
-                elif ("No such file or directory" in console_out):
+                elif ("no such file or directory" in console_out):
                     rc = False
                     flag = True
                 else:
