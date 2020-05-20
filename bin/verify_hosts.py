@@ -84,7 +84,10 @@ class HostsCheck(object):
     def exec_cmd(self, host, kpass, otp, cmd1, cmd2):
         output = ""
         child = pexpect.spawn(cmd1, timeout=10)
-        if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
+        prompt = child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF])
+        if prompt == 2:
+            raise AuthError
+        elif prompt == 1:
             child.sendline(kpass)
         if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) == 1:
             if not otp:
@@ -200,7 +203,7 @@ class HostsCheck(object):
         rma = None
         for data in result['records']:
             rma_case_id = str(data['Case_Record__c'])
-            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed' AND Status != 'Return to Service')".format(rma_case_id)
+            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed')".format(rma_case_id)
             res = gus_conn.run_query(q, session)
             if len(res['records']) > 0:
                 for d in res['records']:
@@ -486,3 +489,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
