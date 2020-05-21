@@ -129,11 +129,11 @@ class HostsCheck(object):
             return
 
         rma = self.check_host_open_rma(session, gus_conn, host)
-        if not rma == None:
+        if rma:
             logging.info("Host {} has open RMA - {}".format(host, rma))
             host_dict[host] = "RMA #{}".format(rma)
             self.update_patching_lh(session, gus_conn, host, host_id, "HostRMA.{}".format(rma))
-            logging.debug(host_dict)
+            logging.error(host_dict)
             p_queue.put(host_dict)
             return
             
