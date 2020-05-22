@@ -84,9 +84,12 @@ class HostsCheck(object):
     def exec_cmd(self, host, kpass, otp, cmd1, cmd2):
         output = ""
         child = pexpect.spawn(cmd1, timeout=10)
-        if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF]) == 1):
+        prompt = child.expect([pexpect.TIMEOUT, "[Pp]assword:", pexpect.EOF])
+        if prompt == 2:
+            raise AuthError
+        elif prompt == 1:
             child.sendline(kpass)
-        if child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) == 1:
+        if (child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5)) == 1:
             if not otp:
                 raise GusError
             else:
@@ -94,7 +97,7 @@ class HostsCheck(object):
         if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) in [1,2]):
             raise AuthError
         child.sendline(cmd2)
-        child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=3)
+        child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=6)
         output = str(child.before)
         child.close()
         return output
@@ -126,11 +129,11 @@ class HostsCheck(object):
             return
 
         rma = self.check_host_open_rma(session, gus_conn, host)
-        if not rma == None:
+        if rma:
             logging.info("Host {} has open RMA - {}".format(host, rma))
             host_dict[host] = "RMA #{}".format(rma)
             self.update_patching_lh(session, gus_conn, host, host_id, "HostRMA.{}".format(rma))
-            logging.debug(host_dict)
+            logging.error(host_dict)
             p_queue.put(host_dict)
             return
             
@@ -145,10 +148,10 @@ class HostsCheck(object):
                 if ("does not match" in console_out or "reboot required" in console_out or "action required" in console_out):
                     rc = True
                     flag = False
-                elif ("unrecognized arguments" in console_out or "ValueError" in console_out):
+                elif ("unrecognized arguments" in console_out or "valueerror" in console_out):
                     rc = True
                     flag = True
-                elif ("No such file or directory" in console_out):
+                elif ("no such file or directory" in console_out):
                     rc = False
                     flag = True
                 else:
@@ -200,7 +203,7 @@ class HostsCheck(object):
         rma = None
         for data in result['records']:
             rma_case_id = str(data['Case_Record__c'])
-            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed' AND Status != 'Return to Service')".format(rma_case_id)
+            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed')".format(rma_case_id)
             res = gus_conn.run_query(q, session)
             if len(res['records']) > 0:
                 for d in res['records']:
@@ -486,3 +489,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
