@@ -8,7 +8,7 @@
 
 containerUptime() {
 
-  declare -A qauntumk_containers
+  declare -a quantumk_containers
   quantumk_containers=(opt_health_1 opt_keycloak_1 opt_moria_1 opt_mariadb_1)
   # ALL CONTAINERS SHOULD BE UP FOR ATLEAST 3 MINS.
   acceptable_epoch_uptime=180
@@ -36,9 +36,9 @@ if systemctl is-active --quiet docker.service; then
   curl -s ${HEALTHCHECK_QUERY} && HEALTH_RESPONSE=$(curl -s ${HEALTHCHECK_QUERY}) || exit 2
   echo ${HEALTH_RESPONSE} > /tmp/healthresponse.json 2>&1
   json_response=$(cat /tmp/healthresponse.json | \
-    python -c 'import json,sys;obj=json.load(sys.stdin);print obj["realm_health_report_local"][0]["details"]');
+    python -c 'import json,sys;obj=json.load(sys.stdin);print obj["realm_health_report_local"][0]["status"]');
   UPPER_RESPONSE=$(echo "${json_response^^}" | awk '{print $NF}')
-  if [ "${UPPER_RESPONSE}" == "SUCCESSFUL." ]
+  if [ "${UPPER_RESPONSE}" == "OK" ]
     then
       echo "Health check passed"
     else
