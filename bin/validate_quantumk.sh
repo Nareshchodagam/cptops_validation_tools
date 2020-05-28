@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # QuantumK service shutdown and verification
-# Usage: quantumk_service.sh {stop|status}
+# Usage: quantumk_service.sh {stop|start|status}
 # QuantumK is a keycloak based Security Token Service (STS) which runs on a 3 node cluster : quantumk1-1, 2-1 and 3-1
 # Patching should be performed sequentially.
 # Team contact quantumk@salesforce.com
@@ -53,16 +53,18 @@ fi
 
 case "$1" in
   stop)
-    echo "Shutting down quantumk services"
+    echo "Shutting down QuantumK"
     docker-compose -f /opt/docker-compose-keycloak.yml down
     ;;
   status)
     containerUptime && healthcheckQuery
     ;;
   start)
+    echo "Starting QuantumK"
     docker-compose -f /opt/docker-compose-keycloak.yml up -d
+    $0 status
     ;;
   *)
-    echo $"Usage: $0 {stop|status}"
+    echo $"Usage: $0 {stop|start|status}"
 esac
 
