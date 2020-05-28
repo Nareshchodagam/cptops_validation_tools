@@ -19,7 +19,9 @@ containerUptime() {
     do
       container_epoch_uptime=$(docker inspect "${container}" --format='{{.State.StartedAt}}' | xargs -n1 date +%s -d)
       uptime=`expr "${current_epoch_time}" - "${container_epoch_uptime}"`
-      if [ "${uptime}" -lt "${acceptable_epoch_uptime}" ]
+      # # factor in startup time.
+      real_epoch_uptime=`expr "${acceptable_epoch_uptime}" - 60`
+      if [ "${uptime}" -lt "${real_epoch_uptime}" ]
         then
 	  echo "container ${container} not stable for the speficied time" && exit 1
       fi
@@ -56,6 +58,9 @@ case "$1" in
     ;;
   status)
     containerUptime && healthcheckQuery
+    ;;
+  start)
+    docker-compose -f /opt/docker-compose-keycloak.yml up -d
     ;;
   *)
     echo $"Usage: $0 {stop|status}"
