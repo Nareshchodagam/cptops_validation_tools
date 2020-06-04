@@ -418,9 +418,14 @@ class Migration:
                     "success", "%s - Route check passed and IB console is accessible" % hostname)
                 status = "SUCCESS"
             else:
-                output.setdefault(
-                    "error", "%s - No route to host console from CNC" % hostname)
                 status = "ERROR"
+                error_msg = "BMC Check for %s:\n"
+                if not accessible:
+                    error_msg += "accessible - False\n"
+                if not authenticable:
+                    error_msg += "authenticable - False\n"
+                output.setdefault(
+                    "error", error_msg % hostname)
         except:
             output.setdefault(
                 "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
