@@ -1021,7 +1021,7 @@ def main():
         for key in hosts_processed:
             if hosts_processed[key]["status"] == "ERROR":
                 exclude_list.append(key)
-                logger.error("%s - no route to host from cnc." % key)
+                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
                 failed = True
             elif hosts_processed[key]["status"] == "SUCCESS":
                 include_list.append(key)
@@ -1032,7 +1032,7 @@ def main():
         logger.info("include: %s" % ','.join(include_list))
         misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
-            misc.write_to_exclude_file(casenum, e_host, "NoRouteToHost")
+            misc.write_to_exclude_file(casenum, e_host, "BMCCheckFailed")
 
     elif args.action == "image":
         if not args.host_role:
