@@ -1,6 +1,6 @@
 #!/bin/bash
 ###################################################
-# Package script for TnRP which generates an RPM. #
+# Package script for Strata which generates an RPM. #
 ###################################################
 set -e
 echo "----- Start CPT Tools TnRP package script -----"
@@ -11,16 +11,9 @@ VERSION="1.0"
 # required argument; rpm should be unique, generate a timestamp
 ITERATION=$(date +"%Y%m%d%H%M%S")
 
-# cd one level up, out of the tnrp dir to repo root
-TNRP_DIR=$(dirname ${0})
-cd ${TNRP_DIR}/..
-
 echo "pwd: $(pwd)"
 echo "version: $VERSION"
 echo "iteration: $ITERATION"
 
 # build the package by running the build script
 ./build.sh -i $ITERATION -v $VERSION
-
-# copy the rpm generated to $TNRP_BUILD_ARTIFACTS (TnRP specified env variable) to be used by the next pipeline segment
-cp *.rpm $TNRP_BUILD_ARTIFACTS
