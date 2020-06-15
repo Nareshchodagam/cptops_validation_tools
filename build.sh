@@ -73,7 +73,7 @@ git clone git@git.soma.salesforce.com:ssa/ssa_service_validation.git $HERE/ssa -
 git clone git@git.soma.salesforce.com:SystemsSecurity/sec_patch.git $HERE/sec_patch -b master
 git clone git@git.soma.salesforce.com:puppet/coresystem.git $HERE/coresystem -b master
 
-yum install -y fpm-2013.02.01
+yum install -y python-setuptools
 
 echo "----- packaging the rpm with fpm -----"
 fpm -s python -t rpm \
