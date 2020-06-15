@@ -4,18 +4,9 @@ time_out_mins: 180
 number_of_artifacts_to_keep: 3
 compliance_required: false
 docker_test_images:
-- dva/tnrpbuild_centos6_legacy
-# build_tnrp_in_strata.sh comes from tnrp2strata_shim in the Strata yum repo
-# It is automatically installed on tnrpbuild_centosX_legacy images
-# Source https://git.soma.salesforce.com/dva-strata/tnrp2strata_shim
-unit_tests_command: build_tnrp_in_strata.sh ./tnrp/unittest
+- dva/sfdc_centos7_devel
+unit_tests_command: ./strata/unittest
 docker_package_images:
-- dva/tnrpbuild_centos6_legacy
-# build_tnrp_in_strata.sh comes from tnrp2strata_shim in the Strata yum repo
-# It is automatically installed on tnrpbuild_centosX_legacy images
-# Source https://git.soma.salesforce.com/dva-strata/tnrp2strata_shim
-package_generation_command: build_tnrp_in_strata.sh ./tnrp/package
-# We have created and set a yum repo value for you.
-# If you would like to create a new yum repo, or share
-# a yum repo across products, see https://sfdc.co/what-strata-yum-repo
+- dva/sfdc_centos7_java_rpmbuild
+package_generation_command: ./strata/package
 package_repository: cpt
