@@ -92,6 +92,43 @@ def update_clusterconfig(clustername, status):
         logger.info(output)
 
 
+def update_clusterconfig_migration(clustername, start=False):
+    """
+    This function reads/updates centosMigrationInProgress field of a cluster
+    :param clustername: cluster name
+    :param start: Sets the field to True. Fetches the status of the field if this parameter is not passed.
+    :return:
+    """
+
+
+
+    cmd = "inventory-action.pl -use_krb_auth -resource cluster  -name "\
+         + clustername + " -action  read | egrep -i 'centosMigrationInProgress' -A1"
+    output = update_iDB(cmd)
+
+    if ('centosmigrationinprogress'in output.lower()):
+        if 'true' in output.lower():
+            logger.info("centosMigrationInProgress field is true for cluster {0}".format(clustername))
+        else:
+            logger.error("centosMigrationInProgress is False for cluster {0}. ".format(clustername))
+            if start:
+
+                cmd = 'inventory-action.pl -use_krb_auth -action update -resource cluster -name ' + clustername + ' ' \
+                      '-superpod.name NONE -updateFields "clusterConfig.key=centosMigrationInProgress,clusterConfig.type=all,clusterConfig.value=true"'
+                update_iDB(cmd)
+                logger.info("Field is set to True now ")
+            else:
+                logger.error("Contact Bigdata operations(Uttam Kumar) to check for any ongoing releases  ".format(clustername))
+                exit(1)
+    else:
+        logger.debug(output)
+        logger.error("The field centosMigrationInProgress not found for cluster {0} ".format(clustername))
+        logger.error("Contact Bigdata operations(Uttam Kumar)")
+        raise Exception('known exception')
+        # Update idb
+
+
+
 def update_hostconfig(host, status):
     """
     This function updates host config
@@ -135,6 +172,8 @@ if __name__ == "__main__":
     parser.add_argument("--host", dest="hostnames", help="Host name")
     parser.add_argument("--cluster", dest="clusters", help="cluster name")
     parser.add_argument("--verbose", "-v", action="store_true", dest="verbose", default=False, help="verbosity")
+    parser.add_argument("--migration", "-m", dest="migration", action="store_true", default=False,
+                        help="Update/check Migration progress in iDB")
 
     args = parser.parse_args()
 
@@ -157,10 +196,14 @@ if __name__ == "__main__":
             cluster = args.clusters.split(',')
         else:
             cluster = args.clusters
-        try:
-            _ = [pool.apply(update_clusterconfig, args=(clust, args.start)) for clust in cluster]
-        except Exception as error:
-            exit(1)
+        if args.migration:
+            update_clusterconfig_migration(args.clusters, args.start)
+        else:
+            try:
+                _ = [pool.apply(update_clusterconfig, args=(clust, args.start, args.migration)) for clust in cluster]
+            except Exception as error:
+                exit(1)
+
     else:
         logger.error("hostname or clustername required")
     pool.close()
