@@ -16,6 +16,16 @@ case "$1" in
                 /sbin/stop gomon
             fi
         fi
+        ERR=$?
+        if [ $ERR -ne 0 ]; then
+            exit $ERR
+        fi
+
+        if [ $OS_VERSION -eq 7 ]; then
+            /usr/bin/systemctl stop cms-ant
+        else
+            /sbin/service cms-ant stop
+        fi
     ;;
     'start')
         if [ $PROCESS_CHECK -gt 0 ]; then
@@ -33,6 +43,14 @@ case "$1" in
             /usr/bin/systemctl status gomon
         else
             /sbin/status gomon
+        fi
+        # the above gomon status check exits 0 whether or not gomon is running...
+        # so, no point checking the exit code.  of informational value only
+
+        if [ $OS_VERSION -eq 7 ]; then
+            /usr/bin/systemctl status cms-ant
+        else
+            /sbin/service cms-ant status
         fi
     ;;
 esac
