@@ -91,12 +91,12 @@ class HostsCheck(object):
             raise AuthError
         elif prompt == 1:
             child.sendline(kpass)
-        if (child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5)) == 1:
+        if (child.expect([pexpect.TIMEOUT, "Please provide YubiKey OTP.*", pexpect.EOF], timeout=10)) == 1:
             if not otp:
                 raise GusError
             else:
                 child.sendline(otp)
-        if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=5) in [1,2]):
+        if (child.expect([pexpect.TIMEOUT, "[Pp]assword:", "Please provide YubiKey OTP.*", pexpect.EOF], timeout=10) in [1,2]):
             raise AuthError
         child.sendline(cmd2)
         child.expect([pexpect.TIMEOUT, ".*]$.*", pexpect.EOF], timeout=6)
