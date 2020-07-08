@@ -279,11 +279,12 @@ class ThreadEraseHostName(threading.Thread):
 
 class ThreadUpdateOpsStatus(threading.Thread):
 
-    def __init__(self, queue, casenum, hosts_processed):
+    def __init__(self, queue, casenum, hosts_processed, idb_noop):
         threading.Thread.__init__(self)
         self.queue = queue
         self.casenum = casenum
         self.hosts_processed = hosts_processed
+        self.check_only = idb_noop
         self.mig = Migration()
 
     def run(self):
@@ -291,12 +292,12 @@ class ThreadUpdateOpsStatus(threading.Thread):
         count = 0
         host, idb_status = self.queue.get()
         result, status = self.mig.update_idb_status(
-            host, self.casenum, idb_status=idb_status)
+            host, self.casenum, idb_status=idb_status, check_only=self.check_only)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
             logger.info(
                 "Retry #%s updateopsstatus command on %s as it's failed in previous attempt" % (count, host))
             result, status = self.mig.update_idb_status(
-                host, self.casenum, idb_status=idb_status)
+                host, self.casenum, idb_status=idb_status, check_only=self.check_only)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
@@ -720,7 +721,7 @@ class Migration:
                 status = "ERROR"
         return output, status
 
-    def update_idb_status(self, hostname, casenum, idb_status="ACTIVE"):
+    def update_idb_status(self, hostname, casenum, idb_status="ACTIVE", check_only=False):
         """
         For a given host, this method updates the host operatiioinal status in iDB with provided status
         """
@@ -761,6 +762,9 @@ class Migration:
                 if old_status == "PROVISIONING":
                     logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (
                         hostname, old_status))
+                    output.setdefault(
+                        "success", "%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
+                    status = "SUCCESS"
                     break
                 if old_status == "ACTIVE":
                     output.setdefault(
@@ -772,26 +776,27 @@ class Migration:
                 logger.info("Retrying in %s seconds" % interval)
                 time.sleep(interval)
                 count += 1
-        try:
-            update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=%s\"" % (
-                serial_number, idb_status)
-            self.exec_cmd(update_cmd)
-            logger.debug("%s - payload sent to update iDB status to %s" %
-                         (hostname, idb_status))
-            new_status = json.loads(self.exec_cmd(old_status_cmd))[
-                "data"][0]["operationalStatus"]
-            if new_status == idb_status:
+        if not check_only:
+            try:
+                update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=%s\"" % (
+                    serial_number, idb_status)
+                self.exec_cmd(update_cmd)
+                logger.debug("%s - payload sent to update iDB status to %s" %
+                             (hostname, idb_status))
+                new_status = json.loads(self.exec_cmd(old_status_cmd))[
+                    "data"][0]["operationalStatus"]
+                if new_status == idb_status:
+                    output.setdefault(
+                        "success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
+                    status = "SUCCESS"
+                else:
+                    output.setdefault(
+                        "error", "%s - failed to change iDB Status to '%s' <> '%s'" % (hostname, idb_status, new_status))
+                    status = "ERROR"
+            except:
                 output.setdefault(
-                    "success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
-                status = "SUCCESS"
-            else:
-                output.setdefault(
-                    "error", "%s - failed to change iDB Status to '%s' <> '%s'" % (hostname, idb_status, new_status))
+                    "error", "%s - an error occurred while processing the request" % hostname)
                 status = "ERROR"
-        except:
-            output.setdefault(
-                "error", "%s - an error occurred while processing the request" % hostname)
-            status = "ERROR"
         return output, status
 
     def check_status(self, hostname, casenum, delay, prev_cmd):
@@ -914,7 +919,19 @@ def main():
     """
 
     parser = ArgumentParser(prog='migration_manager.py',
-                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
+                            usage="""\n
+     %(prog)s 
+    \t-h --help prints this help
+    \t-v verbose output
+    \t-c casenum -a cncinfo
+    \t-c casenum -a routecheck
+    \t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>]
+    \t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve]
+    \t-c casenum -a fail
+    \t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>]
+    \t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>
+    \t-c casenum -a erasehostname
+    \t-c casenum -a updateopsstatus --status <STATUS> [--check-only]""")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=[
@@ -936,6 +953,8 @@ def main():
                         'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
+    parser.add_argument("--check-only", dest="no_idb_update",
+                        help="checks for iDB status and returns after desired status is met", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -1252,11 +1271,12 @@ def main():
             sys.exit(1)
 
     elif args.action == "updateopsstatus":
+        idb_noop = args.no_idb_update
         idb_status = str(args.idb_status).upper()
         hosts_processed = {}
         queue = Queue.Queue()
         for i in range(thread_count):
-            t = ThreadUpdateOpsStatus(queue, casenum, hosts_processed)
+            t = ThreadUpdateOpsStatus(queue, casenum, hosts_processed, idb_noop)
             t.setDaemon(True)
             t.start()
         for h in host_list:
