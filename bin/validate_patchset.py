@@ -1,95 +1,87 @@
-#!/usr/bin/python
-"""Script to validate solaris patch sets completed successfully. Looks at kernel version and logs"""
 
-from datetime import datetime, date, timedelta
+"""
+wrapper for orb-check
+will be copied to ~/remote_transfer directory of the target host in bootstrap step of patching template
+accepts two bundles (one each for CE6 and CE7), runs on target host and invokes orb-check.py on target host with appropriate bundle
+ex: ./orb_check_wrapper.py --osce6 [current|canary|xxxx.xxxx] --osce7 [current|canary|xxxx.xxxx]
+    xxxx.xxxx - explicit bundle name
+
+TODO: make this script work independent of orb-check.py
+
+"""
+
 import sys
-import re
+import os
+import socket
 import subprocess
-import logging
-from optparse import OptionParser
-import glob
+import re
+import argparse
 
-def find_lastest_install_data():
-    output = False
-    today = datetime.now()
-    yest = datetime.now() - timedelta(days=1)
-    for t in today,yest:
-        cur = t.strftime('%Y.%m.%d')
-        filename = '/var/sadm/install_data/s10s_rec_patchset_short_' + cur + "*.log"
-        logging.debug(filename)
-        for f in glob.glob(filename):
-            output = f
-        if not output == False:
-            break
-    return output
+ORB_FILE = "/usr/local/libexec/orb-check.py"
 
-def parse_install_data(filename):
-    str = "Installation of patch set complete. PLEASE REBOOT THE SYSTEM."
-    updated = False
-    with open(filename, 'r') as f:
-        data = f.readlines()
-        for l in data:
-            if re.match(str, l):
-                logging.debug(l)
-                updated = True
-    return updated
 
-def get_kernel_version(input):
-    ver = 'unknown'
-    m = re.search(r' Generic_(\d{1,6}-\d{1,2}) ',input)
-    if m.group(1):
-        ver = m.group(1)
-    return ver
-
-def check_system_updated():
-    updated = False
-    filename = '/var/sadm/system/logs/system_updated'
-    today = datetime.now()
-    cur = today.strftime('%b %d %Y')
-    m,d,y = cur.split()
-    # non padded number silliness
-    if re.match(r'0',d):
-        d = d.replace('0', ' ')
-    logging.debug("%s %s %s" % (m,d,y))
-    with open(filename, 'r') as f:
-        for line in f.readlines():
-            regex = m + " " + d + " \d{2}:\d{2}:\d{2} GMT " + y
-            if re.search(regex, line) and re.search(r'kernel updated', line):
-                logging.debug(line)
-                updated = True
-    return updated
-
-def run_cmd(cmdlist):
-    logging.debug(cmdlist)
-    netstat_nfs = subprocess.Popen(cmdlist, stdout=subprocess.PIPE)
-    out, err = netstat_nfs.communicate()
-    return out
-
-def kernel_ver(kernver):
-    logging.debug(kernver)
-    uname_lst = ['uname', '-a']
-    uname = run_cmd(uname_lst)
-    ver = get_kernel_version(uname)
-    logging.debug("Current : %s | Wanted : %s" % (ver, kernver))
-    if not ver == kernver:
+def get_os_version():
+    if not os.path.isfile("/etc/centos-release"):
+        print("Not a CentOS host. exiting!")
+        sys.exit(1)
+    cmdlist = ["cat", "/etc/centos-release"]
+    run_cmd = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = run_cmd.communicate()
+    if not err:
+        ver = "unknown"
+        m = re.search(r' release (\d{1,2}\.\d{1,2})', out)
+        if m:
+            ver = m.group(1)
+        try:
+            ver = ver.split(".")[0]
+        except Exception:
+            ver = ""
+        return ver
+    else:
+        print("Unable to read file /etc/centos-release. exiting!")
         sys.exit(1)
 
+
+def run_orb_check(bundle):
+    cmdlist = [ORB_FILE, "-v", bundle]
+    run_cmd = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = run_cmd.communicate()
+    if not err:
+        out = out.lower()
+        if ("does not match" in out or "reboot required" in out or "action required" in out or "unrecognized arguments" in out or "valueerror" in out):
+            print(out)
+            sys.exit(1)
+        else:
+            print(out)
+            sys.exit(0)
+    else:
+        print(err)
+        sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="orb_check_wrapper")
+    parser.add_argument("--osce6", dest="osce6", help="Patch bundle for CE6")
+    parser.add_argument("--osce7", dest="osce7", help="Patch bundle for CE7")
+    args = parser.parse_args()
+
+    # exit if orb-check.py is not present on the host
+    if not os.path.isfile(ORB_FILE):
+        print("orb-check.py is not found. exiting!")
+        sys.exit(1)
+
+    # get os major version of the host
+    os_version = get_os_version()
+    if not os_version in ["6", "7"]:
+        print("Found an invalid value for OS version: {0}. Exiting!".format(os_version))
+        sys.exit(1)
+
+    # execute orb-check.py with appropriate bundle arg
+    if os_version == "6":
+        run_orb_check(args.osce6)
+    else:
+        run_orb_check(args.osce7)
+
+
 if __name__ == "__main__":
-    parser = OptionParser()
-    parser.add_option("-k", dest="kernver", action="store", help="The kernel version host should have")
-    parser.add_option("-u", dest="updated", action="store_true", help="Check if the host was updated")
-    parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity")
-    (options, args) = parser.parse_args()
-    if options.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    if options.kernver:
-        kernel_ver(options.kernver)
-    if options.updated:
-        updated = check_system_updated()
-        if updated == False:
-            sys.exit(1)
-        install_log = find_lastest_install_data()
-        host_updated = parse_install_data(install_log)
-        if host_updated == False:
-            sys.exit(1)
-    print("Host validated as successfully updated")
+    main()
