@@ -3,7 +3,9 @@
 wrapper for orb-check
 will be copied to ~/remote_transfer directory of the target host in bootstrap step of patching template
 accepts two bundles (one each for CE6 and CE7), runs on target host and invokes orb-check.py on target host with appropriate bundle
-ex: ./orb_check_wrapper.py --osce6 [current|canary|xxxx.xxxx] --osce7 [current|canary|xxxx.xxxx]
+ex: ./validate_patchset.py --osce6 [current|canary|xxxx.xxxx] --osce7 [current|canary|xxxx.xxxx]
+                    OR
+    ./validate_patchset.py --bundle [current|canary|xxxx.xxxx]
     xxxx.xxxx - explicit bundle name
 
 TODO: make this script work independent of orb-check.py
@@ -63,6 +65,7 @@ def main():
     parser = argparse.ArgumentParser(description="orb_check_wrapper")
     parser.add_argument("--osce6", dest="osce6", help="Patch bundle for CE6")
     parser.add_argument("--osce7", dest="osce7", help="Patch bundle for CE7")
+    parser.add_argument("--bundle", dest="bundle", default=False, help="Common Patch bundle for CE7/CE6")
     args = parser.parse_args()
 
     # exit if orb-check.py is not present on the host
@@ -77,7 +80,9 @@ def main():
         sys.exit(1)
 
     # execute orb-check.py with appropriate bundle arg
-    if os_version == "6":
+    if args.bundle:
+        run_orb_check(args.bundle)
+    elif os_version == "6":
         run_orb_check(args.osce6)
     else:
         run_orb_check(args.osce7)
