@@ -484,15 +484,13 @@ def main():
         bundle = args.bundle
     else:
         bundle = "current"
-    osce6 = args.osce6
-    osce7 = args.osce7
     hosts = args.hosts.split(',')
     case_no = args.case
     force = args.force
     if args.bundle:
-        class_object = HostsCheck(case_no, bundle, force)
+        class_object = HostsCheck(case_no, bundle=bundle, osce6=None, osce7=None, force=force)
     else:
-        class_object = HostsCheck(case_no, osce6, osce7, force)
+        class_object = HostsCheck(case_no, bundle=None, osce6=args.osce6, osce7=args.osce7, force=force)
     if args.mhosts:
         mhosts = args.hosts.split(',')
         class_object.os_process(mhosts, mfa_hosts, kpass, session, gus_conn)
