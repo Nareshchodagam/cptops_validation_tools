@@ -113,8 +113,8 @@ def update_clusterconfig_migration(clustername, start=False):
             logger.error("centosMigrationInProgress is False for cluster {0}. ".format(clustername))
             if start:
 
-                cmd = 'inventory-action.pl -use_krb_auth -action update -resource cluster -name ' + clustername + ' ' \
-                      '-superpod.name NONE -updateFields "clusterConfig.key=centosMigrationInProgress,clusterConfig.type=all,clusterConfig.value=true"'
+                cmd = 'inventory-action.pl -use_krb_auth -action update -resource cluster -name ' + clustername + \
+                      ' -updateFields "clusterConfig.key=centosMigrationInProgress,clusterConfig.type=all,clusterConfig.value=true"'
                 update_iDB(cmd)
                 logger.info("Field is set to True now ")
             else:
