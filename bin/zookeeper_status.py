@@ -40,6 +40,36 @@ def getStat(host):
         logging.error("Exception occured on %s: %s", host, ex)
         return "SOCKET_ERROR"
 
+def configQuorumStatus(zoocfgpath):
+    status = {}
+    if os.path.exists(zoocfgpath):
+        zoo_config = open(zoocfgpath, 'r').read()
+        healthyMembers = 0
+        memberCount = 0
+        for line in zoo_config.split(chr(10)):
+            if line[:7] == 'server.':
+                memberCount += 1
+                host = line.split('=')[1].split(':')[0]
+                if getStat(host).find('Zookeeper') != -1:
+                    healthyMembers += 1
+        status = {
+            "QuorumStatus": "",
+            "HealthyMembers": healthyMembers,
+            "MemberCount": memberCount
+        }
+        if memberCount == 0:
+            status["QuorumStatus"] = "INDETERMINATE - SUPPLIED ZOO.ZFG HAS NO QUORUM MEMBERS"
+        else:
+            if healthyMembers == memberCount:
+                status["QuorumStatus"] = "HEALTHY"
+            else:
+                status["QuorumStatus"] = str(memberCount - healthyMembers) + "FAILED NODE(S)"
+    else:
+        status["QuorumStatus"] = "INDETERMINATE - ZOO.CFG PATH NOT FOUND"
+    print(status)
+    if status["QuorumStatus"] != "HEALTHY":
+        sys.exit(1)
+
 def parseData(data):
     running = False
     for d in data.split('\n'):
@@ -73,7 +103,6 @@ def create_list(case_list, master_list):
 
 def rebuild_list(case_list, master_list, active_host):
     '''
-
     :param case_list:
     :param master_list:
     :return:
@@ -128,7 +157,8 @@ if __name__ == '__main__':
     Script checking zookeeper status    
     """
     parser = OptionParser(usage)
-   
+
+    parser.add_option("--quorumstatus", dest="quorumstatus", help="Path to zoo.cfg for assessing quorum health.")
     parser.add_option("-H", "--hostlist", dest="hostlist", help="The hostlist for the change")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
     parser.add_option("-b", action="store_true", dest="buildlist", default=False, help="Builds hostlist for Search Zookeeper.")
@@ -139,6 +169,8 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     if options.verbose:
         logging.basicConfig(level=logging.DEBUG)
+    if options.quorumstatus:
+        configQuorumStatus(options.quorumstatus)
     hostlist = ['localhost']
     hosts_status = {}
     failure_count = 0
@@ -217,4 +249,3 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         sys.exit(0)
-
