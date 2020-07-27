@@ -31,7 +31,7 @@ def get_os_version():
     run_cmd = subprocess.Popen(cmdlist, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = run_cmd.communicate()
     if not err:
-        ver = "unknown"
+        ver = None
         m = re.search(r' release (\d{1,2}\.\d{1,2})', out)
         if m:
             ver = m.group(1)
