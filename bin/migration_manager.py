@@ -460,8 +460,12 @@ class Migration:
                 "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
             return output, "ERROR"
         else:
-            image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (
-                cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
+            if role != None:
+                image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (
+                    cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
+            else:
+                image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (
+                    cnc_api_url, serial_number, str(preserve).lower(), disk_config)
             logger.info("Image command - %s", image_cmd)
             image_cmd_response = json.loads(self.exec_cmd(image_cmd))
             if "error" in image_cmd_response.keys():
@@ -914,7 +918,7 @@ def main():
     """
 
     parser = ArgumentParser(prog='migration_manager.py',
-                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
+                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=[
@@ -1035,10 +1039,11 @@ def main():
             misc.write_to_exclude_file(casenum, e_host, "BMCCheckFailed")
 
     elif args.action == "image":
-        if not args.host_role:
-            logger.error("please provide role with --role.")
-            sys.exit(1)
-        role = args.host_role
+        if args.host_role:
+            role = args.host_role
+        else:
+            role = None
+
         preserve = args.preserve_data
         disk_config = args.disk_config
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
