@@ -925,7 +925,7 @@ def main():
     parser.add_argument("--superpod", dest="superpod_name",
                         help="specify super pod name")
     parser.add_argument("--disk_config", dest="disk_config",
-                        help="specify disk config e.g stage1v0|fastcache2", default="stage1v0")
+                        help="specify disk config e.g stage1v0", choices=["standard", "stage1v0", "fastcache2", "stage1hdfs"], default="stage1v0")
     parser.add_argument("--preserve", dest="preserve_data", action="store_true",
                         help="include this to preserve data", default=False)
     parser.add_argument("--delay", dest="delay_in_mins",
