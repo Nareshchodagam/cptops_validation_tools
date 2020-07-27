@@ -175,18 +175,19 @@ class ThreadImaging(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host, role, preserve, disk_config = self.queue.get()
+        host, role, preserve, disk_config, dry_run = self.queue.get()
         max_retries = 2
         count = 0
-        logger.info("Triggering image command on %s. Will be retrying for a maximum of %s times if failed" % (
-            host, max_retries))
+        if not dry_run:
+            logger.info("Triggering image command on %s. Will be retrying for a maximum of %s times if failed" %
+                        (host, max_retries))
         result, status = self.mig.trigger_image(
-            host, self.casenum, role=role, preserve=preserve, disk_config=disk_config)
+            host, self.casenum, role=role, preserve=preserve, disk_config=disk_config, no_op=dry_run)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
             logger.info(
                 "Retry #%s image command on %s as it's failed in previous attempt" % (count, host))
             result, status = self.mig.trigger_image(
-                host, self.casenum, role=role, preserve=preserve, disk_config=disk_config)
+                host, self.casenum, role=role, preserve=preserve, disk_config=disk_config, no_op=dry_run)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
@@ -202,16 +203,17 @@ class ThreadFailHost(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host = self.queue.get()
+        host, dry_run = self.queue.get()
         max_retries = 2
         count = 0
-        logger.info("Triggering fail_host command on %s. Will be retrying for a maximum of %s times if failed" % (
-            host, max_retries))
-        result, status = self.mig.fail_host(host, self.casenum)
+        if not dry_run:
+            logger.info("Triggering fail_host command on %s. Will be retrying for a maximum of %s times if failed" % (
+                host, max_retries))
+        result, status = self.mig.fail_host(host, self.casenum, no_op=dry_run)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
             logger.info(
                 "Retry #%s fail_host command on %s as it's failed in previous attempt" % (count, host))
-            result, status = self.mig.fail_host(host, self.casenum)
+            result, status = self.mig.fail_host(host, self.casenum, no_op=dry_run)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
@@ -227,18 +229,19 @@ class ThreadRebuilding(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host, preserve, disk_config = self.queue.get()
+        host, preserve, disk_config, dry_run = self.queue.get()
         max_retries = 2
         count = 0
-        logger.info("Triggering rebuild_failed_host command on %s. Will be retrying for a maximum of %s times if failed" % (
-            host, max_retries))
+        if not dry_run:
+            logger.info("Triggering rebuild_failed_host command on %s. Will be retrying for a maximum of %s times if failed" % (
+                host, max_retries))
         result, status = self.mig.rebuild_failed_host(
-            host, self.casenum, preserve=preserve, disk_config=disk_config)
+            host, self.casenum, preserve=preserve, disk_config=disk_config, no_op=dry_run)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
             logger.info(
                 "Retry #%s rebuild_failed_host command on %s as it's failed in previous attempt" % (count, host))
             result, status = self.mig.rebuild_failed_host(
-                host, self.casenum, preserve=preserve, disk_config=disk_config)
+                host, self.casenum, preserve=preserve, disk_config=disk_config, no_op=dry_run)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
@@ -254,9 +257,9 @@ class ThreadDeploy(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host, role, cluster, superpod, preserve = self.queue.get()
+        host, role, cluster, superpod, preserve, dry_run = self.queue.get()
         result, status = self.mig.trigger_deploy(
-            host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve)
+            host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve, no_op=dry_run)
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
@@ -433,7 +436,7 @@ class Migration:
 
         return output, status
 
-    def trigger_image(self, hostname, casenum, role="", preserve=False, disk_config=""):
+    def trigger_image(self, hostname, casenum, role="", preserve=False, disk_config="", no_op=False):
         """
         For a given host this method triggers image event on cnc api url and validates whether that event successfully completed or not
         """
@@ -460,39 +463,46 @@ class Migration:
                 "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
             return output, "ERROR"
         else:
-            image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (
-                cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
-            logger.info("Image command - %s", image_cmd)
-            image_cmd_response = json.loads(self.exec_cmd(image_cmd))
-            if "error" in image_cmd_response.keys():
-                output.setdefault("error", image_cmd_response["error"])
-                status = "ERROR"
+            if role != None:
+                image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (
+                    cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
             else:
-                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                event_type = image_cmd_response["type"]
-                event_id = image_cmd_response["id"]
-                event_status = image_cmd_response["status"]
-                logger.info("%s - [%s] %s -- %s" %
-                            (hostname, event_id, event_type, event_status))
-                event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                e_result, e_status = self.check_event_status(event_api_url)
-                logger.info("%s - %s" % (hostname, e_status))
-                if e_result == True:
-                    if e_status == "completed":
-                        status = "SUCCESS"
-                        output.setdefault("success", "%s event %s processing on %s" % (
-                            event_type, e_status, hostname))
-                    elif e_status == "failed":
-                        status = "ERROR"
-                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
-                            e_status, event_type, hostname, cnc_host, serial_number))
-                else:
+                image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (
+                    cnc_api_url, serial_number, str(preserve).lower(), disk_config)
+            if not no_op:
+                logger.info("Image command - %s", image_cmd)
+                image_cmd_response = json.loads(self.exec_cmd(image_cmd))
+                if "error" in image_cmd_response.keys():
+                    output.setdefault("error", image_cmd_response["error"])
                     status = "ERROR"
-                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                        event_type, hostname, event_api_url))
+                else:
+                    cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                    event_type = image_cmd_response["type"]
+                    event_id = image_cmd_response["id"]
+                    event_status = image_cmd_response["status"]
+                    logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
+                    event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                    e_result, e_status = self.check_event_status(event_api_url)
+                    logger.info("%s - %s" % (hostname, e_status))
+                    if e_result == True:
+                        if e_status == "completed":
+                            status = "SUCCESS"
+                            output.setdefault("success", "%s event %s processing on %s" %
+                                              (event_type, e_status, hostname))
+                        elif e_status == "failed":
+                            status = "ERROR"
+                            output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                                e_status, event_type, hostname, cnc_host, serial_number))
+                    else:
+                        status = "ERROR"
+                        output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                            event_type, hostname, event_api_url))
+            else:
+                status = "SUCCESS"
+                output.setdefault("dry_run", "%s - %s" % (hostname, image_cmd))
         return output, status
 
-    def fail_host(self, hostname, casenum):
+    def fail_host(self, hostname, casenum, no_op=False):
         """
         For any given host, this method triggers fail_host event on cnc api url that would update the host racktastic status to failed
         """
@@ -514,42 +524,44 @@ class Migration:
                 break
 
         rack_status = self.check_rack_status(cnc_api_url)
-        logger.info("%s currently in %s status. Just to tell you that I told you so later." % (
-            hostname, rack_status))
+        logger.info("%s currently in %s status. Just to tell you that I told you so later." % (hostname, rack_status))
 
         fail_host_cmd = "curl -s --request POST %sevent -d '{\"type\": \"fail_host\", \"serial_number\":\"%s\"}'" % (
             cnc_api_url, serial_number)
-        logger.info("fail_host - %s", fail_host_cmd)
-        fail_host_cmd_response = json.loads(self.exec_cmd(fail_host_cmd))
-        if "error" in fail_host_cmd_response.keys():
-            output.setdefault("error", fail_host_cmd_response["error"])
-            status = "ERROR"
-        else:
-            cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-            event_type = fail_host_cmd_response["type"]
-            event_id = fail_host_cmd_response["id"]
-            event_status = fail_host_cmd_response["status"]
-            logger.info("%s - [%s] %s -- %s" %
-                        (hostname, event_id, event_type, event_status))
-            event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-            e_result, e_status = self.check_event_status(event_api_url)
-            logger.info("%s - %s" % (hostname, e_status))
-            if e_result == True:
-                if e_status == "completed":
-                    status = "SUCCESS"
-                    output.setdefault("success", "%s event %s processing on %s" % (
-                        event_type, e_status, hostname))
-                elif e_status == "failed":
-                    status = "ERROR"
-                    output.setdefault("error", "%s to process %s event on %s due to some error. \n CNC Host - %s\nSerial Number - %s" % (
-                        e_status, event_type, hostname, cnc_host, serial_number))
-            else:
+        if not no_op:
+            logger.info("fail_host - %s", fail_host_cmd)
+            fail_host_cmd_response = json.loads(self.exec_cmd(fail_host_cmd))
+            if "error" in fail_host_cmd_response.keys():
+                output.setdefault("error", fail_host_cmd_response["error"])
                 status = "ERROR"
-                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                    event_type, hostname, event_api_url))
+            else:
+                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                event_type = fail_host_cmd_response["type"]
+                event_id = fail_host_cmd_response["id"]
+                event_status = fail_host_cmd_response["status"]
+                logger.info("%s - [%s] %s -- %s" %
+                            (hostname, event_id, event_type, event_status))
+                event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                e_result, e_status = self.check_event_status(event_api_url)
+                logger.info("%s - %s" % (hostname, e_status))
+                if e_result == True:
+                    if e_status == "completed":
+                        status = "SUCCESS"
+                        output.setdefault("success", "%s event %s processing on %s" % (event_type, e_status, hostname))
+                    elif e_status == "failed":
+                        status = "ERROR"
+                        output.setdefault("error", "%s to process %s event on %s due to some error. \n CNC Host - %s\nSerial Number - %s" % (
+                            e_status, event_type, hostname, cnc_host, serial_number))
+                else:
+                    status = "ERROR"
+                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                        event_type, hostname, event_api_url))
+        else:
+            status = "SUCCESS"
+            output.setdefault("dry_run", "%s - %s" % (hostname, fail_host_cmd))
         return output, status
 
-    def rebuild_failed_host(self, hostname, casenum, preserve=False, disk_config=""):
+    def rebuild_failed_host(self, hostname, casenum, preserve=False, disk_config="", no_op=False):
         """
         For a given host that has racktastic status as failed, this method triggers rebuild_failed_host event on cnc api url and validates whether that successfully completed or not
         """
@@ -578,37 +590,41 @@ class Migration:
         else:
             rebuild_cmd = "curl -s --request POST %sevent -d '{\"type\":\"rebuild_failed_host\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (
                 cnc_api_url, serial_number, str(preserve).lower(), disk_config)
-            logger.info("rebuild command - %s ", rebuild_cmd)
-            rebuild_cmd_response = json.loads(self.exec_cmd(rebuild_cmd))
-            if "error" in rebuild_cmd_response.keys():
-                output.setdefault("error", rebuild_cmd_response["error"])
-                status = "ERROR"
-            else:
-                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                event_type = rebuild_cmd_response["type"]
-                event_id = rebuild_cmd_response["id"]
-                event_status = rebuild_cmd_response["status"]
-                logger.info("%s - [%s] %s -- %s" %
-                            (hostname, event_id, event_type, event_status))
-                event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                e_result, e_status = self.check_event_status(event_api_url)
-                logger.info("%s - %s" % (hostname, e_status))
-                if e_result == True:
-                    if e_status == "completed":
-                        status = "SUCCESS"
-                        output.setdefault("success", "%s event %s processing on %s" % (
-                            event_type, e_status, hostname))
-                    elif e_status == "failed":
-                        status = "ERROR"
-                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
-                            e_status, event_type, hostname, cnc_host, serial_number))
-                else:
+            if not no_op:
+                logger.info("rebuild command - %s ", rebuild_cmd)
+                rebuild_cmd_response = json.loads(self.exec_cmd(rebuild_cmd))
+                if "error" in rebuild_cmd_response.keys():
+                    output.setdefault("error", rebuild_cmd_response["error"])
                     status = "ERROR"
-                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                        event_type, hostname, event_api_url))
+                else:
+                    cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                    event_type = rebuild_cmd_response["type"]
+                    event_id = rebuild_cmd_response["id"]
+                    event_status = rebuild_cmd_response["status"]
+                    logger.info("%s - [%s] %s -- %s" %
+                                (hostname, event_id, event_type, event_status))
+                    event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                    e_result, e_status = self.check_event_status(event_api_url)
+                    logger.info("%s - %s" % (hostname, e_status))
+                    if e_result == True:
+                        if e_status == "completed":
+                            status = "SUCCESS"
+                            output.setdefault("success", "%s event %s processing on %s" %
+                                              (event_type, e_status, hostname))
+                        elif e_status == "failed":
+                            status = "ERROR"
+                            output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                                e_status, event_type, hostname, cnc_host, serial_number))
+                    else:
+                        status = "ERROR"
+                        output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                            event_type, hostname, event_api_url))
+            else:
+                status = "SUCCESS"
+                output.setdefault("dry_run", "%s - %s" % (hostname, rebuild_cmd))
         return output, status
 
-    def trigger_deploy(self, hostname, casenum, role="", cluster="", superpod="", preserve=False):
+    def trigger_deploy(self, hostname, casenum, role="", cluster="", superpod="", preserve=False, no_op=False):
         """
         For a given host, this method triggers deploy event on cnc api url and validates whether it is completed or not.
         """
@@ -640,34 +656,38 @@ class Migration:
         else:
             deploy_cmd = "curl -s --request POST %sevent -d '{\"type\":\"deploy\",\"serial_number\":\"%s\",\"message\":{\"inventory_idb_cluster_name\":\"%s\",\"inventory_idb_superpod_name\":\"%s\",\"default_hostname\":\"%s\",\"host_role\":\"%s\", \"preserve\":\"%s\"}}'" % (
                 cnc_api_url, serial_number, cluster, superpod, host_fqdn, role, str(preserve).lower())
-            logger.info("Deploy command - %s", deploy_cmd)
-            deploy_cmd_response = json.loads(self.exec_cmd(deploy_cmd))
-            if "error" in deploy_cmd_response.keys():
-                output.setdefault("error", deploy_cmd_response["error"])
-                status = "ERROR"
-            else:
-                cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                event_type = deploy_cmd_response["type"]
-                event_id = deploy_cmd_response["id"]
-                event_status = deploy_cmd_response["status"]
-                logger.info("%s - [%s] %s -- %s" %
-                            (hostname, event_id, event_type, event_status))
-                event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                e_result, e_status = self.check_event_status(event_api_url)
-                logger.info("%s - %s" % (hostname, e_status))
-                if e_result == True:
-                    if e_status == "completed":
-                        status = "SUCCESS"
-                        output.setdefault("success", "%s event %s processing on %s" % (
-                            event_type, e_status, hostname))
-                    elif e_status == "failed":
-                        status = "ERROR"
-                        output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
-                            e_status, event_type, hostname, cnc_host, serial_number))
-                else:
+            if not no_op:
+                logger.info("Deploy command - %s", deploy_cmd)
+                deploy_cmd_response = json.loads(self.exec_cmd(deploy_cmd))
+                if "error" in deploy_cmd_response.keys():
+                    output.setdefault("error", deploy_cmd_response["error"])
                     status = "ERROR"
-                    output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                        event_type, hostname, event_api_url))
+                else:
+                    cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                    event_type = deploy_cmd_response["type"]
+                    event_id = deploy_cmd_response["id"]
+                    event_status = deploy_cmd_response["status"]
+                    logger.info("%s - [%s] %s -- %s" %
+                                (hostname, event_id, event_type, event_status))
+                    event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                    e_result, e_status = self.check_event_status(event_api_url)
+                    logger.info("%s - %s" % (hostname, e_status))
+                    if e_result == True:
+                        if e_status == "completed":
+                            status = "SUCCESS"
+                            output.setdefault("success", "%s event %s processing on %s" % (
+                                event_type, e_status, hostname))
+                        elif e_status == "failed":
+                            status = "ERROR"
+                            output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                                e_status, event_type, hostname, cnc_host, serial_number))
+                    else:
+                        status = "ERROR"
+                        output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                            event_type, hostname, event_api_url))
+            else:
+                status = "SUCCESS"
+                output.setdefault("dry_run", "%s - %s" % (hostname, deploy_cmd))
         return output, status
 
     def erase_hostname(self, hostname, casenum):
@@ -914,7 +934,7 @@ def main():
     """
 
     parser = ArgumentParser(prog='migration_manager.py',
-                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image --role <ROLE> [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
+                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=[
@@ -925,7 +945,7 @@ def main():
     parser.add_argument("--superpod", dest="superpod_name",
                         help="specify super pod name")
     parser.add_argument("--disk_config", dest="disk_config",
-                        help="specify disk config e.g stage1v0|fastcache2", default="stage1v0")
+                        help="specify disk config e.g stage1v0", choices=["standard", "stage1v0", "fastcache2", "stage1hdfs"], default="stage1v0")
     parser.add_argument("--preserve", dest="preserve_data", action="store_true",
                         help="include this to preserve data", default=False)
     parser.add_argument("--delay", dest="delay_in_mins",
@@ -934,6 +954,8 @@ def main():
                         choices=["image", "deploy", "rebuild", "fail"])
     parser.add_argument("--status", dest="idb_status", help="specify idb status", choices=[
                         'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
+    parser.add_argument("--dry-run", dest="no_op",
+                        help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
 
@@ -1035,12 +1057,15 @@ def main():
             misc.write_to_exclude_file(casenum, e_host, "BMCCheckFailed")
 
     elif args.action == "image":
-        if not args.host_role:
-            logger.error("please provide role with --role.")
-            sys.exit(1)
-        role = args.host_role
+        if args.host_role:
+            role = args.host_role
+        else:
+            role = None
+
         preserve = args.preserve_data
         disk_config = args.disk_config
+
+        dry_run = args.no_op
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
             logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
                          (user_home, casenum, user_home, casenum))
@@ -1053,7 +1078,7 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            lst = [h, role, preserve, disk_config]
+            lst = [h, role, preserve, disk_config, dry_run]
             queue.put(lst)
         queue.join()
         failed = False
@@ -1067,12 +1092,15 @@ def main():
                     key, args.action))
                 failed = True
             else:
-                logger.info("%s command was successful on %s." %
-                            (args.action, key))
+                if dry_run:
+                    print(hosts_processed[key]["info"]["dry_run"])
+                if not dry_run:
+                    logger.info("%s command was successful on %s." % (args.action, key))
         if failed:
             sys.exit(1)
 
     elif args.action == "fail":
+        dry_run = args.no_op
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
             logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
                          (user_home, casenum, user_home, casenum))
@@ -1085,42 +1113,7 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            queue.put(h)
-        queue.join()
-        failed = False
-        for key in hosts_processed:
-            if hosts_processed[key]["status"] == "ERROR":
-                if "error" in hosts_processed[key]["info"].keys():
-                    logger.error(hosts_processed[key]["info"]["error"])
-                elif "message" in hosts_processed[key]["info"].keys():
-                    logger.error(hosts_processed[key]["info"]["message"])
-                logger.error("Error processing %s with %s command. Please troubleshoot." % (
-                    key, args.action))
-                failed = True
-            else:
-                logger.info("%s - %s" %
-                            (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." %
-                            (args.action, key))
-        if failed:
-            sys.exit(1)
-
-    elif args.action == "rebuild":
-        preserve = args.preserve_data
-        disk_config = args.disk_config
-        if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
-            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
-                         (user_home, casenum, user_home, casenum))
-            sys.exit(1)
-
-        hosts_processed = {}
-        queue = Queue.Queue()
-        for i in range(thread_count):
-            t = ThreadRebuilding(queue, casenum, hosts_processed)
-            t.setDaemon(True)
-            t.start()
-        for h in host_list:
-            lst = [h, preserve, disk_config]
+            lst = [h, dry_run]
             queue.put(lst)
         queue.join()
         failed = False
@@ -1134,10 +1127,49 @@ def main():
                     key, args.action))
                 failed = True
             else:
-                logger.info("%s - %s" %
-                            (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." %
-                            (args.action, key))
+                if dry_run:
+                    print(hosts_processed[key]["info"]["dry_run"])
+                if not dry_run:
+                    logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
+                    logger.info("%s command was successful on %s." % (args.action, key))
+        if failed:
+            sys.exit(1)
+
+    elif args.action == "rebuild":
+        preserve = args.preserve_data
+        disk_config = args.disk_config
+        dry_run = args.no_op
+        if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
+            logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
+                         (user_home, casenum, user_home, casenum))
+            sys.exit(1)
+
+        hosts_processed = {}
+        queue = Queue.Queue()
+        for i in range(thread_count):
+            t = ThreadRebuilding(queue, casenum, hosts_processed)
+            t.setDaemon(True)
+            t.start()
+        for h in host_list:
+            lst = [h, preserve, disk_config, dry_run]
+            queue.put(lst)
+        queue.join()
+        failed = False
+        for key in hosts_processed:
+            if hosts_processed[key]["status"] == "ERROR":
+                if "error" in hosts_processed[key]["info"].keys():
+                    logger.error(hosts_processed[key]["info"]["error"])
+                elif "message" in hosts_processed[key]["info"].keys():
+                    logger.error(hosts_processed[key]["info"]["message"])
+                logger.error("Error processing %s with %s command. Please troubleshoot." % (
+                    key, args.action))
+                failed = True
+            else:
+                if dry_run:
+                    print(hosts_processed[key]["info"]["dry_run"])
+                if not dry_run:
+                    logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
+                    logger.info("%s command was successful on %s." % (args.action, key))
         if failed:
             sys.exit(1)
 
@@ -1155,6 +1187,7 @@ def main():
             sys.exit(1)
         superpod = args.superpod_name.upper()
         preserve = args.preserve_data
+        dry_run = args.no_op
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
             logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
                          (user_home, casenum, user_home, casenum))
@@ -1167,7 +1200,7 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            lst = [h, role, cluster, superpod, preserve]
+            lst = [h, role, cluster, superpod, preserve, dry_run]
             queue.put(lst)
         queue.join()
         failed = False
@@ -1181,10 +1214,11 @@ def main():
                     key, args.action))
                 failed = True
             else:
-                logger.info("%s - %s" %
-                            (key, hosts_processed[key]["info"]["success"]))
-                logger.info("%s command was successful on %s." %
-                            (args.action, key))
+                if dry_run:
+                    print(hosts_processed[key]["info"]["dry_run"])
+                if not dry_run:
+                    logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
+                    logger.info("%s command was successful on %s." % (args.action, key))
         if failed:
             sys.exit(1)
 
