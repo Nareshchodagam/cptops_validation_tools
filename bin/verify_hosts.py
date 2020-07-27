@@ -62,12 +62,14 @@ class HostsCheck(object):
     :param: Class definition which accepts bundle name and case_no as command line arguments and pass to class methods.
     """
 
-    def __init__(self, bundle, case_no, force=False):
+    def __init__(self, case_no, bundle=None, osce6=None, osce7=None, force=False):
         self.bundle = bundle
         self.case_no = case_no
         self.data = []
         self.user_home = path.expanduser('~')
         self.force = force
+        self.osce6 = osce6
+        self.osce7 = osce7
 
     def otp_gen(self):
         syn = synnerUtil.Synner()
@@ -123,6 +125,7 @@ class HostsCheck(object):
         lh_details = gus_conn.get_logical_host_id(session, host)
         try:
             host_id = lh_details['records'][0]['Id']
+            os_version = lh_details['records'][0]['Major_OS_Version__c']
             logging.debug("Logical Host {0} Id is {1} ".format(host, host_id))
         except IndexError:
             logging.error("Error occured while fetching details for host {0}".format(host))
@@ -143,7 +146,11 @@ class HostsCheck(object):
             if host:
                 socket_conn.settimeout(10)
                 socket_conn.connect((host, 22))
-                orbCheckCmd = "python /usr/local/libexec/orb-check.py -v {0}".format(self.bundle)
+                if not self.bundle:
+                    bundle_to_pass = (self.osce6 if int(os_version) == 6 else self.osce7)
+                else:
+                    bundle_to_pass = self.bundle
+                orbCheckCmd = "python /usr/local/libexec/orb-check.py -v {0}".format(bundle_to_pass)
                 orbCmd = "ssh -o StrictHostKeyChecking=no  {0}".format(host)
                 output = self.exec_cmd(host, passwd, otp, orbCmd, orbCheckCmd)
                 console_out = output.lower() # hack for fool-proof orb-check
@@ -435,6 +442,8 @@ def main():
     parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
     parser.add_argument("--encrypted_creds", dest="encrypted_creds", help="Pass creds in via encrypted named pipe")
     parser.add_argument("--decrypt_key", dest="decrypt_key", help="Used with --encrypted_creds description")
+    parser.add_argument("--osce6", dest="osce6", help="The bundle name for CE6")
+    parser.add_argument("--osce7", dest="osce7", help="The bundle name for CE7")
     args = parser.parse_args()
 
     if args.verbose:
@@ -478,7 +487,10 @@ def main():
     hosts = args.hosts.split(',')
     case_no = args.case
     force = args.force
-    class_object = HostsCheck(bundle, case_no, force)
+    if args.bundle:
+        class_object = HostsCheck(case_no, bundle=bundle, osce6=None, osce7=None, force=force)
+    else:
+        class_object = HostsCheck(case_no, bundle=None, osce6=args.osce6, osce7=args.osce7, force=force)
     if args.mhosts:
         mhosts = args.hosts.split(',')
         class_object.os_process(mhosts, mfa_hosts, kpass, session, gus_conn)
