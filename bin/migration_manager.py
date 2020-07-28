@@ -763,54 +763,95 @@ class Migration:
         count = 0
         old_status = ""
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
-        if idb_status != "IN_MAINTENANCE":
-            while old_status != "PROVISIONING":
+
+        if idb_status == "ACTIVE":
+            # puts the host back to ACTIVE once the puppet runs finshes after migration
+            prev_status = "PROVISIONING"
+
+            logger.info("Checking for %s iDB status to update to %s" % (hostname, prev_status))
+            while old_status != prev_status:
                 if count == max_retries:
                     output.setdefault(
-                        "error", "iDB status was not changed by puppet to PROVISIONING within time. Please retry/check manually.")
+                        "error", "iDB status was not changed to %s by puppet to %s within time. Please retry/check manually." % prev_status)
                     status = "ERROR"
                     return output, status
+
                 try:
-                    old_status_cmd_response = json.loads(
-                        self.exec_cmd(old_status_cmd))
-                    old_status = old_status_cmd_response[
-                        "data"][0]["operationalStatus"]
+                    old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
+                    old_status = old_status_cmd_response["data"][0]["operationalStatus"]
                 except ValueError:
-                    # handles the null values if iDB returns empty
+                    # handles null value if iDB returns empty
                     old_status = ""
-                if old_status == "PROVISIONING":
-                    logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (
-                        hostname, old_status))
+
+                if old_status == prev_status:
+                    logger.info("%s iDB status matched with desired status '%s' == '%s'" %
+                                (hostname, prev_status, old_status))
                     break
-                if old_status == "ACTIVE":
+
+                if old_status == idb_status:
                     output.setdefault(
-                        "success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, old_status))
+                        "success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, idb_status))
                     status = "SUCCESS"
-                    return output, status
-                logger.info(
-                    "%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
-                logger.info("Retrying in %s seconds" % interval)
+                    return output, success
+
+                logger.info("%s iDB status does not match desired status '%s' <> '%s'" %
+                            (hostname, prev_status, idb_status))
+                logger.info("Retrying in %s seconds" % (interval))
                 time.sleep(interval)
                 count += 1
+
+        elif idb_status == "IN_MAINTENANCE":
+            # we are trying to migrate only ACTIVE hosts.
+            prev_status = "ACTIVE"
+
+            while old_status != "":
+                if count == 2:
+                    output.setdefault("error", "I tried but could not fetch iDB status of %s" % hostname)
+                    status = "ERROR"
+                    return output, status
+
+                try:
+                    old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
+                    old_status = old_status_cmd_response["data"][0]["operationalStatus"]
+                except ValueError:
+                    # handles null value if iDB returns empty
+                    old_status = ""
+                    count += 1
+                    continue
+
+                if old_status == prev_status:
+                    logger.info("%s iDB status matched with desired status '%s' == '%s'" %
+                                (hostname, prev_status, old_status))
+                    break
+                elif old_status == idb_status:
+                    output.setdefault("%s is already in %s. Migration is not advised." % (hostname, idb_status))
+                    status = "ERROR"
+                    return output, status
+                else:
+                    output.setdefault("error", "%s iDB status didn't match desired status '%s' <> '%s'" %
+                                      (hostname, prev_status, old_status))
+                    status = "ERROR"
+                    return output, status
+        else:
+            output.setdefault("error", "Updating to %s status is not supported by Migration Manager yet." % idb_status)
+            status = "ERROR"
+            return output, status
+
         try:
             update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=%s\"" % (
                 serial_number, idb_status)
             self.exec_cmd(update_cmd)
-            logger.debug("%s - payload sent to update iDB status to %s" %
-                         (hostname, idb_status))
-            new_status = json.loads(self.exec_cmd(old_status_cmd))[
-                "data"][0]["operationalStatus"]
+            logger.debug("%s - payload sent to update iDB status to %s" % (hostname, idb_status))
+            new_status = json.loads(self.exec_cmd(old_status_cmd))["data"][0]["operationalStatus"]
             if new_status == idb_status:
-                output.setdefault(
-                    "success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
+                output.setdefault("success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
                 status = "SUCCESS"
             else:
-                output.setdefault(
-                    "error", "%s - failed to change iDB Status to '%s' <> '%s'" % (hostname, idb_status, new_status))
+                output.setdefault("error", "%s - failed to change iDB Status to '%s' <> '%s'" %
+                                  (hostname, idb_status, new_status))
                 status = "ERROR"
         except:
-            output.setdefault(
-                "error", "%s - an error occurred while processing the request" % hostname)
+            output.setdefault("error", "%s - an error occurred while processing the request" % hostname)
             status = "ERROR"
         return output, status
 
