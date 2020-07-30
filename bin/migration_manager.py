@@ -305,6 +305,22 @@ class ThreadUpdateOpsStatus(threading.Thread):
         self.queue.task_done()
 
 
+class ThreadCheckIdbStatus(threading.Thread):
+
+    def __init__(self, queue, casenum, hosts_processed):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.hosts_processed = hosts_processed
+        self.mig = Migration()
+
+    def run(self):
+        host, idb_status = self.queue.get()
+        result, status = self.mig.check_idb_status(host, self.casenum, expected_idb_status=idb_status)
+        self.hosts_processed[host] = {"info": result, "status": status}
+        self.queue.task_done()
+
+
 class ThreadStatusCheck(threading.Thread):
 
     def __init__(self, queue, casenum, hosts_processed):
@@ -758,60 +774,152 @@ class Migration:
                 serial_number = item.values()[0]["serial_number"]
                 break
 
-        max_retries = 30
+        max_retries = 30 if idb_status == "ACTIVE" else 3
         interval = 60
         count = 0
         old_status = ""
         old_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
-        if idb_status != "IN_MAINTENANCE":
-            while old_status != "PROVISIONING":
+
+        if idb_status == "ACTIVE":
+            # puts the host back to ACTIVE once the puppet runs finshes after migration
+            prev_status = "PROVISIONING"
+
+            logger.info("Checking for %s iDB status to update to %s" % (hostname, prev_status))
+            while old_status != prev_status:
                 if count == max_retries:
                     output.setdefault(
-                        "error", "iDB status was not changed by puppet to PROVISIONING within time. Please retry/check manually.")
+                        "error", "iDB status was not changed to %s by puppet within time. Please retry/check manually." % prev_status)
                     status = "ERROR"
                     return output, status
+
                 try:
-                    old_status_cmd_response = json.loads(
-                        self.exec_cmd(old_status_cmd))
-                    old_status = old_status_cmd_response[
-                        "data"][0]["operationalStatus"]
+                    old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
+                    old_status = old_status_cmd_response["data"][0]["operationalStatus"]
                 except ValueError:
-                    # handles the null values if iDB returns empty
+                    # handles null value if iDB returns empty
                     old_status = ""
-                if old_status == "PROVISIONING":
-                    logger.info("%s iDB status matched with desired status 'PROVISIONING' <> '%s'" % (
-                        hostname, old_status))
+
+                if old_status == prev_status:
+                    logger.info("%s iDB status matched with desired status '%s' == '%s'" %
+                                (hostname, prev_status, old_status))
                     break
-                if old_status == "ACTIVE":
+
+                if old_status == idb_status:
                     output.setdefault(
-                        "success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, old_status))
+                        "success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, idb_status))
                     status = "SUCCESS"
-                    return output, status
-                logger.info(
-                    "%s - iDB status does not match desired status 'PROVISIONING' <> '%s'" % (hostname, old_status))
-                logger.info("Retrying in %s seconds" % interval)
+                    return output, success
+
+                logger.info("%s iDB status does not match desired status '%s' <> '%s'" %
+                            (hostname, prev_status, idb_status))
+                logger.info("Retrying in %s seconds" % (interval))
                 time.sleep(interval)
                 count += 1
+
+        elif idb_status == "IN_MAINTENANCE":
+            # we are trying to migrate only ACTIVE hosts.
+            prev_status = "ACTIVE"
+
+            while old_status != prev_status:
+                if count == max_retries:
+                    output.setdefault("error", "I tried but could not fetch iDB status of %s" % hostname)
+                    status = "ERROR"
+                    return output, status
+
+                try:
+                    old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
+                    old_status = old_status_cmd_response["data"][0]["operationalStatus"]
+                except ValueError:
+                    # handles null value if iDB returns empty
+                    old_status = ""
+                    count += 1
+                    continue
+
+                if old_status == prev_status:
+                    logger.info("%s iDB status matched with desired status '%s' == '%s'" %
+                                (hostname, prev_status, old_status))
+                    break
+                elif old_status == idb_status:
+                    output.setdefault("%s is already in %s. Migration is not advised." % (hostname, idb_status))
+                    status = "ERROR"
+                    return output, status
+                else:
+                    output.setdefault("error", "%s iDB status didn't match desired status '%s' <> '%s'" %
+                                      (hostname, prev_status, old_status))
+                    status = "ERROR"
+                    return output, status
+        else:
+            output.setdefault("error", "Updating to %s status is not supported by Migration Manager yet." % idb_status)
+            status = "ERROR"
+            return output, status
+
         try:
             update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=%s\"" % (
                 serial_number, idb_status)
             self.exec_cmd(update_cmd)
-            logger.debug("%s - payload sent to update iDB status to %s" %
-                         (hostname, idb_status))
-            new_status = json.loads(self.exec_cmd(old_status_cmd))[
-                "data"][0]["operationalStatus"]
+            logger.debug("%s - payload sent to update iDB status to %s" % (hostname, idb_status))
+            new_status = json.loads(self.exec_cmd(old_status_cmd))["data"][0]["operationalStatus"]
             if new_status == idb_status:
-                output.setdefault(
-                    "success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
+                output.setdefault("success", "%s - iDB status successfully updated to %s" % (hostname, new_status))
                 status = "SUCCESS"
             else:
-                output.setdefault(
-                    "error", "%s - failed to change iDB Status to '%s' <> '%s'" % (hostname, idb_status, new_status))
+                output.setdefault("error", "%s - failed to change iDB Status to '%s' <> '%s'" %
+                                  (hostname, idb_status, new_status))
                 status = "ERROR"
         except:
-            output.setdefault(
-                "error", "%s - an error occurred while processing the request" % hostname)
+            output.setdefault("error", "%s - an error occurred while processing the request" % hostname)
             status = "ERROR"
+        return output, status
+
+    def check_idb_status(self, hostname, casenum, expected_idb_status="ACTIVE"):
+        """
+        For a given, this method checks it's iDB status matches expected status
+        """
+        host_info_file = "%s/%s_hostinfo" % (self.user_home, casenum)
+        try:
+            f = open(host_info_file, "r")
+        except IOError:
+            logger.error("%s is not found or inaccessible" % host_info_file)
+        host_info_dict = json.load(f)
+        serial_number = ""
+        output = {}
+        status = None
+        for item in host_info_dict:
+            if hostname in item.keys():
+                serial_number = item.values()[0]["serial_number"]
+                break
+
+        max_retries = 30 if expected_idb_status == "PROVISIONING" else 3
+        interval = 60 if expected_idb_status == "PROVISIONING" else 5
+        count = 0
+        idb_status = ""
+        idb_status_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -serialNumber %s -fields operationalStatus" % serial_number
+
+        while idb_status != expected_idb_status:
+            if count == max_retries:
+                output.setdefault(
+                    "error", "%s iDB status does not match desired status '%s' <> '%s'" % (hostname, expected_idb_status, idb_status))
+                status = "ERROR"
+                return output, status
+
+            try:
+                idb_status_cmd_response = json.loads(self.exec_cmd(idb_status_cmd))
+                idb_status = idb_status_cmd_response["data"][0]["operationalStatus"]
+            except ValueError:
+                # handles null value if iDB returns empty
+                idb_status = ""
+                
+
+            if idb_status == expected_idb_status:
+                output.setdefault("success", "%s iDB status matched with desired status '%s' == '%s'" %
+                                  (hostname, expected_idb_status, idb_status))
+                status = "SUCCESS"
+                return output, status
+
+            logger.info("%s iDB status does not match desired status '%s' <> '%s'" % (hostname, expected_idb_status, idb_status))
+            logger.info("Retrying in %s seconds" % (interval))
+            time.sleep(interval)
+            count += 1
         return output, status
 
     def check_status(self, hostname, casenum, delay, prev_cmd):
@@ -934,11 +1042,11 @@ def main():
     """
 
     parser = ArgumentParser(prog='migration_manager.py',
-                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS>")
+                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS> \n\t-c casenum -a idb_check --status <STATUS>")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=[
-                        "cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus"])
+                        "cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus", "idb_check"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name",
                         help="specify cluster name")
@@ -1286,6 +1394,9 @@ def main():
             sys.exit(1)
 
     elif args.action == "updateopsstatus":
+        if not args.idb_status:
+            logger.error("please provide a valid iDB status using --status.")
+            sys.exit(1)
         idb_status = str(args.idb_status).upper()
         hosts_processed = {}
         queue = Queue.Queue()
@@ -1308,6 +1419,32 @@ def main():
                             (key, hosts_processed[key]["info"]["success"]))
                 logger.info("%s command was successful on %s." %
                             (args.action, key))
+        if failed:
+            sys.exit(1)
+
+    elif args.action == "idb_check":
+        if not args.idb_status:
+            logger.error("please provide a valid iDB status using --status.")
+            sys.exit(1)
+        idb_status = str(args.idb_status).upper()
+        hosts_processed = {}
+        queue = Queue.Queue()
+        for i in range(thread_count):
+            t = ThreadCheckIdbStatus(queue, casenum, hosts_processed)
+            t.setDaemon(True)
+            t.start()
+        for h in host_list:
+            lst = [h, idb_status]
+            queue.put(lst)
+        queue.join()
+        failed = False
+        for key in hosts_processed:
+            if hosts_processed[key]["status"] == "ERROR":
+                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
+                failed = True
+            else:
+                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
+                logger.info("%s command was successful on %s." % (args.action, key))
         if failed:
             sys.exit(1)
 
