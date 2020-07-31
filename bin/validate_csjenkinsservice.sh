@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-# Standardised script for validating systemd service status before and after patching
+# csjenkins* roles use custom scripts under the jenkins home directory to manage their services rather than systemd
+# Alterations to the standard format had to be made to accommodate this
+# No autorecovery attempts to be made
 # Author: Aidan Steel (aidan.steel@salesforce.com)
 #
 
@@ -16,70 +18,54 @@ EXAMPLE: $(basename "$0") -a
 
 # Role-specific services to be checked
 services=(
-  raphty.service
+  cs_processor
+  cs_preprocessor
+  cs_keymaker
 )
 
 serviceQuery() {
 #
 # Checks if service is deployed and running.
+# Launches services in post-patch stage since these do not survive a reboot
 # If service deployed but not running, check at 5 second intervals for 1 minute
-# If service still not running, attempt auto recovery
-# If serviceQuery is being run as part of pre-patch checks, errors are collected but no auto recovery attempted
+# If service still not running, back out
 #
-  if systemctl list-unit-files --full --all | grep -Fq ${1}; then
-    echo -e "\n${1} is deployed. Checking status"
-    if systemctl is-active --quiet ${1}; then
-      echo -e "${1} is active. Checking cluster status...\n"
-      if raphtyctl status; then
-        echo -e "Cluster is healthy. \e[32mPatching can continue\e[0m"
+  RUN_DIR=$(find /home/jenkins -name ${1}.sh -exec dirname {} \; 2> >(grep -v 'terminated by signal 13' >&2) | head -n 1 | sed 's,/*[^/]\+/*$,,')
+
+  if [ $RUN_DIR ]; then
+    # Services do not automatically start after reboot. Need to explicitly launch them before continuing
+    if [ "$STAGE" == 'pre-patch' ]; then
+      echo -e "\n${1} is deployed. Checking status"
+      su jenkins -c "( cd $RUN_DIR && ./bin/${1}.sh status )"
+      if [ $? -eq 0 ]; then
+        echo -e "${1} is active. \e[32mPatching can continue\e[0m"
       else
-        echo -e "\n\e[31mError\e[0m: Cluster not healthy. Please investigate and try again"
-        exit 1
-      fi
-    else
-      echo -e "${1} is deployed but \e[31mnot active\e[0m\n"
-      if [ "$STAGE" == 'pre-patch' ]; then
+        echo -e "${1} is deployed but \e[31mnot active\e[0m\n"
         pre_patch_errors+=(${1})
-      else
-        echo -e "Checking at 5 second intervals for 1 minute before attempting recovery\n"
-        for i in {1..12}; do
-          diff_time=$((60-$i*5))
-          sleep 5
-          if systemctl is-active --quiet ${1}; then
-            echo -e "\n${1} is now active. \e[32mPatching can continue\e[0m"
-            break
-          elif (( ${diff_time} > 0 )); then
-            echo "${1} is still not active. ${diff_time} seconds remaining"
-            continue
-          else
-            echo -e "${1} is not active. \e[33mAttempting automatic recovery\e[0m\n"
-            autoRecovery ${1}
-          fi
-        done
       fi
+    elif [ "$STAGE" == 'post-patch' ]; then
+      echo -e "\n${1} is deployed. Starting service and checking status"
+      su jenkins -c "( cd $RUN_DIR && ./bin/${1}.sh start )"
+      echo -e "Service started. Checking status at 5 second intervals for 1 minute before backing out\n"
+      for i in {1..12}; do
+        diff_time=$((60-$i*5))
+        sleep 5
+        su jenkins -c "( cd $RUN_DIR && ./bin/${1}.sh status )"
+        if [ $? -eq 0 ]; then
+          echo -e "\n${1} is now active. \e[32mPatching can continue\e[0m"
+          break
+        elif (( ${diff_time} > 0 )); then
+          echo "${1} is still not active. ${diff_time} seconds remaining"
+          continue
+        else
+          echo -e "\e[31mError\e[0m: ${1} is not active. Please contact the service owners\n"
+          post_patch_errors+=(${1})
+        fi
+      done
     fi
   else
     echo -e "${1} is not deployed on this host. \e[32mPatching can continue\e[0m"
     exit 0
-  fi
-}
-
-autoRecovery() {
-#
-# Attempts to recover the service by running a systemctl restart
-# Failed recovery attempts collected
-#
-  if systemctl restart ${1}; then
-    sleep 5
-    if systemctl is-active --quiet ${1}; then
-      echo -e "${1} was successfully \e[32mrecovered\e[0m"
-    else
-      echo -e "\e[31mError\e[0m: Unable to recover ${1} through a service restart"
-      post_patch_errors+=(${1})
-    fi
-  else
-    echo -e "\n\e[31mError\e[0m: Failed to restart ${1}"
-    post_patch_errors+=(${1})
   fi
 }
 

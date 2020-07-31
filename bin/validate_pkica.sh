@@ -16,7 +16,7 @@ EXAMPLE: $(basename "$0") -a
 
 # Role-specific services to be checked
 services=(
-  raphty.service
+  pkica2.service
 )
 
 serviceQuery() {
@@ -29,13 +29,7 @@ serviceQuery() {
   if systemctl list-unit-files --full --all | grep -Fq ${1}; then
     echo -e "\n${1} is deployed. Checking status"
     if systemctl is-active --quiet ${1}; then
-      echo -e "${1} is active. Checking cluster status...\n"
-      if raphtyctl status; then
-        echo -e "Cluster is healthy. \e[32mPatching can continue\e[0m"
-      else
-        echo -e "\n\e[31mError\e[0m: Cluster not healthy. Please investigate and try again"
-        exit 1
-      fi
+      echo -e "${1} is active. \e[32mPatching can continue\e[0m"
     else
       echo -e "${1} is deployed but \e[31mnot active\e[0m\n"
       if [ "$STAGE" == 'pre-patch' ]; then
