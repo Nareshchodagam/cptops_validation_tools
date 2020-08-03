@@ -811,7 +811,7 @@ class Migration:
                     return output, success
 
                 logger.info("%s iDB status does not match desired status '%s' <> '%s'" %
-                            (hostname, prev_status, idb_status))
+                            (hostname, prev_status, old_status))
                 logger.info("Retrying in %s seconds" % (interval))
                 time.sleep(interval)
                 count += 1
