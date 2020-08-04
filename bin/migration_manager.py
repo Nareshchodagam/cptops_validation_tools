@@ -808,50 +808,13 @@ class Migration:
                     output.setdefault(
                         "success", "%s iDB status is already '%s'. Cross-verify the host manually." % (hostname, idb_status))
                     status = "SUCCESS"
-                    return output, success
+                    return output, status
 
                 logger.info("%s iDB status does not match desired status '%s' <> '%s'" %
                             (hostname, prev_status, old_status))
                 logger.info("Retrying in %s seconds" % (interval))
                 time.sleep(interval)
                 count += 1
-
-        elif idb_status == "IN_MAINTENANCE":
-            # we are trying to migrate only ACTIVE hosts.
-            prev_status = "ACTIVE"
-
-            while old_status != prev_status:
-                if count == max_retries:
-                    output.setdefault("error", "I tried but could not fetch iDB status of %s" % hostname)
-                    status = "ERROR"
-                    return output, status
-
-                try:
-                    old_status_cmd_response = json.loads(self.exec_cmd(old_status_cmd))
-                    old_status = old_status_cmd_response["data"][0]["operationalStatus"]
-                except ValueError:
-                    # handles null value if iDB returns empty
-                    old_status = ""
-                    count += 1
-                    continue
-
-                if old_status == prev_status:
-                    logger.info("%s iDB status matched with desired status '%s' == '%s'" %
-                                (hostname, prev_status, old_status))
-                    break
-                elif old_status == idb_status:
-                    output.setdefault("%s is already in %s. Migration is not advised." % (hostname, idb_status))
-                    status = "ERROR"
-                    return output, status
-                else:
-                    output.setdefault("error", "%s iDB status didn't match desired status '%s' <> '%s'" %
-                                      (hostname, prev_status, old_status))
-                    status = "ERROR"
-                    return output, status
-        else:
-            output.setdefault("error", "Updating to %s status is not supported by Migration Manager yet." % idb_status)
-            status = "ERROR"
-            return output, status
 
         try:
             update_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action update -serialNumber %s -updateFields \"operationalStatus=%s\"" % (
@@ -908,7 +871,6 @@ class Migration:
             except ValueError:
                 # handles null value if iDB returns empty
                 idb_status = ""
-                
 
             if idb_status == expected_idb_status:
                 output.setdefault("success", "%s iDB status matched with desired status '%s' == '%s'" %
@@ -916,7 +878,8 @@ class Migration:
                 status = "SUCCESS"
                 return output, status
 
-            logger.info("%s iDB status does not match desired status '%s' <> '%s'" % (hostname, expected_idb_status, idb_status))
+            logger.info("%s iDB status does not match desired status '%s' <> '%s'" %
+                        (hostname, expected_idb_status, idb_status))
             logger.info("Retrying in %s seconds" % (interval))
             time.sleep(interval)
             count += 1
