@@ -139,7 +139,7 @@ class ThreadCncInfo(threading.Thread):
         h = self.queue.get()
         max_retries = 2
         count = 0
-        result, status = self.mig.get_cnc_info(h, self.casenum)
+        result, status = self.mig.  get_cnc_info(h, self.casenum)
         while status == "ERROR" and count != max_retries:
             logger.info(
                 "%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count + 1)))
@@ -335,6 +335,23 @@ class ThreadStatusCheck(threading.Thread):
         result, status = self.mig.check_status(
             host, self.casenum, delay, prev_cmd)
         self.hosts_processed[host] = {"info": result, "status": status}
+        self.queue.task_done()
+
+
+class ThreadDiskConfigCheck(threading.Thread):
+
+    def __init__(self, queue, casenum, hosts_processed, validate_disk_config):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.hosts_processed = hosts_processed
+        self.validate_disk_config = validate_disk_config
+        self.mig = Migration()
+
+    def run(self):
+        h = self.queue.get()
+        result, status = self.mig.validate_disk_config(h, self.casenum, self.validate_disk_config)
+        self.hosts_processed[h] = {"info": result, "status": status}
         self.queue.task_done()
 
 
@@ -998,6 +1015,50 @@ class Migration:
                 "The rack status of %s could not be fetched in time. Exiting." % cnc_host)
             return "timed out"
 
+    def validate_disk_config(self, hostname, casenum, disk_config_to_validate):
+        """
+        This method to check the disk config of given hostname and match with given state
+        :return:
+        """
+        host_info_file = "%s/%s_hostinfo" % (self.user_home, casenum)
+        try:
+            f = open(host_info_file, "r")
+        except IOError:
+            logger.error("%s is not found or inaccessible" % host_info_file)
+        host_info_dict = json.load(f)
+        cnc_api_url = ""
+        output = {}
+
+        for item in host_info_dict:
+            if hostname in item.keys():
+                cnc_api_url = item.values()[0]["cnc_api_url"]
+                serial_number = item.values()[0]["serial_number"]
+                break
+
+        cnc_host = cnc_api_url.split("//")[1].split(":")[0]
+        disk_config_url = cnc_api_url + "fact/device/" + serial_number + "/disk_config"
+        try:
+            response = requests.get(disk_config_url)
+            if not response.status_code == 200:
+                raise Exception
+            result = response.json()
+            print(result)
+            d_config = result["disk_config"]
+            if d_config and d_config == disk_config_to_validate:
+                output.setdefault("success", "Disk config for host %s matched <%s> -- <%s>" % (hostname, d_config, disk_config_to_validate))
+                status = "SUCCESS"
+            else:
+                status = "ERROR"
+                error_msg = "Disk Layout doesn't match <%s> -- <%s> \n"
+                output.setdefault(
+                    "error", error_msg % (d_config, disk_config_to_validate))
+        except:
+            output.setdefault(
+                "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
+            status = "ERROR"
+
+        return output, status
+
 
 def main():
     """
@@ -1005,11 +1066,23 @@ def main():
     """
 
     parser = ArgumentParser(prog='migration_manager.py',
-                            usage="\n %(prog)s \n\t-h --help prints this help \n\t-v verbose output \n\t-c casenum -a cncinfo \n\t-c casenum -a routecheck \n\t-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t-c casenum -a fail \n\t-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t-c casenum -a erasehostname \n\t-c casenum -a updateopsstatus --status <STATUS> \n\t-c casenum -a idb_check --status <STATUS>")
+                            usage="\n %(prog)s \n\t-h --help prints this help \n\t"
+                                  "-v verbose output \n\t"
+                                  "-c casenum -a cncinfo \n\t-"
+                                  "c casenum -a routecheck \n\t"
+                                  "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t"
+                                  "-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t"
+                                  "-c casenum -a fail \n\t"
+                                  "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t"
+                                  "-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t"
+                                  "-c casenum -a erasehostname \n\t"
+                                  "-c casenum -a updateopsstatus --status <STATUS> \n\t"
+                                  "-c casenum -a idb_check --status <STATUS> \n\t"
+                                  "-c casenum -a check_disk_config --validate_disk_config <disk_config> \n\t")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
-    parser.add_argument("-a", dest="action", help="specify intended action", required=True, choices=[
-                        "cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus", "idb_check"])
+    parser.add_argument("-a", dest="action", help="specify intended action", required=True,
+                        choices=["cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus", "idb_check", "check_disk_config"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name",
                         help="specify cluster name")
@@ -1027,6 +1100,9 @@ def main():
                         'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
     parser.add_argument("--dry-run", dest="no_op",
                         help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
+    parser.add_argument("--validate_disk_config", dest="validate_disk_config",
+                        help="specify disk config to validate e.g stage1v0",
+                        choices=["standard", "stage1v0", "fastcache2", "stage1hdfs", "hdfs"], default="stage1v0")
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
 
@@ -1410,6 +1486,44 @@ def main():
                 logger.info("%s command was successful on %s." % (args.action, key))
         if failed:
             sys.exit(1)
+
+    elif args.action == "check_disk_config":
+        if not misc.check_file_exists(casenum, type="include"):
+            logger.error("%s/%s_include file not found or inaccessible" %
+                         (user_home, casenum))
+            sys.exit(1)
+
+        hosts_processed = {}
+        queue = Queue.Queue()
+        for i in range(thread_count):
+            t = ThreadDiskConfigCheck(queue, casenum, hosts_processed, args.validate_disk_config)
+            t.setDaemon(True)
+            t.start()
+        for h in host_list:
+            queue.put(h)
+        queue.join()
+
+        include_list = []
+        exclude_list = []
+        failed = False
+
+        for key in hosts_processed:
+            if hosts_processed[key]["status"] == "ERROR":
+                exclude_list.append(key)
+                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
+                failed = True
+            elif hosts_processed[key]["status"] == "SUCCESS":
+                print(hosts_processed)
+                include_list.append(key)
+                logger.info("%s - %s" %
+                            (key, hosts_processed[key]["info"]["success"]))
+
+        logger.info("exclude: %s" % ','.join(exclude_list))
+        logger.info("include: %s" % ','.join(include_list))
+        misc.write_to_include_file(casenum, include_list)
+        for e_host in exclude_list:
+            misc.write_to_exclude_file(casenum, e_host, "DiskConfigMisMatch\n")
+
 
 if __name__ == "__main__":
     logger = logging.getLogger()
