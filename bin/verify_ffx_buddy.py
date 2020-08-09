@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import os
 import urllib2
 from re import search
 from socket import gethostname
@@ -177,12 +178,25 @@ def buddy_find(host):
     return buddyhost
 
 
+def get_buddy(hosts_lst,case_num):
+    user_home = os.path.expanduser("~")
+    buddy_list = []
+    for host in hosts_lst:
+        buddy = buddy_find(host)
+        buddy_list.append(buddy)
+    with open("{}/{}_buddy_include".format(user_home,case_num),"w+") as buddy_file:
+        buddy_file.write(",".join(buddy_list)+"\n")
+    buddy_file.close()
+
+
 if __name__ == "__main__":
     parser = ArgumentParser(description="""This code is to check the status of ffx buddy host
     python check_ffx_buddy_with_idb.py -H cs12-ffx41-1-phx""", usage='%(prog)s -H <host_list>',
                             formatter_class=RawTextHelpFormatter)
     parser.add_argument("-H", dest="hosts", required=True, help="The hosts in command line argument")
     parser.add_argument("-I", dest="idb_status", action='store_true',help="Enable IDB SP/CLUSTER/HOST Status Check")
+    parser.add_argument("-C", dest="case_num", help="GUS change case number")
+    parser.add_argument("-B", dest="get_buddy", action='store_true', default=False, help="To retrieve buddy hosts. Doesn't check health of the buddy hosts")
     parser.add_argument("-v", dest="verbose", help="For debugging purpose", action="store_true")
     args = parser.parse_args()
 
@@ -198,6 +212,11 @@ if __name__ == "__main__":
         for host in hosts_lst:
             application_ping_check(host)
         idb_status_check(hosts)
+    elif args.get_buddy:
+        if not args.case_num:
+            print("Case Number is mandatory for get_buddy feature.")
+            sys.exit(1)
+        get_buddy(hosts_lst,args.case_num)
     else:
         for host in hosts_lst:
             application_ping_check(host)
@@ -208,3 +227,4 @@ if __name__ == "__main__":
             line += 1
             print(bcolors.FAIL +'ERROR#'+ str(line) + bcolors.ENDC +' : %s --> %s' % (i, err_dict[i]))
         exit_status()
+
