@@ -139,7 +139,7 @@ class ThreadCncInfo(threading.Thread):
         h = self.queue.get()
         max_retries = 2
         count = 0
-        result, status = self.mig.  get_cnc_info(h, self.casenum)
+        result, status = self.mig.get_cnc_info(h, self.casenum)
         while status == "ERROR" and count != max_retries:
             logger.info(
                 "%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count + 1)))
