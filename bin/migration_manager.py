@@ -1042,7 +1042,6 @@ class Migration:
             if not response.status_code == 200:
                 raise Exception
             result = response.json()
-            print(result)
             d_config = result["disk_config"]
             if d_config and d_config == disk_config_to_validate:
                 output.setdefault("success", "Disk config for host %s matched %s == %s" % (hostname, d_config, disk_config_to_validate))
