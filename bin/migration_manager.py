@@ -1128,6 +1128,9 @@ def main():
         misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "BMCCheckFailed")
+        if not len(include_list) > 0:
+            logger.error("No hosts left for processing further. %s/%s_include file is empty after routecheck." % (user_home, casenum))
+            sys.exit(1)
 
     elif args.action == "image":
         if args.host_role:
