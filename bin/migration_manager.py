@@ -914,7 +914,7 @@ class Migration:
             return output, "Rack - %s" % rack_status
         else:
             poll_interval = 60
-            retry_count = 60
+            retry_count = 20
             count = 0
             result = False
             status = None
@@ -944,6 +944,11 @@ class Migration:
                 logger.info("Retrying in %s seconds " % (poll_interval))
                 time.sleep(poll_interval)
                 count += 1
+                if prev_cmd in ["image", "rebuild", "deploy"] and status == "failed":
+                    result = True
+                    output.setdefault("error", "%s failed to process. latest status after %s command - %s" %
+                                      (hostname, prev_cmd, status))
+                    break
                 if prev_cmd in ["image", "rebuild"] and count > 10:
                     logger.info(
                         "%s might be stuck at awaiting_checkin. Please check in console" % hostname)
@@ -952,8 +957,8 @@ class Migration:
                         "%s status didn't change in expected time. Please retry" % hostname)
                     output.setdefault(
                         "message", "unable to process %s in time." % hostname)
-                    result = False
-                    break
+                    result = True
+
             return output, status
 
     def check_event_status(self, event_api_url):
@@ -1018,7 +1023,7 @@ def main():
     parser.add_argument("--superpod", dest="superpod_name",
                         help="specify super pod name")
     parser.add_argument("--disk_config", dest="disk_config",
-                        help="specify disk config e.g stage1v0", choices=["standard", "stage1v0", "fastcache2", "stage1hdfs"], default="stage1v0")
+                        help="specify disk config e.g stage1v0", choices=["standard", "stage1v0", "fastcache2", "stage1hdfs", "hdfs"], default="stage1v0")
     parser.add_argument("--preserve", dest="preserve_data", action="store_true",
                         help="include this to preserve data", default=False)
     parser.add_argument("--delay", dest="delay_in_mins",
@@ -1129,7 +1134,8 @@ def main():
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "BMCCheckFailed")
         if not len(include_list) > 0:
-            logger.error("No hosts left for processing further. %s/%s_include file is empty after routecheck." % (user_home, casenum))
+            logger.error("No hosts left for processing further. %s/%s_include file is empty after routecheck." %
+                         (user_home, casenum))
             sys.exit(1)
 
     elif args.action == "image":
