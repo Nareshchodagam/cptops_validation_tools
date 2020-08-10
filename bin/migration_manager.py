@@ -782,13 +782,13 @@ class Migration:
 
         if idb_status == "ACTIVE":
             # puts the host back to ACTIVE once the puppet runs finshes after migration
-            prev_status = "PROVISIONING"
+            prev_status = ["PROVISIONING", "IN_MAINTENANCE"]
 
-            logger.info("Checking for %s iDB status to update to %s" % (hostname, prev_status))
-            while old_status != prev_status:
+            logger.info("Checking for %s iDB status to update to %s" % (hostname, "/".join(prev_status)))
+            while not old_status in prev_status:
                 if count == max_retries:
                     output.setdefault(
-                        "error", "iDB status was not changed to %s by puppet within time. Please retry/check manually." % prev_status)
+                        "error", "iDB status was not changed to %s by puppet within time. Please retry/check manually." % "/".join(prev_status))
                     status = "ERROR"
                     return output, status
 
@@ -799,9 +799,11 @@ class Migration:
                     # handles null value if iDB returns empty
                     old_status = ""
 
-                if old_status == prev_status:
+                if old_status in prev_status:
+                    desired_status_position = prev_status.index(old_status)
+                    desired_status = prev_status[desired_status_position]
                     logger.info("%s iDB status matched with desired status '%s' == '%s'" %
-                                (hostname, prev_status, old_status))
+                                (hostname, desired_status, old_status))
                     break
 
                 if old_status == idb_status:
@@ -811,7 +813,7 @@ class Migration:
                     return output, status
 
                 logger.info("%s iDB status does not match desired status '%s' <> '%s'" %
-                            (hostname, prev_status, old_status))
+                            (hostname, "/".join(prev_status), old_status))
                 logger.info("Retrying in %s seconds" % (interval))
                 time.sleep(interval)
                 count += 1
