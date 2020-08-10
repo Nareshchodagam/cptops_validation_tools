@@ -1049,7 +1049,7 @@ class Migration:
                 status = "SUCCESS"
             else:
                 status = "ERROR"
-                error_msg = "Disk Layout doesn't match %s <> %s \n"
+                error_msg = "Disk Layout doesn't match %s <> %s"
                 output.setdefault(
                     "error", error_msg % (d_config, disk_config_to_validate))
         except:
