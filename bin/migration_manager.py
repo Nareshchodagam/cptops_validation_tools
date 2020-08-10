@@ -1045,11 +1045,11 @@ class Migration:
             print(result)
             d_config = result["disk_config"]
             if d_config and d_config == disk_config_to_validate:
-                output.setdefault("success", "Disk config for host %s matched <%s> -- <%s>" % (hostname, d_config, disk_config_to_validate))
+                output.setdefault("success", "Disk config for host %s matched %s == %s" % (hostname, d_config, disk_config_to_validate))
                 status = "SUCCESS"
             else:
                 status = "ERROR"
-                error_msg = "Disk Layout doesn't match <%s> -- <%s> \n"
+                error_msg = "Disk Layout doesn't match %s <> %s \n"
                 output.setdefault(
                     "error", error_msg % (d_config, disk_config_to_validate))
         except:
@@ -1078,7 +1078,7 @@ def main():
                                   "-c casenum -a erasehostname \n\t"
                                   "-c casenum -a updateopsstatus --status <STATUS> \n\t"
                                   "-c casenum -a idb_check --status <STATUS> \n\t"
-                                  "-c casenum -a check_disk_config --validate_disk_config <disk_config> \n\t")
+                                  "-c casenum -a check_disk_config --disk_config <disk_config> \n\t")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True,
@@ -1100,9 +1100,6 @@ def main():
                         'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
     parser.add_argument("--dry-run", dest="no_op",
                         help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
-    parser.add_argument("--validate_disk_config", dest="validate_disk_config",
-                        help="specify disk config to validate e.g stage1v0",
-                        choices=["standard", "stage1v0", "fastcache2", "stage1hdfs", "hdfs"], default="stage1v0")
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
 
@@ -1496,7 +1493,7 @@ def main():
         hosts_processed = {}
         queue = Queue.Queue()
         for i in range(thread_count):
-            t = ThreadDiskConfigCheck(queue, casenum, hosts_processed, args.validate_disk_config)
+            t = ThreadDiskConfigCheck(queue, casenum, hosts_processed, args.disk_config)
             t.setDaemon(True)
             t.start()
         for h in host_list:
