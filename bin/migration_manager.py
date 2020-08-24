@@ -1008,7 +1008,7 @@ class Migration:
         cnc_host = cnc_api_url.split("//")[1].split(".")[0]
         rack_status_url = cnc_api_url + "status"
         try:
-            response = requests.get(rack_status_url, timeout=10)
+            response = requests.get(rack_status_url, timeout=30)
             if not response.status_code == 200:
                 raise Exception
             else:
