@@ -1007,16 +1007,24 @@ class Migration:
     def check_rack_status(self, cnc_api_url):
         cnc_host = cnc_api_url.split("//")[1].split(".")[0]
         rack_status_url = cnc_api_url + "status"
+        count = 0
+        max_retries = 3
+        logger.info("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." % (cnc_host, max_retries))
+        delay = 30
         try:
-            response = requests.get(rack_status_url, timeout=30)
-            if not response.status_code == 200:
-                raise Exception
-            else:
-                result = response.json()
-                rack_status = result["rack"]["state"]
-                logger.debug("Rack Status of %s - %s" %
-                             (cnc_host, rack_status))
-                return rack_status
+            while count != max_retries:
+                response = requests.get(rack_status_url, timeout=30)
+                if not response.status_code == 200:
+                    if count == max_retries:
+                        raise Exception
+                    count += 1
+                    time.sleep(delay)
+                else:
+                    result = response.json()
+                    rack_status = result["rack"]["state"]
+                    logger.debug("Rack Status of %s - %s" %
+                                 (cnc_host, rack_status))
+                    return rack_status
         except:
             logger.error(
                 "The rack status of %s could not be fetched in time. Exiting." % cnc_host)
