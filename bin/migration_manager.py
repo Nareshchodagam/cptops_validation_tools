@@ -113,8 +113,7 @@ class Util:
                     if cnc_host not in cnc_list:
                         cnc_list.append(cnc_host)
         if not len(cnc_list) > 0:
-            dummy = hostinfo[0].values()[0]["cnc_api_url"].split(
-                "//")[1].split(".")[0]
+            dummy = hostinfo[0].values()[0]["cnc_api_url"].split("//")[1].split(".")[0]
             cnc_list.append(dummy)
         try:
             f = open(file_name, "w+")
@@ -380,7 +379,7 @@ class Migration:
             ci_dict = json.loads(self.exec_cmd(
                 "inventory-action.pl -q -use_krb_auth -resource hostconfig -action read -host.name " + hostname + " -fields key,value -key apiUrl"))
             sn_dict = json.loads(self.exec_cmd(
-                "inventory-action.pl -q -use_krb_auth -resource host -action read -name " + hostname + " -fields serialNumber"))
+                "inventory-action.pl -q -use_krb_auth -resource host -action read -name " + hostname + " -fields serialNumber,deviceRole"))
             rp_dict = json.loads(self.exec_cmd(
                 "inventory-action.pl -q -use_krb_auth -resource hostconfig -action read -host.name " + hostname + " -fields key,value -key rackUPos"))
             cc_dict = json.loads(self.exec_cmd("inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " +
@@ -390,6 +389,7 @@ class Migration:
             logger.info("Got info for %s from iDB" % hostname)
             cnc_api_url = str(ci_dict["data"][0]["value"])
             serial_number = str(sn_dict["data"][0]["serialNumber"])
+            device_role = str(sn_dict["data"][0]["deviceRole"])
             rack_position = str(rp_dict["data"][0]["value"])
             manufacturer = str(sm_dict["data"][0]["manufacturer"])
             network_domain = "ops.sfdc.net"
@@ -400,19 +400,19 @@ class Migration:
                     network_domain = i["value"]
                     if network_domain == None or network_domain == "":
                         network_domain = "ops.sfdc.net"
-            output.setdefault(str(hostname), {"cnc_api_url": cnc_api_url, "serial_number": serial_number,
+            output.setdefault(str(hostname), {"cnc_api_url": cnc_api_url, "serial_number": serial_number, "device_role": device_role,
                                               "rack_position": rack_position, "network_domain": network_domain, "manufacturer": manufacturer, "event": None})
             status = "SUCCESS"
         except ValueError:
             logger.debug(
                 "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
-            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None,
+            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
             status = "ERROR"
         except:
             logger.debug(
                 "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
-            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None,
+            output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None, "event": None})
             status = "ERROR"
         return output, status
@@ -1009,7 +1009,8 @@ class Migration:
         rack_status_url = cnc_api_url + "status"
         count = 0
         max_retries = 3
-        logger.info("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." % (cnc_host, max_retries))
+        logger.info("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." %
+                    (cnc_host, max_retries))
         delay = 30
         try:
             while count != max_retries:
@@ -1059,7 +1060,8 @@ class Migration:
             result = response.json()
             d_config = result["disk_config"]
             if d_config and d_config == disk_config_to_validate:
-                output.setdefault("success", "Disk config for host %s matched %s == %s" % (hostname, d_config, disk_config_to_validate))
+                output.setdefault("success", "Disk config for host %s matched %s == %s" %
+                                  (hostname, d_config, disk_config_to_validate))
                 status = "SUCCESS"
             else:
                 status = "ERROR"
@@ -1116,10 +1118,14 @@ def main():
                         help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
+    parser.add_argument("-f", "--force", dest="force_run", action="store_true", help="force run with passed values")
 
     args = parser.parse_args()
 
     user_home = path.expanduser("~")
+
+    role_disk_data_mapping = {"ffx": {"dataPreserve": True, "diskConfig": "standard"}, "dnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [
+        {"pattern": "hdaas-*", "dataPreserve": True, "diskConfig": "hdfs"}]}, "mnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [{"pattern": "hdaas-*", "dataPreserve": True, "diskConfig": "hdfs"}]}}
 
     # setting up default logging level for the rest of the program
     if args.verbose:
