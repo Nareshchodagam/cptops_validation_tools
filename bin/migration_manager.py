@@ -8,6 +8,7 @@ import sys
 import threading
 import Queue
 import json
+import re
 import time
 import requests
 
@@ -359,7 +360,7 @@ class Migration:
     def __init__(self):
         self.user_home = path.expanduser("~")
         self.role_disk_data_mapping = {"ffx": {"dataPreserve": True, "diskConfig": "standard"}, "dnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [
-            {"pattern": "hdaas-*", "dataPreserve": True, "diskConfig": "hdfs"}]}, "mnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [{"pattern": "hdaas-*", "dataPreserve": True, "diskConfig": "hdfs"}]}}
+            {"pattern": "hdaas-+", "dataPreserve": True, "diskConfig": "hdfs"}]}, "mnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [{"pattern": "hdaas-+", "dataPreserve": True, "diskConfig": "hdfs"}]}}
 
     def _read_host_props(self, casenum, hostname):
         """
@@ -385,6 +386,64 @@ class Migration:
                 found = True
                 break
         return found, output
+
+    def _validate_role_props(self, hostname, role, disk_config, preserve, host_props, command=""):
+        """
+        method that validates role specific preferences for critical roles to prevent human errors
+        """
+        defined_disk_config = ""
+        defined_data_preserve = ""
+        configs = self.role_disk_data_mapping
+        role_to_validate = ""
+
+        if role == None:
+            if command != "rebuild":
+                logger.info("No role passed via --role for %s. Checking hostinfo" % hostname)
+            if host_props["device_role"] == None or host_props["device_role"] == "":
+                logger.error("Neither iDB role is present in hostinfo nor passed via --role for %s." % hostname)
+                return False
+            else:
+                role_to_validate = host_props["device_role"]
+        else:
+            if host_props["device_role"] == None or host_props["device_role"] == "":
+                logger.warning(
+                    "We don't have iDB role in hostinfo for %s. Sticking with %s passed via --role." % (hostname, role))
+                role_to_validate = role
+            else:
+                if role != host_props["device_role"] and command != "rebuild":
+                    logger.error("%s - Passed role name doesn't match with role name fetched from iDB. '%s' <> '%s'" %
+                                 (hostname, role, host_props["device_role"]))
+                    return False
+                else:
+                    role_to_validate = role
+        if role_to_validate in configs.keys():
+            defined_disk_config = configs[role_to_validate]["diskConfig"]
+            defined_data_preserve = configs[role_to_validate]["dataPreserve"]
+            if role_to_validate in ["dnds", "mnds"]:
+                filters = configs[role_to_validate]["filters"]
+                for f in filters:
+                    pattern = f["pattern"]
+                    matched = re.match(pattern, hostname)
+                    if matched != None:
+                        defined_disk_config = f["diskConfig"]
+                        defined_data_preserve = f["dataPreserve"]
+                        break
+            mismatch = False
+            if command != "deploy" and disk_config != defined_disk_config:
+                logger.error("%s is not supposed to be reimaged with %s disk configuration. Role %s - '%s' <> '%s'" %
+                             (hostname, disk_config, role_to_validate, defined_disk_config, disk_config))
+                mismatch = True
+            if preserve != defined_data_preserve:
+                logger.error("%s - given data preservation criteria doesn't match. Role %s - Preserve '%s' <> '%s'" %
+                             (hostname, role_to_validate, defined_data_preserve, preserve))
+                mismatch = True
+            if mismatch:
+                return False
+            logger.info("%s - Role: %s, Disk Config: %s, Data Preserve: %s" %
+                        (hostname, role_to_validate, disk_config, preserve))
+            return True
+        else:
+            return True
 
     def exec_cmd(self, cmd):
         try:
@@ -502,6 +561,14 @@ class Migration:
         else:
             cnc_api_url = host_props["cnc_api_url"]
             serial_number = host_props["serial_number"]
+            device_role = host_props["device_role"]
+
+            right_data_options = self._validate_role_props(
+                hostname, role, disk_config, preserve, host_props, command="image")
+            if not right_data_options:
+                output.setdefault("error", "%s - Failed to meet Data Preservation/Disk Config criteria." % hostname)
+                status = "ERROR"
+                return output, status
 
             rack_status = self.check_rack_status(cnc_api_url)
             logger.info("%s - %s" % (cnc_api_url, rack_status))
@@ -617,6 +684,13 @@ class Migration:
             cnc_api_url = host_props["cnc_api_url"]
             serial_number = host_props["serial_number"]
 
+            right_data_options = self._validate_role_props(
+                hostname, None, disk_config, preserve, host_props, command="rebuild")
+            if not right_data_options:
+                output.setdefault("error", "%s - Failed to meet Data Preservation/Disk Config criteria." % hostname)
+                status = "ERROR"
+                return output, status
+
             rack_status = self.check_rack_status(cnc_api_url)
             if not rack_status in ["ready"]:
                 output.setdefault(
@@ -673,6 +747,12 @@ class Migration:
             cnc_api_url = host_props["cnc_api_url"]
             serial_number = host_props["serial_number"]
             network_domain = host_props["network_domain"]
+
+            right_data_options = self._validate_role_props(hostname, role, None, preserve, host_props, command="deploy")
+            if not right_data_options:
+                output.setdefault("error", "%s - Failed to meet Data Preservation criteria." % hostname)
+                status = "ERROR"
+                return output, status
 
             host_fqdn = "%s.%s" % (hostname, network_domain)
             rack_status = self.check_rack_status(cnc_api_url)
