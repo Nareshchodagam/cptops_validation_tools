@@ -176,7 +176,7 @@ class ThreadImaging(threading.Thread):
 
     def run(self):
         host, role, preserve, disk_config, dry_run = self.queue.get()
-        max_retries = 2
+        max_retries = 2 if not dry_run else 0
         count = 0
         if not dry_run:
             logger.info("Triggering image command on %s. Will be retrying for a maximum of %s times if failed" %
@@ -204,7 +204,7 @@ class ThreadFailHost(threading.Thread):
 
     def run(self):
         host, dry_run = self.queue.get()
-        max_retries = 2
+        max_retries = 2 if not dry_run else 0
         count = 0
         if not dry_run:
             logger.info("Triggering fail_host command on %s. Will be retrying for a maximum of %s times if failed" % (
@@ -230,7 +230,7 @@ class ThreadRebuilding(threading.Thread):
 
     def run(self):
         host, preserve, disk_config, dry_run = self.queue.get()
-        max_retries = 2
+        max_retries = 2 if not dry_run else 0
         count = 0
         if not dry_run:
             logger.info("Triggering rebuild_failed_host command on %s. Will be retrying for a maximum of %s times if failed" % (
@@ -577,40 +577,49 @@ class Migration:
                     "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
                 return output, "ERROR"
             else:
+                payload = dict()
+                payload.update({"type": "image", "serial_number": serial_number, "message": {}})
+
                 if role != None:
-                    image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"host_role\":\"%s\",\"disk_config\":\"%s\"}}'" % (
-                        cnc_api_url, serial_number, str(preserve).lower(), role, disk_config)
+                    payload["message"].update({"name": "vanilla", "preserve": str(
+                        preserve).lower(), "host_role": role, "disk_config": disk_config})
                 else:
-                    image_cmd = "curl -s --request POST %sevent -d '{\"type\":\"image\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (
-                        cnc_api_url, serial_number, str(preserve).lower(), disk_config)
+                    payload["message"].update({"name": "vanilla", "preserve": str(
+                        preserve).lower(), "disk_config": disk_config})
+                image_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("Image command - %s", image_cmd)
-                    image_cmd_response = json.loads(self.exec_cmd(image_cmd))
-                    if "error" in image_cmd_response.keys():
-                        output.setdefault("error", image_cmd_response["error"])
-                        status = "ERROR"
-                    else:
-                        cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                        event_type = image_cmd_response["type"]
-                        event_id = image_cmd_response["id"]
-                        event_status = image_cmd_response["status"]
-                        logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
-                        event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                        e_result, e_status = self.check_event_status(event_api_url)
-                        logger.info("%s - %s" % (hostname, e_status))
-                        if e_result == True:
-                            if e_status == "completed":
-                                status = "SUCCESS"
-                                output.setdefault("success", "%s event %s processing on %s" %
-                                                  (event_type, e_status, hostname))
-                            elif e_status == "failed":
-                                status = "ERROR"
-                                output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
-                                    e_status, event_type, hostname, cnc_host, serial_number))
+                    try:
+                        url = "%sevent" % cnc_api_url
+                        response = requests.post(url, data=json.dumps(payload))
+                        if not response.status_code == 200:
+                            raise Exception
                         else:
-                            status = "ERROR"
-                            output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                                event_type, hostname, event_api_url))
+                            image_cmd_response = response.json()
+                            cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                            event_type = image_cmd_response["type"]
+                            event_id = image_cmd_response["id"]
+                            event_status = image_cmd_response["status"]
+                            logger.info("%s - [%s] %s -- %s" % (hostname, event_id, event_type, event_status))
+                            event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                            e_result, e_status = self.check_event_status(event_api_url)
+                            logger.info("%s - %s" % (hostname, e_status))
+                            if e_result == True:
+                                if e_status == "completed":
+                                    status = "SUCCESS"
+                                    output.setdefault("success", "%s event %s processing on %s" %
+                                                      (event_type, e_status, hostname))
+                                elif e_status == "failed":
+                                    status = "ERROR"
+                                    output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                                        e_status, event_type, hostname, cnc_host, serial_number))
+                            else:
+                                status = "ERROR"
+                                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                                    event_type, hostname, event_api_url))
+                    except Exception:
+                        output.setdefault("error", "an error occured while processing request - %s" % url)
+                        status = "ERROR"
                 else:
                     status = "SUCCESS"
                     output.setdefault("dry_run", "%s - %s" % (hostname, image_cmd))
@@ -631,43 +640,53 @@ class Migration:
             serial_number = host_props["serial_number"]
 
             rack_status = self.check_rack_status(cnc_api_url)
-            logger.info("%s currently in %s status. Just to tell you that I told you so later." %
-                        (hostname, rack_status))
-
-            fail_host_cmd = "curl -s --request POST %sevent -d '{\"type\": \"fail_host\", \"serial_number\":\"%s\"}'" % (
-                cnc_api_url, serial_number)
-            if not no_op:
-                logger.info("fail_host - %s", fail_host_cmd)
-                fail_host_cmd_response = json.loads(self.exec_cmd(fail_host_cmd))
-                if "error" in fail_host_cmd_response.keys():
-                    output.setdefault("error", fail_host_cmd_response["error"])
-                    status = "ERROR"
-                else:
-                    cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                    event_type = fail_host_cmd_response["type"]
-                    event_id = fail_host_cmd_response["id"]
-                    event_status = fail_host_cmd_response["status"]
-                    logger.info("%s - [%s] %s -- %s" %
-                                (hostname, event_id, event_type, event_status))
-                    event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                    e_result, e_status = self.check_event_status(event_api_url)
-                    logger.info("%s - %s" % (hostname, e_status))
-                    if e_result == True:
-                        if e_status == "completed":
-                            status = "SUCCESS"
-                            output.setdefault("success", "%s event %s processing on %s" %
-                                              (event_type, e_status, hostname))
-                        elif e_status == "failed":
-                            status = "ERROR"
-                            output.setdefault("error", "%s to process %s event on %s due to some error. \n CNC Host - %s\nSerial Number - %s" % (
-                                e_status, event_type, hostname, cnc_host, serial_number))
-                    else:
-                        status = "ERROR"
-                        output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                            event_type, hostname, event_api_url))
+            logger.info("%s - %s" % (cnc_api_url, rack_status))
+            if not rack_status in ["ready"]:
+                output.setdefault(
+                    "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
+                return output, "ERROR"
             else:
-                status = "SUCCESS"
-                output.setdefault("dry_run", "%s - %s" % (hostname, fail_host_cmd))
+                payload = dict()
+                payload.update({"type": "fail_host", "serial_number": serial_number})
+
+                fail_host_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                if not no_op:
+                    logger.info("fail_host - %s", fail_host_cmd)
+                    try:
+                        url = "%sevent" % cnc_api_url
+                        response = requests.post(url, data=json.dumps(payload))
+                        if not response.status_code == 200:
+                            raise Exception
+                        else:
+                            fail_host_cmd_response = response.json()
+                            cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                            event_type = fail_host_cmd_response["type"]
+                            event_id = fail_host_cmd_response["id"]
+                            event_status = fail_host_cmd_response["status"]
+                            logger.info("%s - [%s] %s -- %s" %
+                                        (hostname, event_id, event_type, event_status))
+                            event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                            e_result, e_status = self.check_event_status(event_api_url)
+                            logger.info("%s - %s" % (hostname, e_status))
+                            if e_result == True:
+                                if e_status == "completed":
+                                    status = "SUCCESS"
+                                    output.setdefault("success", "%s event %s processing on %s" %
+                                                      (event_type, e_status, hostname))
+                                elif e_status == "failed":
+                                    status = "ERROR"
+                                    output.setdefault("error", "%s to process %s event on %s due to some error. \n CNC Host - %s\nSerial Number - %s" % (
+                                        e_status, event_type, hostname, cnc_host, serial_number))
+                            else:
+                                status = "ERROR"
+                                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                                    event_type, hostname, event_api_url))
+                    except Exception:
+                        output.setdefault("error", "an error occured while processing request - %s" % url)
+                        status = "ERROR"
+                else:
+                    status = "SUCCESS"
+                    output.setdefault("dry_run", "%s - %s" % (hostname, fail_host_cmd))
         return output, status
 
     def rebuild_failed_host(self, hostname, casenum, preserve=False, disk_config="", no_op=False):
@@ -697,37 +716,46 @@ class Migration:
                     "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
                 return output, "ERROR"
             else:
-                rebuild_cmd = "curl -s --request POST %sevent -d '{\"type\":\"rebuild_failed_host\",\"serial_number\":\"%s\",\"message\":{\"name\":\"vanilla\",\"preserve\":\"%s\",\"disk_config\":\"%s\"}}'" % (
-                    cnc_api_url, serial_number, str(preserve).lower(), disk_config)
+                payload = dict()
+                payload.update({"type": "rebuild_failed_host", "serial_number": serial_number, "message": {}})
+                payload["message"].update({"name": "vanilla", "preserve": str(
+                    preserve).lower(), "disk_config": disk_config})
+
+                rebuild_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("rebuild command - %s ", rebuild_cmd)
-                    rebuild_cmd_response = json.loads(self.exec_cmd(rebuild_cmd))
-                    if "error" in rebuild_cmd_response.keys():
-                        output.setdefault("error", rebuild_cmd_response["error"])
-                        status = "ERROR"
-                    else:
-                        cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                        event_type = rebuild_cmd_response["type"]
-                        event_id = rebuild_cmd_response["id"]
-                        event_status = rebuild_cmd_response["status"]
-                        logger.info("%s - [%s] %s -- %s" %
-                                    (hostname, event_id, event_type, event_status))
-                        event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                        e_result, e_status = self.check_event_status(event_api_url)
-                        logger.info("%s - %s" % (hostname, e_status))
-                        if e_result == True:
-                            if e_status == "completed":
-                                status = "SUCCESS"
-                                output.setdefault("success", "%s event %s processing on %s" %
-                                                  (event_type, e_status, hostname))
-                            elif e_status == "failed":
-                                status = "ERROR"
-                                output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
-                                    e_status, event_type, hostname, cnc_host, serial_number))
+                    try:
+                        url = "%sevent" % cnc_api_url
+                        response = requests.post(url, data=json.dumps(payload))
+                        if not response.status_code == 200:
+                            raise Exception
                         else:
-                            status = "ERROR"
-                            output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                                event_type, hostname, event_api_url))
+                            rebuild_cmd_response = response.json()
+                            cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                            event_type = rebuild_cmd_response["type"]
+                            event_id = rebuild_cmd_response["id"]
+                            event_status = rebuild_cmd_response["status"]
+                            logger.info("%s - [%s] %s -- %s" %
+                                        (hostname, event_id, event_type, event_status))
+                            event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                            e_result, e_status = self.check_event_status(event_api_url)
+                            logger.info("%s - %s" % (hostname, e_status))
+                            if e_result == True:
+                                if e_status == "completed":
+                                    status = "SUCCESS"
+                                    output.setdefault("success", "%s event %s processing on %s" %
+                                                      (event_type, e_status, hostname))
+                                elif e_status == "failed":
+                                    status = "ERROR"
+                                    output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                                        e_status, event_type, hostname, cnc_host, serial_number))
+                            else:
+                                status = "ERROR"
+                                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                                    event_type, hostname, event_api_url))
+                    except Exception:
+                        output.setdefault("error", "an error occured while processing request - %s" % url)
+                        status = "ERROR"
                 else:
                     status = "SUCCESS"
                     output.setdefault("dry_run", "%s - %s" % (hostname, rebuild_cmd))
@@ -761,37 +789,47 @@ class Migration:
                     "error", "The rack status does not match it's expected state: 'ready' <> '%s'. Exiting." % rack_status)
                 return output, "ERROR"
             else:
-                deploy_cmd = "curl -s --request POST %sevent -d '{\"type\":\"deploy\",\"serial_number\":\"%s\",\"message\":{\"inventory_idb_cluster_name\":\"%s\",\"inventory_idb_superpod_name\":\"%s\",\"default_hostname\":\"%s\",\"host_role\":\"%s\", \"preserve\":\"%s\"}}'" % (
-                    cnc_api_url, serial_number, cluster, superpod, host_fqdn, role, str(preserve).lower())
+                payload = dict()
+                payload.update({"type": "deploy", "serial_number": serial_number, "message": {}})
+                payload["message"].update({"inventory_idb_cluster_name": cluster, "inventory_idb_superpod_name": superpod,
+                                           "default_hostname": host_fqdn, "host_role": role, "preserve": str(preserve).lower()})
+
+                deploy_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("Deploy command - %s", deploy_cmd)
-                    deploy_cmd_response = json.loads(self.exec_cmd(deploy_cmd))
-                    if "error" in deploy_cmd_response.keys():
-                        output.setdefault("error", deploy_cmd_response["error"])
-                        status = "ERROR"
-                    else:
-                        cnc_host = cnc_api_url.split("//")[1].split(".")[0]
-                        event_type = deploy_cmd_response["type"]
-                        event_id = deploy_cmd_response["id"]
-                        event_status = deploy_cmd_response["status"]
-                        logger.info("%s - [%s] %s -- %s" %
-                                    (hostname, event_id, event_type, event_status))
-                        event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
-                        e_result, e_status = self.check_event_status(event_api_url)
-                        logger.info("%s - %s" % (hostname, e_status))
-                        if e_result == True:
-                            if e_status == "completed":
-                                status = "SUCCESS"
-                                output.setdefault("success", "%s event %s processing on %s" % (
-                                    event_type, e_status, hostname))
-                            elif e_status == "failed":
-                                status = "ERROR"
-                                output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
-                                    e_status, event_type, hostname, cnc_host, serial_number))
+
+                    try:
+                        url = "%sevent" % cnc_api_url
+                        response = requests.post(url, data=json.dumps(payload))
+                        if not response.status_code == 200:
+                            raise Exception
                         else:
-                            status = "ERROR"
-                            output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
-                                event_type, hostname, event_api_url))
+                            deploy_cmd_response = response.json()
+                            cnc_host = cnc_api_url.split("//")[1].split(".")[0]
+                            event_type = deploy_cmd_response["type"]
+                            event_id = deploy_cmd_response["id"]
+                            event_status = deploy_cmd_response["status"]
+                            logger.info("%s - [%s] %s -- %s" %
+                                        (hostname, event_id, event_type, event_status))
+                            event_api_url = "%sevent/%s" % (cnc_api_url, event_id)
+                            e_result, e_status = self.check_event_status(event_api_url)
+                            logger.info("%s - %s" % (hostname, e_status))
+                            if e_result == True:
+                                if e_status == "completed":
+                                    status = "SUCCESS"
+                                    output.setdefault("success", "%s event %s processing on %s" % (
+                                        event_type, e_status, hostname))
+                                elif e_status == "failed":
+                                    status = "ERROR"
+                                    output.setdefault("error", "%s to process %s event on %s due to some error. \nCNC Host - %s\nSerial Number - %s" % (
+                                        e_status, event_type, hostname, cnc_host, serial_number))
+                            else:
+                                status = "ERROR"
+                                output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
+                                    event_type, hostname, event_api_url))
+                    except Exception:
+                        output.setdefault("error", "an error occured while processing request - %s" % url)
+                        status = "ERROR"
                 else:
                     status = "SUCCESS"
                     output.setdefault("dry_run", "%s - %s" % (hostname, deploy_cmd))
@@ -992,44 +1030,51 @@ class Migration:
                 logger.info("Pausing %s seconds for the status to change" % delay)
                 time.sleep(delay)
                 while result != True:
-                    status_cmd = "curl -s --request GET %shost/%s" % (
-                        cnc_api_url, serial_number)
-                    status_cmd_response = json.loads(self.exec_cmd(status_cmd))
-                    status = status_cmd_response["state"]
-                    logger.info("%s - %s" % (hostname, status))
-                    if prev_cmd in ["image", "rebuild"] and status == "awaiting_deployment":
-                        result = True
-                        output.setdefault(
-                            "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
-                        break
-                    elif prev_cmd == "deploy" and status == "deployed":
-                        result = True
-                        output.setdefault(
-                            "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
-                        break
-                    elif prev_cmd == "fail" and status == "failed":
-                        result = True
-                        output.setdefault(
-                            "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
-                        break
-                    logger.info("Retrying in %s seconds " % (poll_interval))
-                    time.sleep(poll_interval)
-                    count += 1
-                    if prev_cmd in ["image", "rebuild", "deploy"] and status == "failed":
-                        result = True
-                        output.setdefault("error", "%s failed to process. latest status after %s command - %s" %
-                                          (hostname, prev_cmd, status))
-                        break
-                    if prev_cmd in ["image", "rebuild"] and count > 10:
-                        logger.info(
-                            "%s might be stuck at awaiting_checkin. Please check in console" % hostname)
-                    if count == retry_count:
-                        logger.info(
-                            "%s status didn't change in expected time. Please retry" % hostname)
-                        output.setdefault(
-                            "message", "unable to process %s in time." % hostname)
-                        result = True
-
+                    url = "%shost/%s" % (cnc_api_url, serial_number)
+                    status_cmd = "curl -s --request GET %shost/%s" % (cnc_api_url, serial_number)
+                    try:
+                        response = requests.get(url)
+                        if not response.status_code == 200:
+                            raise Exception
+                        else:
+                            status_cmd_response = response.json()
+                            status = status_cmd_response["state"]
+                            logger.info("%s - %s" % (hostname, status))
+                            if prev_cmd in ["image", "rebuild"] and status == "awaiting_deployment":
+                                result = True
+                                output.setdefault(
+                                    "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                                break
+                            elif prev_cmd == "deploy" and status == "deployed":
+                                result = True
+                                output.setdefault(
+                                    "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                                break
+                            elif prev_cmd == "fail" and status == "failed":
+                                result = True
+                                output.setdefault(
+                                    "success", "%s processed successfully. latest status after %s command - %s" % (hostname, prev_cmd, status))
+                                break
+                            logger.info("Retrying in %s seconds " % (poll_interval))
+                            time.sleep(poll_interval)
+                            count += 1
+                            if prev_cmd in ["image", "rebuild", "deploy"] and status == "failed":
+                                result = True
+                                output.setdefault("error", "%s failed to process. latest status after %s command - %s" %
+                                                  (hostname, prev_cmd, status))
+                                break
+                            if prev_cmd in ["image", "rebuild"] and count > 10:
+                                logger.info(
+                                    "%s might be stuck at awaiting_checkin. Please check in console" % hostname)
+                            if count == retry_count:
+                                logger.info(
+                                    "%s status didn't change in expected time. Please retry" % hostname)
+                                output.setdefault(
+                                    "message", "unable to process %s in time." % hostname)
+                                result = True
+                    except Exception:
+                        output.setdefault("error", "an error occured while processing request - %s" % url)
+                        status = "ERROR"
             return output, status
 
     def check_event_status(self, event_api_url):
@@ -1137,11 +1182,11 @@ def main():
                             usage="\n %(prog)s \n\t-h --help prints this help \n\t"
                                   "-v verbose output \n\t"
                                   "-c casenum -a cncinfo \n\t-"
-                                  "c casenum -a routecheck \n\t"
-                                  "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] \n\t"
-                                  "-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] \n\t"
-                                  "-c casenum -a fail \n\t"
-                                  "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] \n\t"
+                                  "-c casenum -a routecheck \n\t"
+                                  "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
+                                  "-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] \n\t"
+                                  "-c casenum -a fail [--dry-run] \n\t"
+                                  "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
                                   "-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t"
                                   "-c casenum -a erasehostname \n\t"
                                   "-c casenum -a updateopsstatus --status <STATUS> \n\t"
