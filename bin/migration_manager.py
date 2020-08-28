@@ -355,6 +355,23 @@ class ThreadDiskConfigCheck(threading.Thread):
         self.queue.task_done()
 
 
+class ThreadValidateNic(threading.Thread):
+
+    def __init__(self, queue, casenum, hosts_processed, mac_info):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.hosts_processed = hosts_processed
+        self.mac_info = mac_info
+        self.mig = Migration()
+
+    def run(self):
+        host = self.queue.get()
+        result, status = self.mig.validate_nic(host, self.casenum, self.mac_info)
+        self.hosts_processed[host] = {"info": result, "status": status}
+        self.queue.task_done()
+
+
 class Migration:
 
     def __init__(self):
@@ -1172,6 +1189,52 @@ class Migration:
 
         return output, status
 
+    def validate_nic(self, hostname, casenum, mac_addr_info):
+        """
+        This method validates the IB/Host Mac address in CNC against the data in host
+        """
+        output = {}
+        status = None
+        isHostProp, host_props = self._read_host_props(casenum, hostname)
+        if not isHostProp:
+            output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
+            status = "ERROR"
+        else:
+            cnc_api_url = host_props["cnc_api_url"]
+            serial_number = host_props["serial_number"]
+
+            cnc_host = cnc_api_url.split("//")[1].split(":")[0]
+            host_fact_url = cnc_api_url + "fact/device/" + serial_number
+            macaddress_ib = ""
+            macaddress_host = ""
+            try:
+                response = requests.get(host_fact_url)
+                if not response.status_code == 200:
+                    raise Exception
+                result = response.json()
+                macaddress_ib = str(result["macaddress_ib"]).upper()
+                macaddress_host = str(result["macaddress"]).upper()
+
+                for item in mac_addr_info:
+                    if str(item) == hostname:
+                        mac_ib = mac_addr_info[str(item)]["IB_MAC_ADDRESS"].upper()
+                        mac_host = mac_addr_info[str(item)]["HOST_MAC_ADDRESS"].upper()
+                        break
+                if macaddress_host == mac_host and macaddress_ib == mac_ib:
+                    logger.info("%s - IB MAC matched. '%s' == '%s'" % (hostname, macaddress_ib, mac_ib))
+                    logger.info("%s - HOST MAC matched. '%s' == '%s'" % (hostname, macaddress_host, mac_host))
+                    output.setdefault("success", "NIC Configs matched")
+                    status = "SUCCESS"
+                else:
+                    logger.error("%s - IB MAC didn't match. '%s' <> '%s'" % (hostname, macaddress_ib, mac_ib))
+                    logger.error("%s - HOST MAC didn't match. '%s' <> '%s'" % (hostname, macaddress_host, mac_host))
+                    output.setdefault("error", "NIC Configs didn't match")
+                    status = "ERROR"
+            except Exception:
+                output.setdefault("error", "an error occured while fetching MAC Info from %s" % cnc_host)
+                status = "ERROR"
+        return output, status
+
 
 def main():
     """
@@ -1191,11 +1254,12 @@ def main():
                                   "-c casenum -a erasehostname \n\t"
                                   "-c casenum -a updateopsstatus --status <STATUS> \n\t"
                                   "-c casenum -a idb_check --status <STATUS> \n\t"
+                                  "-c casenum -a validate_nic \n\t"
                                   "-c casenum -a check_disk_config --disk_config <disk_config> \n\t")
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True,
-                        choices=["cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus", "idb_check", "check_disk_config"])
+                        choices=["cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus", "idb_check", "check_disk_config", "validate_nic"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name",
                         help="specify cluster name")
@@ -1628,7 +1692,6 @@ def main():
                 logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
                 failed = True
             elif hosts_processed[key]["status"] == "SUCCESS":
-                print(hosts_processed)
                 include_list.append(key)
                 logger.info("%s - %s" %
                             (key, hosts_processed[key]["info"]["success"]))
@@ -1638,6 +1701,46 @@ def main():
         misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "DiskConfigMisMatch\n")
+
+    elif args.action == "validate_nic":
+        if not misc.check_file_exists(casenum, type="include"):
+            logger.error("%s/%s_include file not found or inaccessible" % user_home, casenum)
+            sys.exit(1)
+        if not misc.check_file_exists(casenum, type="macinfo"):
+            logger.error("%s/%s_macinfo file not found or inaccessible" % user_home, casenum)
+            sys.exit(1)
+
+        mac_info_file = open("%s/%s_macinfo" % (user_home, casenum), "r")
+        mac_info = json.load(mac_info_file)
+
+        hosts_processed = {}
+        queue = Queue.Queue()
+        for i in range(thread_count):
+            t = ThreadValidateNic(queue, casenum, hosts_processed, mac_info)
+            t.setDaemon(True)
+            t.start()
+        for h in host_list:
+            queue.put(h)
+        queue.join()
+
+        include_list = []
+        exclude_list = []
+
+        for key in hosts_processed:
+            if hosts_processed[key]["status"] == "ERROR":
+                exclude_list.append(key)
+                logger.error("%s - %s" % (key, hosts_processed[key]["info"]["error"]))
+            elif hosts_processed[key]["status"] == "SUCCESS":
+                include_list.append(key)
+                logger.info("%s - %s" % (key, hosts_processed[key]["info"]["success"]))
+
+        logger.info("exclude: %s" % ','.join(exclude_list))
+        logger.info("include: %s" % ','.join(include_list))
+        for e_host in exclude_list:
+            misc.write_to_exclude_file(casenum, e_host, "InvalidNIC\n")
+        if not include_list:
+            logger.error("No hosts left to process after this step")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
