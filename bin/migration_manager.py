@@ -376,8 +376,19 @@ class Migration:
 
     def __init__(self):
         self.user_home = path.expanduser("~")
-        self.role_disk_data_mapping = {"ffx": {"dataPreserve": True, "diskConfig": "standard"}, "dnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [
-            {"pattern": "hdaas-+", "dataPreserve": True, "diskConfig": "hdfs"}]}, "mnds": {"dataPreserve": False, "diskConfig": "stage1hdfs", "filters": [{"pattern": "hdaas-+", "dataPreserve": True, "diskConfig": "hdfs"}]}}
+        self._load_role_disk_data_mapping()
+
+    def _load_role_disk_data_mapping(self):
+        """
+        method that reads /opt/cpt/bin/role_disk_config_mapping.json and loads the configs for critical roles
+        """
+        config_file_path = "/opt/cpt/bin/role_disk_config_mapping.json"
+        try:
+            f = open(config_file_path, "r")
+            self.role_disk_config_mapping = json.load(f)
+        except IOError:
+            logger.error("%s is not found or inaccessible" % config_file_path)
+            sys.exit(1)
 
     def _read_host_props(self, casenum, hostname):
         """

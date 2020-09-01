@@ -1,0 +1,28 @@
+{
+	"ffx": {
+		"dataPreserve": true,
+		"diskConfig": "standard"
+	},
+	"artifactrepo": {
+		"dataPreserve": true,
+		"diskConfig": "standard"
+	}, 
+	"dnds": {
+		"dataPreserve": false,
+		"diskConfig": "stage1hdfs", 
+		"filters": [{
+			"pattern": "hdaas-+", 
+			"dataPreserve": true,
+			"diskConfig": "hdfs"
+		}]
+	}, 
+	"mnds": {
+		"dataPreserve": false,
+		"diskConfig": "stage1hdfs", 
+		"filters": [{
+			"pattern": "hdaas-+", 
+			"dataPreserve": true,
+			"diskConfig": "hdfs"
+		}]
+	}
+}
