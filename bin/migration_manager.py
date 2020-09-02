@@ -553,7 +553,7 @@ class Migration:
             route_check_url = cnc_api_url + "diagnostic/bmc/" + serial_number
             try:
                 response = requests.get(route_check_url)
-                if not response.status_code == 200:
+                if not (response.status_code >= 200 and response.status_code <= 300):
                     raise Exception
                 result = response.json()
                 accessible = result["accessible"]
@@ -624,7 +624,7 @@ class Migration:
                     try:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload))
-                        if not response.status_code == 200:
+                        if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
                             image_cmd_response = response.json()
@@ -687,7 +687,7 @@ class Migration:
                     try:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload))
-                        if not response.status_code == 200:
+                        if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
                             fail_host_cmd_response = response.json()
@@ -759,7 +759,7 @@ class Migration:
                     try:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload))
-                        if not response.status_code == 200:
+                        if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
                             rebuild_cmd_response = response.json()
@@ -833,7 +833,7 @@ class Migration:
                     try:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload))
-                        if not response.status_code == 200:
+                        if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
                             deploy_cmd_response = response.json()
@@ -1066,7 +1066,7 @@ class Migration:
                     status_cmd = "curl -s --request GET %shost/%s" % (cnc_api_url, serial_number)
                     try:
                         response = requests.get(url)
-                        if not response.status_code == 200:
+                        if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
                             status_cmd_response = response.json()
@@ -1120,7 +1120,7 @@ class Migration:
         time.sleep(delay)
         while result != True:
             response = requests.get(event_api_url, timeout=30)
-            if response.status_code == 200:
+            if (response.status_code >= 200 and response.status_code <= 300):
                 res = response.json()
                 status = res["status"]
                 if status in ["completed", "failed"]:
@@ -1149,7 +1149,7 @@ class Migration:
         try:
             while count != max_retries:
                 response = requests.get(rack_status_url, timeout=30)
-                if not response.status_code == 200:
+                if not (response.status_code >= 200 and response.status_code <= 300):
                     if count == max_retries:
                         raise Exception
                     count += 1
@@ -1184,7 +1184,7 @@ class Migration:
             disk_config_url = cnc_api_url + "fact/device/" + serial_number + "/disk_config"
             try:
                 response = requests.get(disk_config_url)
-                if not response.status_code == 200:
+                if not (response.status_code >= 200 and response.status_code <= 300):
                     raise Exception
                 result = response.json()
                 d_config = result["disk_config"]
@@ -1224,7 +1224,7 @@ class Migration:
             macaddress_host = ""
             try:
                 response = requests.get(host_fact_url)
-                if not response.status_code == 200:
+                if not (response.status_code >= 200 and response.status_code <= 300):
                     raise Exception
                 result = response.json()
                 macaddress_ib = str(result["macaddress_ib"]).upper()
