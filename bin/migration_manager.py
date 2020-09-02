@@ -11,6 +11,7 @@ import json
 import re
 import time
 import requests
+import getpass
 
 
 class Util:
@@ -377,6 +378,21 @@ class Migration:
     def __init__(self):
         self.user_home = path.expanduser("~")
         self._load_role_disk_data_mapping()
+        self.current_user = str(getpass.getuser()).lower()
+        self.mtls_props = self._get_certs(self.current_user)
+
+    def _get_certs(self, username):
+        cert_path = "/etc/pki_service/%s/%s/certificates/%s.pem" % (username, username, username)
+        key_path = "/etc/pki_service/%s/%s/keys/%s-key.pem" % (username, username, username)
+        ca_path = "/etc/pki_service/ca/cacerts.pem"
+        if (path.exists(cert_path) and path.exists(key_path) and path.exists(ca_path)):
+            return {"capath": ca_path, "cert": cert_path, "key": key_path}
+        return {"capath": None, "cert": None, "key": None}
+
+    def _validate_certs(self, certs_data):
+        if (certs_data["capath"] != None and certs_data["cert"] != None and certs_data["key"] != None):
+            return True
+        return False
 
     def _load_role_disk_data_mapping(self):
         """
@@ -541,6 +557,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -552,7 +577,7 @@ class Migration:
             cnc_host = cnc_api_url.split("//")[1].split(":")[0]
             route_check_url = cnc_api_url + "diagnostic/bmc/" + serial_number
             try:
-                response = requests.get(route_check_url)
+                response = requests.get(route_check_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
                     raise Exception
                 result = response.json()
@@ -586,6 +611,17 @@ class Migration:
 
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -618,12 +654,12 @@ class Migration:
                 else:
                     payload["message"].update({"name": "vanilla", "preserve": str(
                         preserve).lower(), "disk_config": disk_config})
-                image_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                image_cmd = "curl %s -s --request POST %sevent -d '%s'" % (mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("Image command - %s", image_cmd)
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
@@ -663,6 +699,17 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -681,12 +728,13 @@ class Migration:
                 payload = dict()
                 payload.update({"type": "fail_host", "serial_number": serial_number})
 
-                fail_host_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                fail_host_cmd = "curl %s -s --request POST %sevent -d '%s'" % (
+                    mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("fail_host - %s", fail_host_cmd)
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
@@ -727,6 +775,17 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -753,12 +812,13 @@ class Migration:
                 payload["message"].update({"name": "vanilla", "preserve": str(
                     preserve).lower(), "disk_config": disk_config})
 
-                rebuild_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                rebuild_cmd = "curl %s -s --request POST %sevent -d '%s'" % (
+                    mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("rebuild command - %s ", rebuild_cmd)
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
@@ -799,6 +859,17 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -826,13 +897,14 @@ class Migration:
                 payload["message"].update({"inventory_idb_cluster_name": cluster, "inventory_idb_superpod_name": superpod,
                                            "default_hostname": host_fqdn, "host_role": role, "preserve": str(preserve).lower()})
 
-                deploy_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                deploy_cmd = "curl %s -s --request POST %sevent -d '%s'" % (
+                    mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("Deploy command - %s", deploy_cmd)
 
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
@@ -1039,6 +1111,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -1063,9 +1144,9 @@ class Migration:
                 time.sleep(delay)
                 while result != True:
                     url = "%shost/%s" % (cnc_api_url, serial_number)
-                    status_cmd = "curl -s --request GET %shost/%s" % (cnc_api_url, serial_number)
+                    status_cmd = "curl -s --request GET %s" % url
                     try:
-                        response = requests.get(url)
+                        response = requests.get(url, cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
                             raise Exception
                         else:
@@ -1107,7 +1188,7 @@ class Migration:
                     except Exception:
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
-            return output, status
+        return output, status
 
     def check_event_status(self, event_api_url):
         delay = 60
@@ -1116,10 +1197,20 @@ class Migration:
         count = 0
         result = False
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            result = False
+            status = "Missing PKI Certs"
+            logger.error("PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return result, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         logger.info("Pausing %s seconds for the event status to change" % delay)
         time.sleep(delay)
         while result != True:
-            response = requests.get(event_api_url, timeout=30)
+            response = requests.get(event_api_url, timeout=30, cert=cert, verify=capath)
             if (response.status_code >= 200 and response.status_code <= 300):
                 res = response.json()
                 status = res["status"]
@@ -1141,6 +1232,14 @@ class Migration:
         return result, status
 
     def check_rack_status(self, cnc_api_url):
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            logger.error("PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return "PKI Certs Missing"
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         cnc_host = cnc_api_url.split("//")[1].split(".")[0]
         rack_status_url = cnc_api_url + "status"
         count = 0
@@ -1150,7 +1249,7 @@ class Migration:
         delay = 30
         try:
             while count != max_retries:
-                response = requests.get(rack_status_url, timeout=30)
+                response = requests.get(rack_status_url, timeout=30, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
                     if count == max_retries:
                         raise Exception
@@ -1159,7 +1258,7 @@ class Migration:
                 else:
                     result = response.json()
                     rack_status = result["rack"]["state"]
-                    logger.debug("Rack Status of %s - %s" %
+                    logger.info("Rack Status of %s - %s" %
                                  (cnc_host, rack_status))
                     return rack_status
         except:
@@ -1174,6 +1273,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -1185,7 +1293,7 @@ class Migration:
             cnc_host = cnc_api_url.split("//")[1].split(":")[0]
             disk_config_url = cnc_api_url + "fact/device/" + serial_number + "/disk_config"
             try:
-                response = requests.get(disk_config_url)
+                response = requests.get(disk_config_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
                     raise Exception
                 result = response.json()
@@ -1212,6 +1320,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -1225,7 +1342,7 @@ class Migration:
             macaddress_ib = ""
             macaddress_host = ""
             try:
-                response = requests.get(host_fact_url)
+                response = requests.get(host_fact_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
                     raise Exception
                 result = response.json()
