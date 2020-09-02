@@ -385,7 +385,7 @@ class Migration:
         config_file_path = "/opt/cpt/bin/role_disk_config_mapping.json"
         try:
             f = open(config_file_path, "r")
-            self.role_disk_config_mapping = json.load(f)
+            self.role_disk_data_mapping = json.load(f)
         except IOError:
             logger.error("%s is not found or inaccessible" % config_file_path)
             sys.exit(1)
