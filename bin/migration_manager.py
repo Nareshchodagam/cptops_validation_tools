@@ -1126,16 +1126,18 @@ class Migration:
                 if status in ["completed", "failed"]:
                     result = True
                     break
-            else:
-                logger.info("%s - %s\nRetrying in %s seconds " %
-                            (event_api_url, status, poll_interval))
+                logger.info("%s - %s\nRetrying in %s seconds " % (event_api_url, status, poll_interval))
                 time.sleep(poll_interval)
                 count += 1
                 if count == retry_count:
-                    logger.info(
-                        "Event status does not match desired status - 'completed' <> '%s'" % status)
+                    logger.info("Event status does not match desired status - 'completed' <> '%s'" % status)
                     result = False
                     break
+            else:
+                logger.error("an error occured while checking event status")
+                result = False
+                status = "error"
+                break
         return result, status
 
     def check_rack_status(self, cnc_api_url):
