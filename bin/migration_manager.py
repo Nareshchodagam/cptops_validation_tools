@@ -394,25 +394,29 @@ class Migration:
         """
         method that reads the hostinfo file and return given host properties
         """
+        output = {}
+        found = False
         host_info_file = "%s/%s_hostinfo" % (self.user_home, casenum)
         try:
             f = open(host_info_file, "r")
+            host_info_dict = json.load(f)
+            for item in host_info_dict:
+                if hostname in item.keys():
+                    output.update({"cnc_api_url": item.values()[0]["cnc_api_url"]})
+                    output.update({"serial_number": item.values()[0]["serial_number"]})
+                    output.update({"device_role": item.values()[0]["device_role"]})
+                    output.update({"rack_position": item.values()[0]["rack_position"]})
+                    output.update({"network_domain": item.values()[0]["network_domain"]})
+                    output.update({"manufacturer": item.values()[0]["manufacturer"]})
+                    found = True
+                    break
         except IOError:
             logger.error("%s is not found or inaccessible" % host_info_file)
-        host_info_dict = json.load(f)
-        output = {}
-        found = False
+            found = False
+        except Exception:
+            logger.error("An error occured while reading %s" % host_info_file)
+            found = False
 
-        for item in host_info_dict:
-            if hostname in item.keys():
-                output.update({"cnc_api_url": item.values()[0]["cnc_api_url"]})
-                output.update({"serial_number": item.values()[0]["serial_number"]})
-                output.update({"device_role": item.values()[0]["device_role"]})
-                output.update({"rack_position": item.values()[0]["rack_position"]})
-                output.update({"network_domain": item.values()[0]["network_domain"]})
-                output.update({"manufacturer": item.values()[0]["manufacturer"]})
-                found = True
-                break
         return found, output
 
     def _validate_role_props(self, hostname, role, disk_config, preserve, host_props, command=""):
@@ -1232,14 +1236,24 @@ class Migration:
                         mac_host = mac_addr_info[str(item)]["HOST_MAC_ADDRESS"].upper()
                         break
                 if macaddress_host == mac_host and macaddress_ib == mac_ib:
-                    logger.info("%s - IB MAC matched. '%s' == '%s'" % (hostname, macaddress_ib, mac_ib))
-                    logger.info("%s - HOST MAC matched. '%s' == '%s'" % (hostname, macaddress_host, mac_host))
+                    logger.info("%s - IB MAC matched. RT! '%s' == HOST '%s'" % (hostname, macaddress_ib, mac_ib))
+                    logger.info("%s - HOST MAC matched. RT! '%s' == HOST '%s'" % (hostname, macaddress_host, mac_host))
                     output.setdefault("success", "NIC Configs matched")
                     status = "SUCCESS"
                 else:
-                    logger.error("%s - IB MAC didn't match. '%s' <> '%s'" % (hostname, macaddress_ib, mac_ib))
-                    logger.error("%s - HOST MAC didn't match. '%s' <> '%s'" % (hostname, macaddress_host, mac_host))
-                    output.setdefault("error", "NIC Configs didn't match")
+                    if not (macaddress_ib == mac_ib):
+                        logger.error("%s - IB MAC didn't match. RT! '%s' <> HOST '%s'" %
+                                     (hostname, macaddress_ib, mac_ib))
+                    else:
+                        logger.info("%s - IB MAC matched. RT! '%s' == HOST '%s'" % (hostname, macaddress_ib, mac_ib))
+
+                    if not (macaddress_host == mac_host):
+                        logger.error("%s - HOST MAC didn't match. RT! '%s' <> HOST '%s'" %
+                                     (hostname, macaddress_host, mac_host))
+                    else:
+                        logger.info("%s - HOST MAC matched. RT! '%s' == HOST '%s'" %
+                                    (hostname, macaddress_host, mac_host))
+                    output.setdefault("error", "MAC address(es) didn't match")
                     status = "ERROR"
             except Exception:
                 output.setdefault("error", "an error occured while fetching MAC Info from %s" % cnc_host)
@@ -1748,7 +1762,7 @@ def main():
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
         for e_host in exclude_list:
-            misc.write_to_exclude_file(casenum, e_host, "InvalidNIC\n")
+            misc.write_to_exclude_file(casenum, e_host, "MACAddrMisMatch\n")
         if not include_list:
             logger.error("No hosts left to process after this step")
             sys.exit(1)
