@@ -1107,7 +1107,7 @@ class Migration:
                     except Exception:
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
-            return output, status
+        return output, status
 
     def check_event_status(self, event_api_url):
         delay = 60
