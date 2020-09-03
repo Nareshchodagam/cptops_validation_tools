@@ -1888,6 +1888,7 @@ def main():
         if not include_list:
             logger.error("No hosts left to process after this step")
             sys.exit(1)
+        misc.write_to_include_file(casenum, include_list)
 
 
 if __name__ == "__main__":
