@@ -1258,8 +1258,7 @@ class Migration:
                 else:
                     result = response.json()
                     rack_status = result["rack"]["state"]
-                    logger.info("Rack Status of %s - %s" %
-                                 (cnc_host, rack_status))
+                    logger.info("Rack Status of %s - %s" % (cnc_host, rack_status))
                     return rack_status
         except:
             logger.error(
@@ -1391,7 +1390,7 @@ def main():
                                   "-c casenum -a cncinfo \n\t-"
                                   "-c casenum -a routecheck \n\t"
                                   "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
-                                  "-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] \n\t"
+                                  "-c casenum -a deploy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] \n\t"
                                   "-c casenum -a fail [--dry-run] \n\t"
                                   "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
                                   "-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t"
@@ -1423,7 +1422,6 @@ def main():
                         help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
-    parser.add_argument("-f", "--force", dest="force_run", action="store_true", help="force run with passed values")
 
     args = parser.parse_args()
 
@@ -1848,10 +1846,10 @@ def main():
 
     elif args.action == "validate_nic":
         if not misc.check_file_exists(casenum, type="include"):
-            logger.error("%s/%s_include file not found or inaccessible" % user_home, casenum)
+            logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
             sys.exit(1)
         if not misc.check_file_exists(casenum, type="macinfo"):
-            logger.error("%s/%s_macinfo file not found or inaccessible" % user_home, casenum)
+            logger.error("%s/%s_macinfo file not found or inaccessible" % (user_home, casenum))
             sys.exit(1)
 
         mac_info_file = open("%s/%s_macinfo" % (user_home, casenum), "r")
