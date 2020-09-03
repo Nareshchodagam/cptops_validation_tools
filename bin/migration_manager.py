@@ -520,7 +520,6 @@ class Migration:
                                                hostname + " -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type"))
             sm_dict = json.loads(self.exec_cmd(
                 "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields manufacturer"))
-            logger.info("Got info for %s from iDB" % hostname)
             cnc_api_url = str(ci_dict["data"][0]["value"])
             serial_number = str(sn_dict["data"][0]["serialNumber"])
             device_role = str(sn_dict["data"][0]["deviceRole"])
@@ -532,20 +531,22 @@ class Migration:
             for i in cluster_configs_list:
                 if "network-domain" in i.values():
                     network_domain = i["value"]
-                    if network_domain == None or network_domain == "":
+                    if (network_domain == None or network_domain == ""):
                         network_domain = "ops.sfdc.net"
+
+            logger.info("Got info for %s from iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": cnc_api_url, "serial_number": serial_number, "device_role": device_role,
                                               "rack_position": rack_position, "network_domain": network_domain, "manufacturer": manufacturer})
             status = "SUCCESS"
-        except ValueError:
-            logger.debug(
-                "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
+        except (KeyError, ValueError, IndexError) as e:
+            logger.error(
+                "unable to find racktastic deviceRole/apiUrl/serialNumber and other information of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None})
             status = "ERROR"
-        except:
-            logger.debug(
-                "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
+        except Exception as e:
+            logger.error(
+                "an unexpected error occured while fetching information of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None})
             status = "ERROR"
@@ -1483,6 +1484,10 @@ def main():
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "iDBError")
         misc.write_to_hostinfo_file(casenum, host_info)
+        if not len(include_list) > 0:
+            logger.error("No hosts left for processing further. %s/%s_include file is empty after routecheck." %
+                         (user_home, casenum))
+            sys.exit(1)
         misc.write_to_cnc_file(casenum, host_info)
 
     elif args.action == "routecheck":
