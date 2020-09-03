@@ -137,7 +137,8 @@ remote_files = ['bin/check_local_port.py',
                 'bin/validate_quantumk.sh',
                 'bin/validate_raphty.sh',
                 'bin/validate_stampy.sh',
-                'bin/get_mac_addr.py']
+                'bin/get_mac_addr.py',
+                'bin/ffx_data_integrity.sh']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
@@ -159,6 +160,7 @@ bin_files = ['bin/check_mq_buddy.py',
              'bin/rack_port_check.py',
              'bin/extract_mac_addr.py',
              'bin/role_disk_config_mapping.json',
+             'bin/validate_manifests.py',
              'bin/scrtkafka',
              'cptops_idbhost/idbhost.py',
              'cptops_nagios/bin/nagios_monitor.py',
