@@ -520,7 +520,8 @@ class Migration:
                                                hostname + " -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type"))
             sm_dict = json.loads(self.exec_cmd(
                 "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields manufacturer"))
-            cnc_api_url = str(ci_dict["data"][0]["value"])
+            cnc_api_url_idb = str(ci_dict["data"][0]["value"])
+            cnc_api_url = cnc_api_url_idb.replace("https","http").replace(":8026",":4567")
             serial_number = str(sn_dict["data"][0]["serialNumber"])
             device_role = str(sn_dict["data"][0]["deviceRole"])
             rack_position = str(rp_dict["data"][0]["value"])
