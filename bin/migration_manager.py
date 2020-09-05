@@ -429,7 +429,8 @@ class Migration:
         except IOError:
             logger.error("%s is not found or inaccessible" % host_info_file)
             found = False
-        except Exception:
+        except Exception as e:
+            logger.debug(e)
             logger.error("An error occured while reading %s" % host_info_file)
             found = False
 
@@ -520,7 +521,8 @@ class Migration:
                                                hostname + " -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type"))
             sm_dict = json.loads(self.exec_cmd(
                 "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields manufacturer"))
-            cnc_api_url = str(ci_dict["data"][0]["value"])
+            cnc_api_url_idb = str(ci_dict["data"][0]["value"])
+            cnc_api_url = cnc_api_url_idb.replace("https","http").replace(":8026",":4567")
             serial_number = str(sn_dict["data"][0]["serialNumber"])
             device_role = str(sn_dict["data"][0]["deviceRole"])
             rack_position = str(rp_dict["data"][0]["value"])
@@ -539,12 +541,14 @@ class Migration:
                                               "rack_position": rack_position, "network_domain": network_domain, "manufacturer": manufacturer})
             status = "SUCCESS"
         except (KeyError, ValueError, IndexError) as e:
+            logger.debug("%s - %s" % (hostname, e))
             logger.error(
                 "unable to find racktastic deviceRole/apiUrl/serialNumber and other information of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None})
             status = "ERROR"
         except Exception as e:
+            logger.debug("%s - %s" % (hostname, e))
             logger.error(
                 "an unexpected error occured while fetching information of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
@@ -580,6 +584,7 @@ class Migration:
             try:
                 response = requests.get(route_check_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("%s - %s returned from %s" % (hostname, response.status_code, route_check_url))
                     raise Exception
                 result = response.json()
                 accessible = result["accessible"]
@@ -598,7 +603,8 @@ class Migration:
                         error_msg += "authenticable - False\n"
                     output.setdefault(
                         "error", error_msg % hostname)
-            except:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault(
                     "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
                 status = "ERROR"
@@ -662,6 +668,7 @@ class Migration:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             image_cmd_response = response.json()
@@ -686,7 +693,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -737,6 +745,7 @@ class Migration:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             fail_host_cmd_response = response.json()
@@ -762,7 +771,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -821,6 +831,7 @@ class Migration:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             rebuild_cmd_response = response.json()
@@ -846,7 +857,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -907,6 +919,7 @@ class Migration:
                         url = "%sevent" % cnc_api_url
                         response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             deploy_cmd_response = response.json()
@@ -932,7 +945,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -1055,7 +1069,8 @@ class Migration:
                     output.setdefault("error", "%s - failed to change iDB Status to '%s' <> '%s'" %
                                       (hostname, idb_status, new_status))
                     status = "ERROR"
-            except:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault("error", "%s - an error occurred while processing the request" % hostname)
                 status = "ERROR"
         return output, status
@@ -1149,6 +1164,7 @@ class Migration:
                     try:
                         response = requests.get(url, cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             status_cmd_response = response.json()
@@ -1186,7 +1202,8 @@ class Migration:
                                 output.setdefault(
                                     "message", "unable to process %s in time." % hostname)
                                 result = True
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
         return output, status
@@ -1226,6 +1243,7 @@ class Migration:
                     result = False
                     break
             else:
+                logger.error("Event - %s returned from %s" % (response.status_code, event_api_url))
                 logger.error("an error occured while checking event status")
                 result = False
                 status = "error"
@@ -1245,13 +1263,14 @@ class Migration:
         rack_status_url = cnc_api_url + "status"
         count = 0
         max_retries = 3
-        logger.info("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." %
+        logger.debug("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." %
                     (cnc_host, max_retries))
         delay = 30
         try:
             while count != max_retries:
                 response = requests.get(rack_status_url, timeout=30, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("Rack Status - %s returned from %s" % (response.status_code, rack_status_url))
                     if count == max_retries:
                         raise Exception
                     count += 1
@@ -1261,7 +1280,8 @@ class Migration:
                     rack_status = result["rack"]["state"]
                     logger.info("Rack Status of %s - %s" % (cnc_host, rack_status))
                     return rack_status
-        except:
+        except Exception as e:
+            logger.debug("%s status - %s" % (cnc_host, e))
             logger.error(
                 "The rack status of %s could not be fetched in time. Exiting." % cnc_host)
             return "timed out"
@@ -1295,6 +1315,7 @@ class Migration:
             try:
                 response = requests.get(disk_config_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("%s - %s returned from %s" % (hostname, response.status_code, disk_config_url))
                     raise Exception
                 result = response.json()
                 d_config = result["disk_config"]
@@ -1307,7 +1328,8 @@ class Migration:
                     error_msg = "Disk Layout doesn't match %s <> %s"
                     output.setdefault(
                         "error", error_msg % (d_config, disk_config_to_validate))
-            except:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault(
                     "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
                 status = "ERROR"
@@ -1344,6 +1366,7 @@ class Migration:
             try:
                 response = requests.get(host_fact_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("%s - %s returned from %s" % (hostname, response.status_code, host_fact_url))
                     raise Exception
                 result = response.json()
                 macaddress_ib = str(result["macaddress_ib"]).upper()
@@ -1374,7 +1397,8 @@ class Migration:
                                     (hostname, macaddress_host, mac_host))
                     output.setdefault("error", "MAC address(es) didn't match")
                     status = "ERROR"
-            except Exception:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault("error", "an error occured while fetching MAC Info from %s" % cnc_host)
                 status = "ERROR"
         return output, status
@@ -1848,6 +1872,9 @@ def main():
         misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "DiskConfigMisMatch\n")
+        if not include_list:
+            logger.error("No hosts left to process after this step")
+            sys.exit(1)
 
     elif args.action == "validate_nic":
         if not misc.check_file_exists(casenum, type="include"):
@@ -1883,12 +1910,12 @@ def main():
 
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
+        misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "MACAddrMisMatch\n")
         if not include_list:
             logger.error("No hosts left to process after this step")
             sys.exit(1)
-        misc.write_to_include_file(casenum, include_list)
 
 
 if __name__ == "__main__":
