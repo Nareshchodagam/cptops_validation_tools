@@ -6,7 +6,11 @@
 	"artifactrepo": {
 		"dataPreserve": true,
 		"diskConfig": "standard"
-	}, 
+	},
+	"icesplunk": {
+		"dataPreserve": true,
+		"diskConfig": "standard"
+	},
 	"dnds": {
 		"dataPreserve": false,
 		"diskConfig": "stage1hdfs", 
