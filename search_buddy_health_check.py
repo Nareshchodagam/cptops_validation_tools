@@ -102,12 +102,12 @@ def buddy_check(buddy_dict):
 
     with open(user_home + '/' + case_num + '_exclude', 'a+') as ex_file:
         for k, v in exclude.items():
-            print("Excluding the host {}\n".format(k))
+            print("\nExcluding the host {}\n".format(k))
             ex_file.write("\n{} - Buddy not alive : {}\n".format(k,v))
-    if include:
-        with open(user_home + '/' + case_num + '_include', 'w') as in_file:
+
+    with open(user_home + '/' + case_num + '_include', 'w') as in_file:
             in_file.write(",".join(include))
-    else:
+    if not include:
         print("No servers left to proceed..Exiting\n")
         sys.exit(1)
 
