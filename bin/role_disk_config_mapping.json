@@ -11,6 +11,10 @@
 		"dataPreserve": true,
 		"diskConfig": "standard"
 	},
+	"ice-splunk-idxr": {
+		"dataPreserve": true,
+		"diskConfig": "standard"
+	},
 	"dnds": {
 		"dataPreserve": false,
 		"diskConfig": "stage1hdfs", 
