@@ -15,7 +15,7 @@ def get_status(host,p_queue):
     host_dict ={}
     url = "http://{}:8983/solr/metadata/admin/ping".format(host)
     try:
-        res = requests.get(url)
+        res = requests.get(url, timeout=30)
         status = res.json()['status']
     except:
         print("Unable to get the status of the host {}".format(host))
