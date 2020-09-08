@@ -11,6 +11,7 @@ import json
 import re
 import time
 import requests
+import getpass
 
 
 class Util:
@@ -377,6 +378,21 @@ class Migration:
     def __init__(self):
         self.user_home = path.expanduser("~")
         self._load_role_disk_data_mapping()
+        self.current_user = str(getpass.getuser()).lower()
+        self.mtls_props = self._get_certs(self.current_user)
+
+    def _get_certs(self, username):
+        cert_path = "/etc/pki_service/%s/%s/certificates/%s.pem" % (username, username, username)
+        key_path = "/etc/pki_service/%s/%s/keys/%s-key.pem" % (username, username, username)
+        ca_path = "/etc/pki_service/ca/cacerts.pem"
+        if (path.exists(cert_path) and path.exists(key_path) and path.exists(ca_path)):
+            return {"capath": ca_path, "cert": cert_path, "key": key_path}
+        return {"capath": None, "cert": None, "key": None}
+
+    def _validate_certs(self, certs_data):
+        if (certs_data["capath"] != None and certs_data["cert"] != None and certs_data["key"] != None):
+            return True
+        return False
 
     def _load_role_disk_data_mapping(self):
         """
@@ -413,7 +429,8 @@ class Migration:
         except IOError:
             logger.error("%s is not found or inaccessible" % host_info_file)
             found = False
-        except Exception:
+        except Exception as e:
+            logger.debug(e)
             logger.error("An error occured while reading %s" % host_info_file)
             found = False
 
@@ -504,8 +521,8 @@ class Migration:
                                                hostname + " -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type"))
             sm_dict = json.loads(self.exec_cmd(
                 "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + hostname + " -fields manufacturer"))
-            logger.info("Got info for %s from iDB" % hostname)
-            cnc_api_url = str(ci_dict["data"][0]["value"])
+            cnc_api_url_idb = str(ci_dict["data"][0]["value"])
+            cnc_api_url = cnc_api_url_idb.replace("https","http").replace(":8026",":4567")
             serial_number = str(sn_dict["data"][0]["serialNumber"])
             device_role = str(sn_dict["data"][0]["deviceRole"])
             rack_position = str(rp_dict["data"][0]["value"])
@@ -516,20 +533,24 @@ class Migration:
             for i in cluster_configs_list:
                 if "network-domain" in i.values():
                     network_domain = i["value"]
-                    if network_domain == None or network_domain == "":
+                    if (network_domain == None or network_domain == ""):
                         network_domain = "ops.sfdc.net"
+
+            logger.info("Got info for %s from iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": cnc_api_url, "serial_number": serial_number, "device_role": device_role,
                                               "rack_position": rack_position, "network_domain": network_domain, "manufacturer": manufacturer})
             status = "SUCCESS"
-        except ValueError:
-            logger.debug(
-                "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
+        except (KeyError, ValueError, IndexError) as e:
+            logger.debug("%s - %s" % (hostname, e))
+            logger.error(
+                "unable to find racktastic deviceRole/apiUrl/serialNumber and other information of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None})
             status = "ERROR"
-        except:
-            logger.debug(
-                "Error: unable to find racktastic apiUrl/serialNumber of %s in iDB" % hostname)
+        except Exception as e:
+            logger.debug("%s - %s" % (hostname, e))
+            logger.error(
+                "an unexpected error occured while fetching information of %s in iDB" % hostname)
             output.setdefault(str(hostname), {"cnc_api_url": None, "serial_number": None, "device_role": None,
                                               "rack_position": None, "network_domain": None, "manufacturer": None})
             status = "ERROR"
@@ -541,6 +562,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -552,8 +582,9 @@ class Migration:
             cnc_host = cnc_api_url.split("//")[1].split(":")[0]
             route_check_url = cnc_api_url + "diagnostic/bmc/" + serial_number
             try:
-                response = requests.get(route_check_url)
+                response = requests.get(route_check_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("%s - %s returned from %s" % (hostname, response.status_code, route_check_url))
                     raise Exception
                 result = response.json()
                 accessible = result["accessible"]
@@ -572,7 +603,8 @@ class Migration:
                         error_msg += "authenticable - False\n"
                     output.setdefault(
                         "error", error_msg % hostname)
-            except:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault(
                     "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
                 status = "ERROR"
@@ -586,6 +618,17 @@ class Migration:
 
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -618,13 +661,14 @@ class Migration:
                 else:
                     payload["message"].update({"name": "vanilla", "preserve": str(
                         preserve).lower(), "disk_config": disk_config})
-                image_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                image_cmd = "curl %s -s --request POST %sevent -d '%s'" % (mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("Image command - %s", image_cmd)
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             image_cmd_response = response.json()
@@ -649,7 +693,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -663,6 +708,17 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -681,13 +737,15 @@ class Migration:
                 payload = dict()
                 payload.update({"type": "fail_host", "serial_number": serial_number})
 
-                fail_host_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                fail_host_cmd = "curl %s -s --request POST %sevent -d '%s'" % (
+                    mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("fail_host - %s", fail_host_cmd)
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             fail_host_cmd_response = response.json()
@@ -713,7 +771,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -727,6 +786,17 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -753,13 +823,15 @@ class Migration:
                 payload["message"].update({"name": "vanilla", "preserve": str(
                     preserve).lower(), "disk_config": disk_config})
 
-                rebuild_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                rebuild_cmd = "curl %s -s --request POST %sevent -d '%s'" % (
+                    mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("rebuild command - %s ", rebuild_cmd)
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             rebuild_cmd_response = response.json()
@@ -785,7 +857,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -799,6 +872,17 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+        mtls_certs = "--capath %s --cert %s --key %s" % (
+            self.mtls_props["capath"], self.mtls_props["cert"], self.mtls_props["key"])
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -826,14 +910,16 @@ class Migration:
                 payload["message"].update({"inventory_idb_cluster_name": cluster, "inventory_idb_superpod_name": superpod,
                                            "default_hostname": host_fqdn, "host_role": role, "preserve": str(preserve).lower()})
 
-                deploy_cmd = "curl -s --request POST %sevent -d '%s'" % (cnc_api_url, json.dumps(payload))
+                deploy_cmd = "curl %s -s --request POST %sevent -d '%s'" % (
+                    mtls_certs, cnc_api_url, json.dumps(payload))
                 if not no_op:
                     logger.info("Deploy command - %s", deploy_cmd)
 
                     try:
                         url = "%sevent" % cnc_api_url
-                        response = requests.post(url, data=json.dumps(payload))
+                        response = requests.post(url, data=json.dumps(payload), cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             deploy_cmd_response = response.json()
@@ -859,7 +945,8 @@ class Migration:
                                 status = "ERROR"
                                 output.setdefault("message", "%s event not processed within time on %s. \nCheck manually at %s" % (
                                     event_type, hostname, event_api_url))
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
                 else:
@@ -982,7 +1069,8 @@ class Migration:
                     output.setdefault("error", "%s - failed to change iDB Status to '%s' <> '%s'" %
                                       (hostname, idb_status, new_status))
                     status = "ERROR"
-            except:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault("error", "%s - an error occurred while processing the request" % hostname)
                 status = "ERROR"
         return output, status
@@ -1039,6 +1127,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -1063,10 +1160,11 @@ class Migration:
                 time.sleep(delay)
                 while result != True:
                     url = "%shost/%s" % (cnc_api_url, serial_number)
-                    status_cmd = "curl -s --request GET %shost/%s" % (cnc_api_url, serial_number)
+                    status_cmd = "curl -s --request GET %s" % url
                     try:
-                        response = requests.get(url)
+                        response = requests.get(url, cert=cert, verify=capath)
                         if not (response.status_code >= 200 and response.status_code <= 300):
+                            logger.error("%s - %s returned from %s" % (hostname, response.status_code, url))
                             raise Exception
                         else:
                             status_cmd_response = response.json()
@@ -1104,7 +1202,8 @@ class Migration:
                                 output.setdefault(
                                     "message", "unable to process %s in time." % hostname)
                                 result = True
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("%s - %s" % (hostname, e))
                         output.setdefault("error", "an error occured while processing request - %s" % url)
                         status = "ERROR"
         return output, status
@@ -1116,10 +1215,20 @@ class Migration:
         count = 0
         result = False
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            result = False
+            status = "Missing PKI Certs"
+            logger.error("PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return result, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         logger.info("Pausing %s seconds for the event status to change" % delay)
         time.sleep(delay)
         while result != True:
-            response = requests.get(event_api_url, timeout=30)
+            response = requests.get(event_api_url, timeout=30, cert=cert, verify=capath)
             if (response.status_code >= 200 and response.status_code <= 300):
                 res = response.json()
                 status = res["status"]
@@ -1134,6 +1243,7 @@ class Migration:
                     result = False
                     break
             else:
+                logger.error("Event - %s returned from %s" % (response.status_code, event_api_url))
                 logger.error("an error occured while checking event status")
                 result = False
                 status = "error"
@@ -1141,17 +1251,26 @@ class Migration:
         return result, status
 
     def check_rack_status(self, cnc_api_url):
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            logger.error("PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return "PKI Certs Missing"
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         cnc_host = cnc_api_url.split("//")[1].split(".")[0]
         rack_status_url = cnc_api_url + "status"
         count = 0
         max_retries = 3
-        logger.info("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." %
+        logger.debug("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." %
                     (cnc_host, max_retries))
         delay = 30
         try:
             while count != max_retries:
-                response = requests.get(rack_status_url, timeout=30)
+                response = requests.get(rack_status_url, timeout=30, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("Rack Status - %s returned from %s" % (response.status_code, rack_status_url))
                     if count == max_retries:
                         raise Exception
                     count += 1
@@ -1159,10 +1278,10 @@ class Migration:
                 else:
                     result = response.json()
                     rack_status = result["rack"]["state"]
-                    logger.debug("Rack Status of %s - %s" %
-                                 (cnc_host, rack_status))
+                    logger.info("Rack Status of %s - %s" % (cnc_host, rack_status))
                     return rack_status
-        except:
+        except Exception as e:
+            logger.debug("%s status - %s" % (cnc_host, e))
             logger.error(
                 "The rack status of %s could not be fetched in time. Exiting." % cnc_host)
             return "timed out"
@@ -1174,6 +1293,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -1185,8 +1313,9 @@ class Migration:
             cnc_host = cnc_api_url.split("//")[1].split(":")[0]
             disk_config_url = cnc_api_url + "fact/device/" + serial_number + "/disk_config"
             try:
-                response = requests.get(disk_config_url)
+                response = requests.get(disk_config_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("%s - %s returned from %s" % (hostname, response.status_code, disk_config_url))
                     raise Exception
                 result = response.json()
                 d_config = result["disk_config"]
@@ -1199,7 +1328,8 @@ class Migration:
                     error_msg = "Disk Layout doesn't match %s <> %s"
                     output.setdefault(
                         "error", error_msg % (d_config, disk_config_to_validate))
-            except:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault(
                     "error", "%s - an error occured while processing the request on %s" % (hostname, cnc_host))
                 status = "ERROR"
@@ -1212,6 +1342,15 @@ class Migration:
         """
         output = {}
         status = None
+
+        certsExist = self._validate_certs(self.mtls_props)
+        if not certsExist:
+            status = "ERROR"
+            output.setdefault("error", "PKI certs for current user %s not found or inaccessible." % self.current_user)
+            return output, status
+        cert = (self.mtls_props["cert"], self.mtls_props["key"])
+        capath = self.mtls_props["capath"]
+
         isHostProp, host_props = self._read_host_props(casenum, hostname)
         if not isHostProp:
             output.setdefault("error", "couldn't find any details regarding %s in %s_hostinfo." % (hostname, casenum))
@@ -1225,8 +1364,9 @@ class Migration:
             macaddress_ib = ""
             macaddress_host = ""
             try:
-                response = requests.get(host_fact_url)
+                response = requests.get(host_fact_url, cert=cert, verify=capath)
                 if not (response.status_code >= 200 and response.status_code <= 300):
+                    logger.error("%s - %s returned from %s" % (hostname, response.status_code, host_fact_url))
                     raise Exception
                 result = response.json()
                 macaddress_ib = str(result["macaddress_ib"]).upper()
@@ -1257,7 +1397,8 @@ class Migration:
                                     (hostname, macaddress_host, mac_host))
                     output.setdefault("error", "MAC address(es) didn't match")
                     status = "ERROR"
-            except Exception:
+            except Exception as e:
+                logger.debug("%s - %s" % (hostname, e))
                 output.setdefault("error", "an error occured while fetching MAC Info from %s" % cnc_host)
                 status = "ERROR"
         return output, status
@@ -1274,7 +1415,7 @@ def main():
                                   "-c casenum -a cncinfo \n\t-"
                                   "-c casenum -a routecheck \n\t"
                                   "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
-                                  "-c casenum -a delpoy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] \n\t"
+                                  "-c casenum -a deploy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] \n\t"
                                   "-c casenum -a fail [--dry-run] \n\t"
                                   "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
                                   "-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t"
@@ -1306,7 +1447,6 @@ def main():
                         help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
-    parser.add_argument("-f", "--force", dest="force_run", action="store_true", help="force run with passed values")
 
     args = parser.parse_args()
 
@@ -1314,9 +1454,9 @@ def main():
 
     # setting up default logging level for the rest of the program
     if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     misc = Util()
     # validating for existing kerberos tickets
@@ -1368,6 +1508,10 @@ def main():
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "iDBError")
         misc.write_to_hostinfo_file(casenum, host_info)
+        if not len(include_list) > 0:
+            logger.error("No hosts left for processing further. %s/%s_include file is empty after routecheck." %
+                         (user_home, casenum))
+            sys.exit(1)
         misc.write_to_cnc_file(casenum, host_info)
 
     elif args.action == "routecheck":
@@ -1728,13 +1872,16 @@ def main():
         misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "DiskConfigMisMatch\n")
+        if not include_list:
+            logger.error("No hosts left to process after this step")
+            sys.exit(1)
 
     elif args.action == "validate_nic":
         if not misc.check_file_exists(casenum, type="include"):
-            logger.error("%s/%s_include file not found or inaccessible" % user_home, casenum)
+            logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
             sys.exit(1)
         if not misc.check_file_exists(casenum, type="macinfo"):
-            logger.error("%s/%s_macinfo file not found or inaccessible" % user_home, casenum)
+            logger.error("%s/%s_macinfo file not found or inaccessible" % (user_home, casenum))
             sys.exit(1)
 
         mac_info_file = open("%s/%s_macinfo" % (user_home, casenum), "r")
@@ -1763,6 +1910,7 @@ def main():
 
         logger.info("exclude: %s" % ','.join(exclude_list))
         logger.info("include: %s" % ','.join(include_list))
+        misc.write_to_include_file(casenum, include_list)
         for e_host in exclude_list:
             misc.write_to_exclude_file(casenum, e_host, "MACAddrMisMatch\n")
         if not include_list:
