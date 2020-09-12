@@ -21,7 +21,7 @@ def get_status(host,p_queue):
         print("Unable to get the status of the host {}".format(host))
         status = "Dead"
 
-    if "ready" in status.lower():
+    if status.lower() == "ready":
         status = "Alive"
     else:
         status = "Dead"
