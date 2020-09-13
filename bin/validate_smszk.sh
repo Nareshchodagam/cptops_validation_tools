@@ -20,6 +20,27 @@ services=(
   zkHack.service
 )
 
+zkServiceCheck() {
+#
+# Additional check on the Zookeeper service
+# Simple systemd check insufficient for confirming service status
+# Will try 10 times over 30 seconds before failing
+# W-8020621
+#
+
+  tries=0
+  while [ $(/opt/app/smszk/bin/zkOk.sh) !=  OK ]
+    do
+      tries=$((tries+1))
+      if [ $tries -gt 10 ]; then
+        echo -e "\e[31mFailed waiting for the service to come up\e[0m"
+        exit 1
+      fi
+      sleep 3
+    done
+  echo -e "\e[32mZookeeper is up!\e[0m"
+}
+
 serviceQuery() {
 #
 # Checks if service is deployed and running.
@@ -30,6 +51,7 @@ serviceQuery() {
   if systemctl list-unit-files --full --all | grep -Fq ${1}; then
     echo -e "\n${1} is deployed. Checking status"
     if systemctl is-active --quiet ${1}; then
+      zkServiceCheck
       echo -e "${1} is active. \e[32mPatching can continue\e[0m"
     else
       echo -e "${1} is deployed but \e[31mnot active\e[0m\n"
@@ -41,6 +63,7 @@ serviceQuery() {
           diff_time=$((60-$i*5))
           sleep 5
           if systemctl is-active --quiet ${1}; then
+            zkServiceCheck
             echo -e "\n${1} is now active. \e[32mPatching can continue\e[0m"
             break
           elif (( ${diff_time} > 0 )); then
@@ -67,6 +90,7 @@ autoRecovery() {
   if systemctl restart ${1}; then
     sleep 5
     if systemctl is-active --quiet ${1}; then
+      zkServiceCheck
       echo -e "${1} was successfully \e[32mrecovered\e[0m"
     else
       echo -e "\e[31mError\e[0m: Unable to recover ${1} through a service restart"
