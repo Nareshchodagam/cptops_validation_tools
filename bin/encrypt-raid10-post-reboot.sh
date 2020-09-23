@@ -11,7 +11,7 @@ grep -w "/${HOME}/watchdog" /etc/fstab > /etc/fstab.watchdog
 grep -v "/${HOME}" /etc/fstab > /etc/fstab.tmp
 cat /etc/fstab.watchdog >> /etc/fstab.tmp
 cp /etc/fstab.tmp /etc/fstab
-echo "LABEL=${LABEL}        /${HOME}     xfs     defaults,dirsync,noatime,_netdev,x-systemd.automount       0 0" >> /etc/fstab
+echo "LABEL=${LABEL}        /${HOME}     xfs     defaults,noatime,_netdev,x-systemd.automount       0 0" >> /etc/fstab
 
 mdadm --stop /dev/$OLD_MDH
 mdadm --remove /dev/$OLD_MDH

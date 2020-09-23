@@ -71,7 +71,7 @@ mkdir -p /$HOME_TMP
 
 cp /etc/fstab /etc/fstab.original
 
-echo "/dev/mapper/luks-${MDH_LUKS_UUID}        /${HOME_TMP}     xfs     defaults,dirsync,noatime,_netdev,x-systemd.automount       0 0" >> /etc/fstab
+echo "/dev/mapper/luks-${MDH_LUKS_UUID}        /${HOME_TMP}     xfs     defaults,noatime,_netdev,x-systemd.automount       0 0" >> /etc/fstab
 
 systemctl daemon-reload
 systemctl start $HOME_TMP.automount
