@@ -176,19 +176,19 @@ class ThreadImaging(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host, role, preserve, disk_config, dry_run = self.queue.get()
+        host, role, preserve, disk_config, dry_run, force_run = self.queue.get()
         max_retries = 2 if not dry_run else 0
         count = 0
         if not dry_run:
             logger.info("Triggering image command on %s. Will be retrying for a maximum of %s times if failed" %
                         (host, max_retries))
         result, status = self.mig.trigger_image(
-            host, self.casenum, role=role, preserve=preserve, disk_config=disk_config, no_op=dry_run)
+            host, self.casenum, role=role, preserve=preserve, disk_config=disk_config, no_op=dry_run, override=force_run)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
             logger.info(
                 "Retry #%s image command on %s as it's failed in previous attempt" % (count, host))
             result, status = self.mig.trigger_image(
-                host, self.casenum, role=role, preserve=preserve, disk_config=disk_config, no_op=dry_run)
+                host, self.casenum, role=role, preserve=preserve, disk_config=disk_config, no_op=dry_run, override=force_run)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
@@ -230,19 +230,19 @@ class ThreadRebuilding(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host, preserve, disk_config, dry_run = self.queue.get()
+        host, preserve, disk_config, dry_run, force_run = self.queue.get()
         max_retries = 2 if not dry_run else 0
         count = 0
         if not dry_run:
             logger.info("Triggering rebuild_failed_host command on %s. Will be retrying for a maximum of %s times if failed" % (
                 host, max_retries))
         result, status = self.mig.rebuild_failed_host(
-            host, self.casenum, preserve=preserve, disk_config=disk_config, no_op=dry_run)
+            host, self.casenum, preserve=preserve, disk_config=disk_config, no_op=dry_run, override=force_run)
         while status == "ERROR" and "error" in result.keys() and count != max_retries:
             logger.info(
                 "Retry #%s rebuild_failed_host command on %s as it's failed in previous attempt" % (count, host))
             result, status = self.mig.rebuild_failed_host(
-                host, self.casenum, preserve=preserve, disk_config=disk_config, no_op=dry_run)
+                host, self.casenum, preserve=preserve, disk_config=disk_config, no_op=dry_run, override=force_run)
             count += 1
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
@@ -258,9 +258,9 @@ class ThreadDeploy(threading.Thread):
         self.mig = Migration()
 
     def run(self):
-        host, role, cluster, superpod, preserve, dry_run = self.queue.get()
+        host, role, cluster, superpod, preserve, dry_run, force_run = self.queue.get()
         result, status = self.mig.trigger_deploy(
-            host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve, no_op=dry_run)
+            host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve, no_op=dry_run, override=force_run)
         self.hosts_processed[host] = {"info": result, "status": status}
         self.queue.task_done()
 
@@ -610,7 +610,7 @@ class Migration:
 
         return output, status
 
-    def trigger_image(self, hostname, casenum, role="", preserve=False, disk_config="", no_op=False):
+    def trigger_image(self, hostname, casenum, role="", preserve=False, disk_config="", no_op=False, override=False):
         """
         For a given host this method triggers image event on cnc api url and validates whether that event successfully completed or not
         """
@@ -637,12 +637,16 @@ class Migration:
             serial_number = host_props["serial_number"]
             device_role = host_props["device_role"]
 
-            right_data_options = self._validate_role_props(
-                hostname, role, disk_config, preserve, host_props, command="image")
-            if not right_data_options:
-                output.setdefault("error", "%s - Failed to meet Data Preservation/Disk Config criteria." % hostname)
-                status = "ERROR"
-                return output, status
+            if not override:
+                right_data_options = self._validate_role_props(
+                    hostname, role, disk_config, preserve, host_props, command="image")
+                if not right_data_options:
+                    output.setdefault("error", "%s - Failed to meet Data Preservation/Disk Config criteria." % hostname)
+                    status = "ERROR"
+                    return output, status
+            else:
+                logger.warning("Triggering Image command on %s with forced options. Details - role: %s, disk-configuration: %s, data-preservation: %s" %
+                               (hostname, role, disk_config, preserve))
 
             rack_status = self.check_rack_status(cnc_api_url)
             logger.info("%s - %s" % (cnc_api_url, rack_status))
@@ -779,7 +783,7 @@ class Migration:
                     output.setdefault("dry_run", "%s - %s" % (hostname, fail_host_cmd))
         return output, status
 
-    def rebuild_failed_host(self, hostname, casenum, preserve=False, disk_config="", no_op=False):
+    def rebuild_failed_host(self, hostname, casenum, preserve=False, disk_config="", no_op=False, override=False):
         """
         For a given host that has racktastic status as failed, this method triggers rebuild_failed_host event on cnc api url and validates whether that successfully completed or not
         """
@@ -804,12 +808,16 @@ class Migration:
             cnc_api_url = host_props["cnc_api_url"]
             serial_number = host_props["serial_number"]
 
-            right_data_options = self._validate_role_props(
-                hostname, None, disk_config, preserve, host_props, command="rebuild")
-            if not right_data_options:
-                output.setdefault("error", "%s - Failed to meet Data Preservation/Disk Config criteria." % hostname)
-                status = "ERROR"
-                return output, status
+            if not override:
+                right_data_options = self._validate_role_props(
+                    hostname, None, disk_config, preserve, host_props, command="rebuild")
+                if not right_data_options:
+                    output.setdefault("error", "%s - Failed to meet Data Preservation/Disk Config criteria." % hostname)
+                    status = "ERROR"
+                    return output, status
+            else:
+                logger.warning("Triggering Rebuild command on %s with forced options. Details - disk-configuration: %s, data-preservation: %s" %
+                               (hostname, disk_config, preserve))
 
             rack_status = self.check_rack_status(cnc_api_url)
             if not rack_status in ["ready"]:
@@ -865,7 +873,7 @@ class Migration:
                     output.setdefault("dry_run", "%s - %s" % (hostname, rebuild_cmd))
         return output, status
 
-    def trigger_deploy(self, hostname, casenum, role="", cluster="", superpod="", preserve=False, no_op=False):
+    def trigger_deploy(self, hostname, casenum, role="", cluster="", superpod="", preserve=False, no_op=False, override=False):
         """
         For a given host, this method triggers deploy event on cnc api url and validates whether it is completed or not.
         """
@@ -891,11 +899,16 @@ class Migration:
             serial_number = host_props["serial_number"]
             network_domain = host_props["network_domain"]
 
-            right_data_options = self._validate_role_props(hostname, role, None, preserve, host_props, command="deploy")
-            if not right_data_options:
-                output.setdefault("error", "%s - Failed to meet Data Preservation criteria." % hostname)
-                status = "ERROR"
-                return output, status
+            if not override:
+                right_data_options = self._validate_role_props(
+                    hostname, role, None, preserve, host_props, command="deploy")
+                if not right_data_options:
+                    output.setdefault("error", "%s - Failed to meet Data Preservation criteria." % hostname)
+                    status = "ERROR"
+                    return output, status
+            else:
+                logger.warning(
+                    "Triggering Deploy command on %s with forced options. Details - role: %s, data-preservation: %s" % (hostname, role, preserve))
 
             host_fqdn = "%s.%s" % (hostname, network_domain)
             rack_status = self.check_rack_status(cnc_api_url)
@@ -1263,7 +1276,7 @@ class Migration:
         count = 0
         max_retries = 3
         logger.debug("Checking rack status on %s. Will be retrying a maximum of %s times if timed out." %
-                    (cnc_host, max_retries))
+                     (cnc_host, max_retries))
         delay = 30
         try:
             while count != max_retries:
@@ -1413,10 +1426,10 @@ def main():
                                   "-v verbose output \n\t"
                                   "-c casenum -a cncinfo \n\t-"
                                   "-c casenum -a routecheck \n\t"
-                                  "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
-                                  "-c casenum -a deploy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] \n\t"
+                                  "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] [--dry-run] [--force] \n\t"
+                                  "-c casenum -a deploy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] [--force] \n\t"
                                   "-c casenum -a fail [--dry-run] \n\t"
-                                  "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] [--dry-run] \n\t"
+                                  "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] [--dry-run] [--force] \n\t"
                                   "-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t"
                                   "-c casenum -a erasehostname \n\t"
                                   "-c casenum -a updateopsstatus --status <STATUS> \n\t"
@@ -1437,13 +1450,15 @@ def main():
     parser.add_argument("--preserve", dest="preserve_data", action="store_true",
                         help="include this to preserve data", default=False)
     parser.add_argument("--delay", dest="delay_in_mins",
-                        type=int, default=10, help="specify delay in minutes")
+                        type=int, default=10, help="specify delay in minutes. used with status command")
     parser.add_argument("--previous", dest="prev_action", help="specify previous racktastic command perfomred",
                         choices=["image", "deploy", "rebuild", "fail"])
-    parser.add_argument("--status", dest="idb_status", help="specify idb status", choices=[
-                        'ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
+    parser.add_argument("--status", dest="idb_status", help="specify idb status. used in iDB operations",
+                        choices=['ACTIVE', 'DECOM', 'PROVISIONING', 'HW_PROVISIONING', 'IN_MAINTENANCE', 'REIMAGE'], default="ACTIVE")
     parser.add_argument("--dry-run", dest="no_op",
                         help="prints the payload of your request. works with RT! image, deploy, rebuild and fail commands.", action="store_true", default=False)
+    parser.add_argument("--force", dest="override",
+                        help="overrides in-built safety measures that validates disk-configuration and data-preservation options for critical roles. used with image, rebuild and deploy actions", action="store_true", default=False)
     parser.add_argument("-v", dest="verbose", action="store_true",
                         help="verbose output", default=False)
 
@@ -1559,6 +1574,7 @@ def main():
             role = None
 
         preserve = args.preserve_data
+        override = args.override
         disk_config = args.disk_config
 
         dry_run = args.no_op
@@ -1574,7 +1590,7 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            lst = [h, role, preserve, disk_config, dry_run]
+            lst = [h, role, preserve, disk_config, dry_run, override]
             queue.put(lst)
         queue.join()
         failed = False
@@ -1633,6 +1649,7 @@ def main():
 
     elif args.action == "rebuild":
         preserve = args.preserve_data
+        override = args.override
         disk_config = args.disk_config
         dry_run = args.no_op
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
@@ -1647,7 +1664,7 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            lst = [h, preserve, disk_config, dry_run]
+            lst = [h, preserve, disk_config, dry_run, override]
             queue.put(lst)
         queue.join()
         failed = False
@@ -1683,6 +1700,7 @@ def main():
             sys.exit(1)
         superpod = args.superpod_name.upper()
         preserve = args.preserve_data
+        override = args.override
         dry_run = args.no_op
         if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
             logger.error("%s/%s_include/%s/%s_hostinfo file not found or inaccessible" %
@@ -1696,7 +1714,7 @@ def main():
             t.setDaemon(True)
             t.start()
         for h in host_list:
-            lst = [h, role, cluster, superpod, preserve, dry_run]
+            lst = [h, role, cluster, superpod, preserve, dry_run, override]
             queue.put(lst)
         queue.join()
         failed = False
