@@ -513,13 +513,13 @@ class Migration:
             f = open(host_info_file, "r")
             host_info_dict = json.load(f)
             for item in host_info_dict:
-                if item["hostname"] == hostname:
-                    output.update({"estate_id": item["estate_id"]})
-                    output.update({"serial_number": item["serial_number"]})
-                    output.update({"network_domain": item["network_domain"]})
-                    output.update({"device_role": item["device_role"]})
-                    found = True
-                    break
+                if "hostname" in item.keys():
+                    if item["hostname"] == hostname:
+                        output.update({"estate_id": item["estate_id"]})
+                        output.update({"serial_number": item["serial_number"]})
+                        output.update({"network_domain": item["network_domain"]})
+                        output.update({"device_role": item["device_role"]})
+                        found = True
                 elif hostname in item.keys():
                     output.update({"cnc_api_url": item.values()[0]["cnc_api_url"]})
                     output.update({"serial_number": item.values()[0]["serial_number"]})
@@ -528,6 +528,7 @@ class Migration:
                     output.update({"network_domain": item.values()[0]["network_domain"]})
                     output.update({"manufacturer": item.values()[0]["manufacturer"]})
                     found = True
+                if found:
                     break
         except KeyError as e:
             logger.error("%s not found for %s." % (e, hostname))
