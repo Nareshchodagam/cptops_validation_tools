@@ -12,6 +12,9 @@ import re
 import time
 import requests
 import getpass
+import itertools
+from operator import itemgetter
+from gingham_helper import Gingham
 
 
 class Util:
@@ -45,6 +48,24 @@ class Util:
         except:
             logger.error("%s is not readable" % file_name)
             return
+
+    def read_hostinfo_file(self, casenum, type="hostinfo"):
+        """
+        method that reads the hostinfo from CASENUM_hostinfo file
+        """
+        file_name = "%s/%s_%s" % (self.user_home, casenum, type)
+
+        if not self.check_file_exists(casenum, type=type):
+            logger.error("%s is not found or inaccessible" % file_name)
+            sys.exit(1)
+
+        try:
+            f = open(file_name, "r")
+            return json.load(f)
+        except Exception as e:
+            logger.error("%s is not readable" % file_name)
+            logger.debug("e")
+            return False
 
     def write_to_include_file(self, casenum, hostlist):
         """
@@ -126,6 +147,20 @@ class Util:
             logger.error("Error writing HP CNC hosts info to %s" % file_name)
             sys.exit(1)
 
+    def group_hosts_by_estate(self, host_estate_info):
+        """
+        method that reads hostinfo and groups hosts by estates
+        """
+        estate_host_info = dict()
+        host_estate_info_sorted = sorted(host_estate_info, key=itemgetter('estate_id'))
+        for key, value in itertools.groupby(host_estate_info_sorted, key=itemgetter('estate_id')):
+            estate_hosts = list()
+            for i in value:
+                host_fqdn = "%s.%s" % (i.get("hostname"), i.get("network_domain"))
+                estate_hosts.append(host_fqdn)
+            estate_host_info[key] = estate_hosts
+        return estate_host_info
+
 
 class ThreadCncInfo(threading.Thread):
 
@@ -145,6 +180,29 @@ class ThreadCncInfo(threading.Thread):
             logger.info(
                 "%s - Retry #%s fetching host cnc information from iDB as it's failed in previous attempt" % (h, (count + 1)))
             result, status = self.mig.get_cnc_info(h, self.casenum)
+            count += 1
+        self.hosts_processed[h] = {"info": result, "status": status}
+        self.queue.task_done()
+
+
+class ThreadEstateInfo(threading.Thread):
+
+    def __init__(self, queue, casenum, hosts_processed):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.hosts_processed = hosts_processed
+        self.mig = Migration()
+
+    def run(self):
+        h = self.queue.get()
+        max_retries = 2
+        count = 0
+        result, status = self.mig.get_estate_info(h, self.casenum)
+        while status == "ERROR" and count != max_retries:
+            logger.info(
+                "%s - Retry %s fetching host estate information from Gingham/serial number from iDB as the previous attempt failed" % (h, (count+1)))
+            result, status = self.mig.get_estate_info(h, self.casenum)
             count += 1
         self.hosts_processed[h] = {"info": result, "status": status}
         self.queue.task_done()
@@ -262,6 +320,44 @@ class ThreadDeploy(threading.Thread):
         result, status = self.mig.trigger_deploy(
             host, self.casenum, role=role, cluster=cluster, superpod=superpod, preserve=preserve, no_op=dry_run, override=force_run)
         self.hosts_processed[host] = {"info": result, "status": status}
+        self.queue.task_done()
+
+
+class ThreadReimage(threading.Thread):
+
+    def __init__(self, queue, casenum, estates_processed):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.estates_processed = estates_processed
+        self.mig = Migration()
+
+    def run(self):
+        estate, estate_hosts, preserve = self.queue.get()
+        logger.info("Triggering Gingham Reimage on %s from %s estate" % (",".join(estate_hosts), estate))
+        gingham = Gingham()
+        status, result = gingham.reimage_hosts(estate_hosts, estate, self.casenum, preserve=preserve)
+        if status:
+            self.estates_processed[estate] = {"message": result["message"], "status": "SUCCESS"}
+        else:
+            self.estates_processed[estate] = {"message": result["error"], "status": "ERROR"}
+        self.queue.task_done()
+
+
+class ThreadMonitoring(threading.Thread):
+
+    def __init__(self, queue, casenum, estates_processed):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.casenum = casenum
+        self.estates_processed = estates_processed
+        self.mig = Migration()
+
+    def run(self):
+        estate, estate_hosts = self.queue.get()
+        logger.info("Monitoring Gingham Reimage status on %s estate" % estate)
+        result, status = self.mig.monitor_workorder_status(estate, estate_hosts)
+        self.estates_processed[estate] = {"info": result, "status": status}
         self.queue.task_done()
 
 
@@ -417,7 +513,14 @@ class Migration:
             f = open(host_info_file, "r")
             host_info_dict = json.load(f)
             for item in host_info_dict:
-                if hostname in item.keys():
+                if item["hostname"] == hostname:
+                    output.update({"estate_id": item["estate_id"]})
+                    output.update({"serial_number": item["serial_number"]})
+                    output.update({"network_domain": item["network_domain"]})
+                    output.update({"device_role": item["device_role"]})
+                    found = True
+                    break
+                elif hostname in item.keys():
                     output.update({"cnc_api_url": item.values()[0]["cnc_api_url"]})
                     output.update({"serial_number": item.values()[0]["serial_number"]})
                     output.update({"device_role": item.values()[0]["device_role"]})
@@ -426,6 +529,9 @@ class Migration:
                     output.update({"manufacturer": item.values()[0]["manufacturer"]})
                     found = True
                     break
+        except KeyError as e:
+            logger.error("%s not found for %s." % (e, hostname))
+            found = False
         except IOError:
             logger.error("%s is not found or inaccessible" % host_info_file)
             found = False
@@ -554,6 +660,64 @@ class Migration:
                                               "rack_position": None, "network_domain": None, "manufacturer": None})
             status = "ERROR"
         return output, status
+
+    def get_estate_info(self, hostname, casenum):
+        """
+        For a given host this method queries Gingham to fetch the estateId and queries iDB to fetch serial number
+        """
+        output = {}
+        host_info = {"hostname": hostname, "estate_id": "",
+                     "device_role": "", "serial_number": "", "network_domain": ""}
+        status = "SUCCESS"
+        try:
+            sn_dict = json.loads(self.exec_cmd(
+                "inventory-action.pl -q -use_krb_auth -resource host -action read -name %s -fields serialNumber,deviceRole" % str(hostname)))
+            cc_dict = json.loads(self.exec_cmd(
+                "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name %s -fields cluster.clusterConfigs.value,cluster.clusterConfigs.type" % str(hostname)))
+            serial_number = str(sn_dict["data"][0]["serialNumber"])
+            device_role = str(sn_dict["data"][0]["deviceRole"])
+            network_domain = "ops.sfdc.net"
+            cluster_configs_list = list(cc_dict["data"][0]["cluster"]["clusterConfigs"])
+            for i in cluster_configs_list:
+                if "network-domain" in i.values():
+                    network_domain = i["value"]
+                    if network_domain == None or network_domain == "":
+                        network_domain = "ops.sfdc.net"
+            logger.info("Got info for %s from iDB" % hostname)
+            host_info.update({"network_domain": network_domain,
+                              "device_role": device_role, "serial_number": serial_number})
+        except (KeyError, ValueError) as e:
+            logger.debug("unable to find %s of %s in iDB" % (e, hostname))
+            logger.error("unable to find network-domain/serialNumber of %s in iDB" % hostname)
+            host_info.update({"network_domain": None, "device_role": None, "serial_number": None})
+            output.update({"hostname": hostname, "error_type": "iDBError"})
+            status = "ERROR"
+            return output, status
+        except Exception as e:
+            logger.debug("%s - %s" % (hostname, e))
+            logger.error("Error: an error occured while fetching network-domain/serialNumber of %s from iDB" % hostname)
+            host_info.update({"network_domain": None, "device_role": None, "serial_number": None})
+            output.update({"hostname": hostname, "error_type": "iDBError"})
+            status = "ERROR"
+            return output, status
+
+        try:
+            gingham = Gingham()
+            host_fqdn = str(hostname) + "." + network_domain
+            estate_id = str(gingham.get_estate_id_from_host(host_fqdn))
+            if "unrecognized" in estate_id.lower():
+                raise Exception
+            logger.info("Got info for %s from Gingham" % hostname)
+            host_info.update({"estate_id": estate_id})
+            output.update(host_info)
+            return output, status
+        except Exception as e:
+            logger.debug("%s - %s" % (hostname, e))
+            logger.error("unable to find estateId of %s in Gingham" % hostname)
+            host_info.update({"estate_id": None})
+            output.update({"hostname": hostname, "error_type": "GinghamError"})
+            status = "ERROR"
+            return output, status
 
     def route_check(self, hostname, casenum):
         """
@@ -964,6 +1128,51 @@ class Migration:
                 else:
                     status = "SUCCESS"
                     output.setdefault("dry_run", "%s - %s" % (hostname, deploy_cmd))
+        return output, status
+
+    def monitor_workorder_status(self, estate, estate_hosts):
+        """
+        For a given estate and a list of hosts, this method monitors reimage workorder's status in Gingham.
+        """
+        output = {}
+        status = None
+        gingham = Gingham()
+        in_progress = True
+        interval = 60
+        max_retries = 240
+        count = 0
+        while in_progress and (count < max_retries):
+            res = gingham.monitor_workorder_progress(estate_hosts, estate)
+            if res:
+                if not gingham.success_response["end_time"]:
+                    logger.info("Reimage is in progress for %s. Latest status - %s" %
+                                (estate, gingham.success_response["status"]))
+                    logger.info("Will check the status after %s seconds" % interval)
+                    in_progress = True
+                    time.sleep(interval)
+                    count += 1
+                    for h in estate_hosts:
+                        if "error" in gingham.success_response[h].keys():
+                            logger.error("%s - %s" % (h, gingham.success_response[h]["error"]))
+                        else:
+                            if gingham.success_response[h]["status"] == "FAILED":
+                                logger.error("%s - %s" % (h, gingham.success_response[h]["status"]))
+                                logger.error("%s - %s" % (h, gingham.success_response[h]["message"]))
+                            else:
+                                logger.info("%s - %s" % (h, gingham.success_response[h]["status"]))
+                                if count > 90:
+                                    logger.warning("%s stuck at %s for so long. Check manually once." %
+                                                   (h, gingham.success_response[h]["status"]))
+                else:
+                    logger.info("Reimage operation finished on estate %s" % estate)
+                    status = gingham.success_response["status"]
+                    output.update(gingham.success_response)
+                    in_progress = False
+            else:
+                output.setdefault("error", "Reimage workorder failed on %s" % estate)
+                status = "ERROR"
+                in_progress = False
+
         return output, status
 
     def erase_hostname(self, hostname, casenum):
@@ -1425,11 +1634,13 @@ def main():
                             usage="\n %(prog)s \n\t-h --help prints this help \n\t"
                                   "-v verbose output \n\t"
                                   "-c casenum -a cncinfo \n\t-"
+                                  "-c casenum -a estateinfo \n\t-"
                                   "-c casenum -a routecheck \n\t"
                                   "-c casenum -a image [--role <ROLE>] [--preserve] [--disk_config <default is stage1v0>] [--dry-run] [--force] \n\t"
                                   "-c casenum -a deploy --role <ROLE> --cluster <CLUSTER> --superpod <SUPERPOD> [--preserve] [--dry-run] [--force] \n\t"
                                   "-c casenum -a fail [--dry-run] \n\t"
                                   "-c casenum -a rebuild [--preserve] [--disk_config <default is stage1v0>] [--dry-run] [--force] \n\t"
+                                  "-c casenum -a reimage [--dry-run] \n\t"
                                   "-c casenum -a status [--delay <MINS> default is 10] --previous <PREVIOUS_ACTION>\n\t"
                                   "-c casenum -a erasehostname \n\t"
                                   "-c casenum -a updateopsstatus --status <STATUS> \n\t"
@@ -1439,7 +1650,7 @@ def main():
 
     parser.add_argument("-c", dest="case", help="case number", required=True)
     parser.add_argument("-a", dest="action", help="specify intended action", required=True,
-                        choices=["cncinfo", "routecheck", "image", "fail", "deploy", "rebuild", "status", "erasehostname", "updateopsstatus", "idb_check", "check_disk_config", "validate_nic"])
+                        choices=["cncinfo", "estateinfo", "routecheck", "image", "fail", "deploy", "rebuild", "reimage", "status", "erasehostname", "updateopsstatus", "idb_check", "check_disk_config", "validate_nic"])
     parser.add_argument("--role", dest="host_role", help="specify host role")
     parser.add_argument("--cluster", dest="cluster_name",
                         help="specify cluster name")
@@ -1527,6 +1738,48 @@ def main():
                          (user_home, casenum))
             sys.exit(1)
         misc.write_to_cnc_file(casenum, host_info)
+
+    elif args.action == "estateinfo":
+        if not misc.check_file_exists(casenum, type="include"):
+            logger.error("%s/%s_include file not found or inaccessible" % (user_home, casenum))
+            sys.exit(1)
+        hosts_processed = {}
+        queue = Queue.Queue()
+
+        for i in range(thread_count):
+            logger.debug("thread - %d", i)
+            t = ThreadEstateInfo(queue, casenum, hosts_processed)
+            t.setDaemon(True)
+            t.start()
+        for h in host_list:
+            queue.put(h)
+        queue.join()
+
+        include_list = []
+        exclude_list = []
+        host_info = []
+        failed = False
+        for key in hosts_processed:
+            if hosts_processed[key]["status"] == "ERROR":
+                exclude_list.append(key)
+                logger.error("%s - %s: unable to fetch host/estate information. Check manually." %
+                             (key, hosts_processed[key]["info"]["error_type"]))
+                failed = True
+            elif hosts_processed[key]["status"] == "SUCCESS":
+                include_list.append(key)
+            host_info.append(hosts_processed[key]["info"])
+
+        logger.info("exclude: %s" % ','.join(exclude_list))
+        logger.info("include: %s" % ','.join(include_list))
+        logger.debug(host_info)
+        misc.write_to_include_file(casenum, include_list)
+        for e_host in exclude_list:
+            misc.write_to_exclude_file(casenum, e_host, hosts_processed[e_host]["info"]["error_type"])
+        misc.write_to_hostinfo_file(casenum, host_info)
+        if not include_list:
+            logger.error("No hosts left for processing further. %s/%s_include file is empty after estateinfo." %
+                         (user_home, casenum))
+            sys.exit(1)
 
     elif args.action == "routecheck":
         if not misc.check_file_exists(casenum, type="include"):
@@ -1773,6 +2026,115 @@ def main():
                              (args.prev_action, key, hosts_processed[key]["info"]["error"]))
                 failed = True
         if failed:
+            sys.exit(1)
+
+    elif args.action == "reimage":
+        preserve = args.preserve_data
+        dry_run = args.no_op
+        gingham = Gingham()
+        include_file = "%s/%s_include" % (user_home, casenum)
+        hostinfo_file = "%s/%s_hostinfo" % (user_home, casenum)
+        if not (misc.check_file_exists(casenum, type="include") and misc.check_file_exists(casenum, type="hostinfo")):
+            logger.error("%s or %s file not found or inaccessible" % (include_file, hostinfo_file))
+            sys.exit(1)
+        host_estate_info = misc.read_hostinfo_file(casenum)
+        estate_host_info = misc.group_hosts_by_estate(host_estate_info)
+
+        logger.info("Below estate-host groups will be reimaged via Gingham with Data Preservation: %s" % preserve)
+        for estate in estate_host_info:
+            logger.info("%s - %s" % (estate, ",".join(estate_host_info[estate])))
+        if dry_run:
+            sys.exit(0)
+
+        ok_estates = list()
+        include_hosts = misc.read_hostlist_from_file(casenum, type="include")
+        exclude_hosts = list()
+        for estate in estate_host_info.keys():
+            if not estate or not gingham.get_estate_status(estate):
+                logger.error("Estate {} is not returning OK status. Skipping hosts {}".format(
+                    estate, estate_host_info[estate]))
+                for host in estate_host_info[estate]:
+                    h = host.split(".")[0]
+                    include_hosts.remove(h)
+                    exclude_hosts.append(h)
+                logger.info("Moving %s to exclude file" % (",".join(exclude_hosts)))
+                for h in exclude_hosts:
+                    misc.write_to_exclude_file(casenum, h, "EstateNotOK")
+                misc.write_to_include_file(casenum, include_hosts)
+            else:
+                logger.info("%s is currently in %s status" % (estate, gingham.success_response["status"]))
+                ok_estates.append(estate)
+
+        estates_processed = {}
+        queue = Queue.Queue()
+        for i in range(len(ok_estates)):
+            t = ThreadReimage(queue, casenum, estates_processed)
+            t.setDaemon(True)
+            t.start()
+        for estate in ok_estates:
+            estate_hosts = estate_host_info[estate]
+            lst = [estate, estate_hosts, preserve]
+            queue.put(lst)
+        queue.join()
+        failed = False
+        reimage_triggered_estates = list()
+
+        for key in estates_processed:
+            if estates_processed[key]["status"] == "ERROR":
+                logger.error("Reimage failed on %s. Please troubleshoot accordingly." %
+                             (",".join(estate_host_info[key])))
+                logger.error(estates_processed[key]["message"])
+            else:
+                logger.info("%s - %s" % (key, estates_processed[key]["message"]))
+                reimage_triggered_estates.append(key)
+
+        if not reimage_triggered_estates:
+            logger.error("Failed to trigger reimage on below estates. Exiting!")
+            logger.error(",".join(ok_estates))
+            sys.exit(1)
+
+        queue = Queue.Queue()
+        for i in range(len(reimage_triggered_estates)):
+            t = ThreadMonitoring(queue, casenum, estates_processed)
+            t.setDaemon(True)
+            t.start()
+        for estate in reimage_triggered_estates:
+            estate_hosts = estate_host_info[estate]
+            lst = [estate, estate_hosts]
+            queue.put(lst)
+        queue.join()
+
+        failed_hosts = list()
+        reimaged_hosts = list()
+
+        for key in estates_processed:
+            if estates_processed[key]["status"] == "ERROR":
+                logger.error(estates_processed[key]["info"]["error"])
+                logger.error("Gingham reimage failed on %s. Check manually." % (",".join(estate_host_info[key])))
+            else:
+                if estates_processed[key]["status"] == "COMPLETED":
+                    for h in estate_hosts:
+                        if h in estates_processed[key]["info"].keys():
+                            h_stat = estates_processed[key]["info"][h]["status"]
+                            if h_stat == "FAILED":
+                                logger.error("%s - %s" % (h, h_stat))
+                                logger.error("%s - %s" % (h, estates_processed[key]["info"][h]["message"]))
+                                failed_hosts.append(h)
+                                failed = True
+                            else:
+                                reimaged_hosts.append(h)
+                                logger.info("%s - %s" % (h, h_stat))
+                else:
+                    logger.error("Gingham reimage failed on %s. Check manually." % estate)
+                    logger.error("Failed hosts: %s" % (",".join(estate_host_info[key])))
+                    failed = True
+
+        if reimaged_hosts:
+            logger.info("Reimaged hosts: %s" % (",".join(reimaged_hosts)))
+        if failed:
+            if failed_hosts:
+                logger.error("Gingham reimage operation failed on %s. Check manually." % estate)
+                logger.error("Failed hosts: %s" % (",".join(failed_hosts)))
             sys.exit(1)
 
     elif args.action == "erasehostname":
