@@ -224,7 +224,7 @@ class HostsCheck(object):
         rma = None
         for data in result['records']:
             rma_case_id = str(data['Case_Record__c'])
-            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed')".format(rma_case_id)
+            q = "SELECT CaseNumber FROM Case WHERE (Id = '{}')  AND (Status != 'Closed' AND Status != 'Closed - Duplicate' AND Status != 'Closed - Not Executed' AND Status != 'New' AND Status != 'Return to Service')".format(rma_case_id)
             res = gus_conn.run_query(q, session)
             if len(res['records']) > 0:
                 for d in res['records']:
