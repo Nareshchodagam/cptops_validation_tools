@@ -103,8 +103,10 @@ class CheckRemoteUrl(object):
             elif re.search(r'syntheticsagent|syntheticsmaster', hostname):
                 if port == "8086":  # Hack to hit specific endPoint
                     url = "http://{0}.{1}.sfdc.net:{2}/synthtx/main".format(hostname, self.domain, port)
-                else:
+                elif port == "8081":
                     url = "http://{0}.{1}.sfdc.net:{2}/health".format(hostname, self.domain, port)
+                else:
+                    url = "http://{0}.{1}.sfdc.net:{2}/actuator/health".format(hostname, self.domain, port)
             logging.debug("Built url {0}" .format(url))
             # print("Port is open for {}".format(hostname))
         else:
