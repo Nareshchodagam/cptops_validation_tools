@@ -169,7 +169,7 @@ class HostsCheck(object):
                     if ("does not match" in console_out or "reboot required" in console_out or "action required" in console_out):
                         rc = True
                         flag = False
-                    elif ("unrecognized arguments" in console_out or "valueerror" in console_out):
+                    elif ("unrecognized arguments" in console_out or "valueerror" in console_out or "error: argument" in console_out):
                         rc = True
                         flag = True
                     elif ("no such file or directory" in console_out):
@@ -187,7 +187,7 @@ class HostsCheck(object):
                             print("{0} - already patched".format(host))
                     else:
                         if flag:
-                            print("Unable to determine to the current patch bundle on {0} due to old version of orb-check.py.".format(host))
+                            print("Unable to determine the patch bundle on {0} due to old version of orb-check.py. Adding to include file anyway.".format(host))
                         host_dict[host] = "no_patched"
         except pexpect.EOF:
             host_dict[host] = "PexpectError"
