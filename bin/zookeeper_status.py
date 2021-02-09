@@ -70,6 +70,41 @@ def configQuorumStatus(zoocfgpath):
     if status["QuorumStatus"] != "HEALTHY":
         sys.exit(1)
 
+def configQuorumStatusByDC(datacenterjsonpath):
+    status = {}
+    host = os.getenv("HOSTNAME")
+    _, dc = host.split('-')[0::3]
+    dc = dc.split(".")[0]
+    print(dc)
+    if os.path.exists(datacenterjsonpath):
+        jsonstr = open(datacenterjsonpath, 'r').read()
+        datacenterConfig = json.loads(jsonstr)
+        zkHosts = datacenterConfig["DcMap"][dc]["ZkHosts"]
+        healthyMembers = 0
+        memberCount = 0
+        for zkhost in zkHosts.split(","):
+            memberCount += 1
+            if getStat(zkhost).find('Zookeeper') != -1:
+                healthyMembers += 1
+        
+        status = {
+            "QuorumStatus": "",
+            "HealthyMembers": healthyMembers,
+            "MemberCount": memberCount
+        }
+        if memberCount == 0:
+            status["QuorumStatus"] = "INDETERMINATE - SUPPLIED DATA_CENTER.JSON HAS NO QUORUM MEMBERS"
+        else:
+            if healthyMembers == memberCount:
+                status["QuorumStatus"] = "HEALTHY"
+            else:
+                status["QuorumStatus"] = str(memberCount - healthyMembers) + "FAILED NODE(S)"
+    else:
+        status["QuorumStatus"] = "INDETERMINATE - DATA_CENTER.JSON PATH NOT FOUND"
+    print(status)
+    if status["QuorumStatus"] != "HEALTHY":
+        sys.exit(1)
+
 def parseData(data):
     running = False
     for d in data.split('\n'):
@@ -159,6 +194,7 @@ if __name__ == '__main__':
     parser = OptionParser(usage)
 
     parser.add_option("--quorumstatus", dest="quorumstatus", help="Path to zoo.cfg for assessing quorum health.")
+    parser.add_option("--quorumstatusjson", dest="quorumstatusjson", help="Path to datacenter.json for assessing quorum health.")
     parser.add_option("-H", "--hostlist", dest="hostlist", help="The hostlist for the change")
     parser.add_option("-v", action="store_true", dest="verbose", default=False, help="verbosity") # will set to False later
     parser.add_option("-b", action="store_true", dest="buildlist", default=False, help="Builds hostlist for Search Zookeeper.")
@@ -171,6 +207,8 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.DEBUG)
     if options.quorumstatus:
         configQuorumStatus(options.quorumstatus)
+    if options.quorumstatusjson:
+        configQuorumStatusByDC(options.quorumstatusjson)
     hostlist = ['localhost']
     hosts_status = {}
     failure_count = 0
