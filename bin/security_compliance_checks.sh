@@ -72,6 +72,7 @@ function check_retval_ne_0() {
   else
     failed_result
   fi
+}
 ##################################
     # 1.1.22 auditd Enabled
     ##################################
@@ -81,6 +82,17 @@ function check_retval_ne_0() {
         failed_result
     else
         success_result
+    fi
+
+##################################
+    # 1.5.4 Ensure telnet client is not installed
+    ##################################
+    header "1.5.4 Ensure telnet client is not installed"
+    msg 'rpm -q telnet'
+    if [[ "$(rpm -q telnet)" == "package telnet is not installed" ]];then
+        success_result
+    else
+        failed_result
     fi
 
 ##############
@@ -95,4 +107,4 @@ printf "%4s\n" "$(($PASSED_CHECKS + $FAILED_CHECKS))"
 printf "%$(($WIDTH - 4))s" "FAILED CHECKS: "
 printf "%4s\n" "$FAILED_CHECKS"
 printf "%$(($WIDTH - 4))s" "PASSED CHECKS: "
-printf "%4s\n" "$PASSED_CHECKS"}
+printf "%4s\n" "$PASSED_CHECKS"
