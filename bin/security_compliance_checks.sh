@@ -84,6 +84,18 @@ function check_retval_ne_0() {
         success_result
     fi
 
+
+#############################################
+    # 6.1.10 Ensure no world writable files exist
+    #############################################
+    header "  Ensure no world writable files exist  "
+    msg "df --local -P ... "
+    if [[ $(df --local -P | awk '{if (NR!=1) print $6}' | xargs -I '{}' find '{}' -xdev -type f -perm -0002) =~ ^$ ]];then
+        success_result
+    else
+        failed_result
+    fi
+
 ##################################
     # 1.5.4 Ensure telnet client is not installed
     ##################################
