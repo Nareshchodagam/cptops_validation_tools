@@ -85,6 +85,37 @@ function check_retval_ne_0() {
     fi
 
 
+###############################################
+      # 1.6.1.2 Ensure the SELinux state is enforcing
+      ###############################################
+
+          header "1.6.1.2 Ensure the SELinux state is enforcing"
+          msg ' grep SELINUX=enforcing /etc/selinux/config'
+          grep SELINUX=enforcing /etc/selinux/config 2>&1 > /dev/null
+          check_retval_eq_0 $?
+
+
+#####################################
+    # 5.2.15 Ensure SSH access is limited
+    #####################################
+    header "5.2.15 Ensure SSH access is limited"
+    msg 'grep "^AllowUsers" /etc/ssh/sshd_config'
+    grep "^AllowUsers" /etc/ssh/sshd_config 2>&1 > /dev/null
+    check_retval_eq_0 $?
+
+    msg 'grep "^AllowGroups" /etc/ssh/sshd_config'
+    grep "^AllowGroups" /etc/ssh/sshd_config 2>&1 > /dev/null
+    check_retval_eq_0 $?
+
+    msg 'grep "^DenyUsers" /etc/ssh/sshd_config'
+    grep "^DenyUsers" /etc/ssh/sshd_config 2>&1 > /dev/null
+    check_retval_eq_0 $?
+
+    msg 'grep "^DenyGroups" /etc/ssh/sshd_config'
+    grep "^DenyGroups" /etc/ssh/sshd_config 2>&1 > /dev/null
+    check_retval_eq_0 $?
+
+
 #############################################
     # 6.1.10 Ensure no world writable files exist
     #############################################
