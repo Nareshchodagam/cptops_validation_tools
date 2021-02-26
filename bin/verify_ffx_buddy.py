@@ -8,6 +8,8 @@ from re import search
 from socket import gethostname
 from idbhost import Idbhost
 from argparse import ArgumentParser, RawTextHelpFormatter
+import json
+from subprocess import Popen, PIPE, CalledProcessError
 
 
 class bcolors:
@@ -156,6 +158,26 @@ def application_ping_check(host):
     elif "ALIVE" in status:
         print("FFX App on buddy host %s is" + bcolors.OKGREEN + " Running " + bcolors.ENDC + "\n") % buddy
 
+def get_host_status(host):
+    
+    """
+    This function is use to get the host status from IDB
+    :param host: hostname
+    :return: host status
+    """
+
+    idb_cmd = "inventory-action.pl -q -use_krb_auth -resource host -action read -host.name " + host +  " -fields operationalStatus"
+    try:
+        command = Popen([idb_cmd], stdout=PIPE, shell=True)
+        (output, err) = command.communicate()
+        host_json = json.loads(output)
+        host_status = str(host_json["data"][0]["operationalStatus"])
+        return host_status
+    except CalledProcessError as err:
+        print(bcolors.FAIL +"ERROR:Unable to connect to idb for host " + host + ":Please run kinit." + bcolors.ENDC + "\n")
+        logging.error(err)
+        sys.exit(1)
+
 def buddy_find(host):
     """
     This function is used to check the status of app on buddy host.
@@ -219,7 +241,12 @@ if __name__ == "__main__":
         get_buddy(hosts_lst,args.case_num)
     else:
         for host in hosts_lst:
-            application_ping_check(host)
+            host_status = get_host_status(host)
+
+            if host_status == "IN_MAINTENANCE" or host_status == "DECOM":
+                print(bcolors.WARNING + "Skipping buddy check for host " + host + " as host staus is " + host_status + bcolors.ENDC + "\n")
+            else:
+                application_ping_check(host)
 
     line = 0
     if dict_lookup('ERROR', err_dict):
