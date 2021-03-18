@@ -178,6 +178,7 @@ bin_files = ['bin/check_mq_buddy.py',
              'bin/validate_manifests.py',
              'bin/search_buddy_health_check.py',
              'bin/scrtkafka',
+             'bin/check_availability.sh',
              'cptops_idbhost/idbhost.py',
              'cptops_nagios/bin/nagios_monitor.py',
              'cptops_nagios/bin/nagios_monitor_single.py',
@@ -226,4 +227,5 @@ setup(
     ],
     keywords='cpt tools',
     license='Salesforce Proprietary Code',
+
 )
