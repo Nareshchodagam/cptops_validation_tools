@@ -350,7 +350,7 @@ def find_proxy(hostname):
         environ['https_proxy'] = "http://public-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
     else:
         environ['https_proxy'] = "http://public0-proxy1-0-{0}.data.sfdc.net:8080/".format(site)
-        logging.debug("env variable set for prd host")
+    logging.debug("https_proxy env variable is set to {0}".format(environ.get("https_proxy", "")))
     # logger.debug("setup proxy %s" .format(environ['https_proxy']))
 
 def main():
