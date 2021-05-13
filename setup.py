@@ -16,6 +16,7 @@ root_files = ['cptops_exec_with_creds/gus_case_mngr.py',
               'cptops_exec_with_creds/creds_conf.py',
               'cptops_exec_with_creds/users.json']
 
+
 remote_files = ['bin/check_local_port.py',
                 'bin/validate_patchset.py',
                 'bin/check_data_restore.sh',
