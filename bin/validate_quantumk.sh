@@ -30,7 +30,7 @@ containerUptime() {
 
 healthcheckQuery() {
 
-if systemctl is-active --quiet docker.service; then
+if systemctl is-active --quiet docker.service && systemctl is-active --quiet quantumk.service; then
 
   HEALTHCHECK_PORT='8444'
   HEALTHCHECK_QUERY="http://localhost:${HEALTHCHECK_PORT}/health/status"
@@ -47,21 +47,21 @@ if systemctl is-active --quiet docker.service; then
       echo "fail" && exit 3
   fi
 else
-  echo "Check docker.service" && exit 9
+  echo "Check docker/quantumk.service" && exit 9
 fi
 }
 
 case "$1" in
   stop)
     echo "Shutting down QuantumK"
-    docker-compose -f /opt/docker-compose-keycloak.yml down
+    systemctl stop quantumk.service
     ;;
   status)
     containerUptime && healthcheckQuery
     ;;
   start)
     echo "Starting QuantumK"
-    docker-compose -f /opt/docker-compose-keycloak.yml up -d
+    systemctl start quantumk.service
     $0 status
     ;;
   *)
