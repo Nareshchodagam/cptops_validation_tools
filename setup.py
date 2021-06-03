@@ -153,7 +153,8 @@ remote_files = ['bin/check_local_port.py',
                 'bin/validate_stampy.sh',
                 'bin/get_mac_addr.py',
 		'bin/security_compliance_checks.sh',
-                'bin/ffx_data_integrity.sh']
+                'bin/ffx_data_integrity.sh',
+		'bin/netmgt_lock_remove.py']
 
 bin_files = ['bin/check_mq_buddy.py',
              'bin/check_reconnect.py',
